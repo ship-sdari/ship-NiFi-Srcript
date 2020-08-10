@@ -64,13 +64,13 @@ public class BaseScriptedLookupService extends AbstractScriptedControllerService
     }
 
     /**
-     * Returns a list of property descriptors supported by this processor. The
+     * Returns a list of property descriptors supported by this com.sdari.processor. The
      * list always includes properties such as script engine name, script file
      * name, script body name, script arguments, and an external module path. If
-     * the scripted processor also defines supported properties, those are added
+     * the scripted com.sdari.processor also defines supported properties, those are added
      * to the list as well.
      *
-     * @return a List of PropertyDescriptor objects supported by this processor
+     * @return a List of PropertyDescriptor objects supported by this com.sdari.processor
      */
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
@@ -138,7 +138,7 @@ public class BaseScriptedLookupService extends AbstractScriptedControllerService
     }
 
     /**
-     * Handles changes to this processor's properties. If changes are made to
+     * Handles changes to this com.sdari.processor's properties. If changes are made to
      * script- or engine-related properties, the script will be reloaded.
      *
      * @param descriptor of the modified property
@@ -288,7 +288,7 @@ public class BaseScriptedLookupService extends AbstractScriptedControllerService
                     final ComponentLog logger = getLogger();
 
                     try {
-                        // set the logger if the processor wants it
+                        // set the logger if the com.sdari.processor wants it
                         invocable.invokeMethod(obj, "setLogger", logger);
                     } catch (final NoSuchMethodException nsme) {
                         if (logger.isDebugEnabled()) {
@@ -296,7 +296,7 @@ public class BaseScriptedLookupService extends AbstractScriptedControllerService
                         }
                     }
 
-                    // record the processor for use later
+                    // record the com.sdari.processor for use later
                     final LookupService scriptedLookupService = invocable.getInterface(obj, LookupService.class);
                     lookupService.set(scriptedLookupService);
 

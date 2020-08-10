@@ -59,9 +59,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Tags({"script", "invoke", "groovy", "python", "jython", "jruby", "ruby", "javascript", "js", "lua", "luaj"})
 @CapabilityDescription("Experimental - Invokes a script engine for a Processor defined in the given script. The script must define "
-        + "a valid class that implements the Processor interface, and it must set a variable 'processor' to an instance of "
+        + "a valid class that implements the Processor interface, and it must set a variable 'com.sdari.processor' to an instance of "
         + "the class. Processor methods such as onTrigger() will be delegated to the scripted Processor instance. Also any "
-        + "Relationships or PropertyDescriptors defined by the scripted processor will be added to the configuration dialog. The scripted processor can "
+        + "Relationships or PropertyDescriptors defined by the scripted com.sdari.processor will be added to the configuration dialog. The scripted com.sdari.processor can "
         + "implement public void setLogger(ComponentLog logger) to get access to the parent logger, as well as public void onScheduled(ProcessContext context) and "
         + "public void onStopped(ProcessContext context) methods to be invoked when the parent InvokeScriptedProcessor is scheduled or stopped, respectively.  "
         + "Experimental: Impact of sustained usage not yet verified.")
@@ -93,10 +93,10 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
     volatile ScriptingComponentHelper scriptingComponentHelper = new ScriptingComponentHelper();
 
     /**
-     * Returns the valid relationships for this processor as supplied by the
+     * Returns the valid relationships for this com.sdari.processor as supplied by the
      * script itself.
      *
-     * @return a Set of Relationships supported by this processor
+     * @return a Set of Relationships supported by this com.sdari.processor
      */
     @Override
     public Set<Relationship> getRelationships() {
@@ -129,13 +129,13 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
     }
 
     /**
-     * Returns a list of property descriptors supported by this processor. The
+     * Returns a list of property descriptors supported by this com.sdari.processor. The
      * list always includes properties such as script engine name, script file
      * name, script body name, script arguments, and an external module path. If
-     * the scripted processor also defines supported properties, those are added
+     * the scripted com.sdari.processor also defines supported properties, those are added
      * to the list as well.
      *
-     * @return a List of PropertyDescriptor objects supported by this processor
+     * @return a List of PropertyDescriptor objects supported by this com.sdari.processor
      */
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
@@ -190,8 +190,8 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
     }
 
     /**
-     * Performs setup operations when the processor is scheduled to run. This
-     * includes evaluating the processor's properties, as well as reloading the
+     * Performs setup operations when the com.sdari.processor is scheduled to run. This
+     * includes evaluating the com.sdari.processor's properties, as well as reloading the
      * script (from file or the "Script Body" property)
      *
      * @param context the context in which to perform the setup operations
@@ -237,7 +237,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
 
 
     /**
-     * Handles changes to this processor's properties. If changes are made to
+     * Handles changes to this com.sdari.processor's properties. If changes are made to
      * script- or engine-related properties, the script will be reloaded.
      *
      * @param descriptor of the modified property
@@ -261,7 +261,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                 || scriptingComponentHelper.SCRIPT_ENGINE.equals(descriptor)) {
             scriptNeedsReload.set(true);
             scriptEngine = null;
-            //reset engine. This happens only when a processor is stopped,
+            //reset engine. This happens only when a com.sdari.processor is stopped,
             // so there won't be any performance impact in run-time.
         } else if (instance != null) {
             // If the script provides a Processor, call its onPropertyModified() method
@@ -331,13 +331,13 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                     scriptEngine.eval(scriptBody);
                 }
 
-                // get configured processor from the script (if it exists)
-                final Object obj = scriptEngine.get("processor");
+                // get configured com.sdari.processor from the script (if it exists)
+                final Object obj = scriptEngine.get("com.sdari.processor");
                 if (obj != null) {
                     final ComponentLog logger = getLogger();
 
                     try {
-                        // set the logger if the processor wants it
+                        // set the logger if the com.sdari.processor wants it
                         invocable.invokeMethod(obj, "setLogger", logger);
                     } catch (final NoSuchMethodException nsme) {
                         if (logger.isDebugEnabled()) {
@@ -345,7 +345,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                         }
                     }
 
-                    // record the processor for use later
+                    // record the com.sdari.processor for use later
                     final Processor scriptProcessor = invocable.getInterface(obj, Processor.class);
                     processor.set(scriptProcessor);
 
@@ -393,7 +393,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                         }
                     }
                 } else {
-                    throw new ScriptException("No processor was defined by the script.");
+                    throw new ScriptException("No com.sdari.processor was defined by the script.");
                 }
             }
 
@@ -421,7 +421,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
      * Invokes the validate() routine provided by the script, allowing for
      * custom validation code. This method assumes there is a valid Processor
      * defined in the script and it has been loaded by the
-     * InvokeScriptedProcessor processor
+     * InvokeScriptedProcessor com.sdari.processor
      *
      * @param context The validation context to be passed into the custom
      *                validate method
@@ -437,7 +437,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
             return commonValidationResults;
         }
 
-        // do not try to build processor/compile/etc until onPropertyModified clear the validation error/s
+        // do not try to build com.sdari.processor/compile/etc until onPropertyModified clear the validation error/s
         // and don't print anything into log.
         if (!validationResults.get().isEmpty()) {
             return validationResults.get();
@@ -458,14 +458,14 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
         }
         setup(context);
 
-        // Now that InvokeScriptedProcessor is validated, we can call validate on the scripted processor
+        // Now that InvokeScriptedProcessor is validated, we can call validate on the scripted com.sdari.processor
         final Processor instance = processor.get();
         final Collection<ValidationResult> currentValidationResults = validationResults.get();
 
-        // if there was existing validation errors and the processor loaded successfully
+        // if there was existing validation errors and the com.sdari.processor loaded successfully
         if (currentValidationResults.isEmpty() && instance != null) {
             try {
-                // defer to the underlying processor for validation, without the
+                // defer to the underlying com.sdari.processor for validation, without the
                 // MyInvokeScriptedProcessor properties
                 final Set<PropertyDescriptor> innerPropertyDescriptor = new HashSet<>(scriptingComponentHelper.getDescriptors());
 
@@ -517,24 +517,24 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
     }
 
     /**
-     * Invokes the onTrigger() method of the scripted processor. If the script
-     * failed to reload, the processor yields until the script can be reloaded
-     * successfully. If the scripted processor's onTrigger() method throws an
-     * exception, a ProcessException will be thrown. If no processor is defined
+     * Invokes the onTrigger() method of the scripted com.sdari.processor. If the script
+     * failed to reload, the com.sdari.processor yields until the script can be reloaded
+     * successfully. If the scripted com.sdari.processor's onTrigger() method throws an
+     * exception, a ProcessException will be thrown. If no com.sdari.processor is defined
      * by the script, an error is logged with the system.
      *
      * @param context        provides access to convenience methods for obtaining
-     *                       property values, delaying the scheduling of the processor, provides
+     *                       property values, delaying the scheduling of the com.sdari.processor, provides
      *                       access to Controller Services, etc.
      * @param sessionFactory provides access to a {@link ProcessSessionFactory},
      *                       which can be used for accessing FlowFiles, etc.
-     * @throws ProcessException if the scripted processor's onTrigger() method
+     * @throws ProcessException if the scripted com.sdari.processor's onTrigger() method
      *                          throws an exception
      */
     @Override
     public void onTrigger(ProcessContext context, ProcessSessionFactory sessionFactory) throws ProcessException {
 
-        // Initialize the rest of the processor resources if we have not already done so
+        // Initialize the rest of the com.sdari.processor resources if we have not already done so
         synchronized (scriptingComponentHelper.isInitialized) {
             if (!scriptingComponentHelper.isInitialized.get()) {
                 scriptingComponentHelper.createResources();
@@ -543,10 +543,10 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
 
         ComponentLog log = getLogger();
 
-        // ensure the processor (if it exists) is loaded
+        // ensure the com.sdari.processor (if it exists) is loaded
         final Processor instance = processor.get();
 
-        // ensure the processor did not fail to reload at some point
+        // ensure the com.sdari.processor did not fail to reload at some point
         final Collection<ValidationResult> results = validationResults.get();
         if (!results.isEmpty()) {
             log.error(String.format("Unable to run because the Processor is not valid: [%s]",
@@ -556,7 +556,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
         }
         if (instance != null) {
             try {
-                // run the processor
+                // run the com.sdari.processor
                 instance.onTrigger(context, sessionFactory);
             } catch (final ProcessException e) {
                 final String message = String.format("An error occurred executing the configured Processor [%s]: %s",
@@ -565,7 +565,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                 throw e;
             }
         } else {
-            log.error("There is no processor defined by the script");
+            log.error("There is no com.sdari.processor defined by the script");
         }
     }
 
@@ -579,10 +579,10 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
     }
 
     private void invokeScriptedProcessorMethod(String methodName, Object... params) {
-        // Run the scripted processor's method here, if it exists
+        // Run the scripted com.sdari.processor's method here, if it exists
         if (scriptEngine instanceof Invocable) {
             final Invocable invocable = (Invocable) scriptEngine;
-            final Object obj = scriptEngine.get("processor");
+            final Object obj = scriptEngine.get("com.sdari.processor");
             if (obj != null) {
 
                 ComponentLog logger = getLogger();
@@ -594,7 +594,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                     }
                 } catch (final Exception e) {
                     // An error occurred during onScheduled, propagate it up
-                    logger.error("Error while executing the scripted processor's method " + methodName, e);
+                    logger.error("Error while executing the scripted com.sdari.processor's method " + methodName, e);
                     if (e instanceof ProcessException) {
                         throw (ProcessException) e;
                     }

@@ -78,11 +78,11 @@ public class ScriptedReportingTask extends AbstractReportingTask {
     private volatile JmxJvmMetrics vmMetrics;
 
     /**
-     * Returns a list of property descriptors supported by this processor. The list always includes properties such as
+     * Returns a list of property descriptors supported by this com.sdari.processor. The list always includes properties such as
      * script engine name, script file name, script body name, script arguments, and an external module path. If the
-     * scripted processor also defines supported properties, those are added to the list as well.
+     * scripted com.sdari.processor also defines supported properties, those are added to the list as well.
      *
-     * @return a List of PropertyDescriptor objects supported by this processor
+     * @return a List of PropertyDescriptor objects supported by this com.sdari.processor
      */
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
@@ -119,7 +119,7 @@ public class ScriptedReportingTask extends AbstractReportingTask {
     }
 
     /**
-     * Performs setup operations when the processor is scheduled to run. This includes evaluating the processor's
+     * Performs setup operations when the com.sdari.processor is scheduled to run. This includes evaluating the com.sdari.processor's
      * properties, as well as reloading the script (from file or the "Script Body" property)
      *
      * @param context the context in which to perform the setup operations

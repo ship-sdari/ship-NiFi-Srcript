@@ -1,6 +1,6 @@
-package com.sdari.vo
+package com.sdari.dto
 
-public class TStreamRuleDTO {
+class TStreamRuleDTO {
     //  配置规则号
     private int ruleId;
     // 船id

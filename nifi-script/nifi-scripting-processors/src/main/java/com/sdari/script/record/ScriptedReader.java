@@ -97,13 +97,13 @@ public class ScriptedReader extends AbstractScriptedRecordFactory<RecordReaderFa
                     scriptEngine.eval(scriptBody);
                 }
 
-                // get configured processor from the script (if it exists)
+                // get configured com.sdari.processor from the script (if it exists)
                 final Object obj = scriptEngine.get("reader");
                 if (obj != null) {
                     final ComponentLog logger = getLogger();
 
                     try {
-                        // set the logger if the processor wants it
+                        // set the logger if the com.sdari.processor wants it
                         invocable.invokeMethod(obj, "setLogger", logger);
                     } catch (final NoSuchMethodException nsme) {
                         if (logger.isDebugEnabled()) {
@@ -113,7 +113,7 @@ public class ScriptedReader extends AbstractScriptedRecordFactory<RecordReaderFa
 
                     if (configurationContext != null) {
                         try {
-                            // set the logger if the processor wants it
+                            // set the logger if the com.sdari.processor wants it
                             invocable.invokeMethod(obj, "setConfigurationContext", configurationContext);
                         } catch (final NoSuchMethodException nsme) {
                             if (logger.isDebugEnabled()) {
@@ -122,7 +122,7 @@ public class ScriptedReader extends AbstractScriptedRecordFactory<RecordReaderFa
                         }
                     }
 
-                    // record the processor for use later
+                    // record the com.sdari.processor for use later
                     final RecordReaderFactory scriptedReader = invocable.getInterface(obj, RecordReaderFactory.class);
                     recordFactory.set(scriptedReader);
 

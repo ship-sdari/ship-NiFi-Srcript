@@ -172,7 +172,7 @@ public class ScriptingComponentHelper {
     }
 
     /**
-     * This method creates all resources needed for the script processor to function, such as script engines,
+     * This method creates all resources needed for the script com.sdari.processor to function, such as script engines,
      * script file reloader threads, etc.
      */
     public void createResources() {
@@ -238,7 +238,7 @@ public class ScriptingComponentHelper {
     }
 
     /**
-     * Performs common setup operations when the processor is scheduled to run. This method assumes the member
+     * Performs common setup operations when the com.sdari.processor is scheduled to run. This method assumes the member
      * variables associated with properties have been filled.
      *
      * @param numberOfScriptEngines number of engines to setup
