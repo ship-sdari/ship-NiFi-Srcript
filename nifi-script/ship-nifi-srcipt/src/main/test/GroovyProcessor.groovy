@@ -22,7 +22,9 @@ import org.apache.nifi.processor.util.StandardValidators
 class GroovyProcessor implements Processor {
 
     def log
-    private Map<String, PropertyDescriptor> descriptorMap = new HashMap<>()
+    private static Map<String, PropertyDescriptor> descriptorMap = new HashMap<>()
+
+    private  static String  t="12";
     final static Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
             .description('FlowFiles that were successfully processed and had any data enriched are routed here')
@@ -46,13 +48,14 @@ class GroovyProcessor implements Processor {
     @Override
     List<PropertyDescriptor> getPropertyDescriptors() {
         List<PropertyDescriptor> descriptorList = new ArrayList<>();
+        descriptorList.add(DBCP_SERVICE);
         for (String name : descriptorMap.keySet()) {
             descriptorList.add(descriptorMap.get(name))
         }
         Collections.unmodifiableList(descriptorList) as List<PropertyDescriptor>
     }
 
-    void initialize(ProcessorInitializationContext context) { log = context.logger }
+    void initialize(ProcessorInitializationContext context) { log = context.getLogger() }
 
     public static GroovyRowResult toRowResult(ResultSet rs) throws SQLException {
         ResultSetMetaData metadata = rs.getMetaData();
@@ -68,8 +71,10 @@ class GroovyProcessor implements Processor {
      * @param context
      */
     @OnScheduled
-    public void OnScheduled(final ProcessContext context) {
+     void onScheduled(final ProcessContext context) {
         Map<PropertyDescriptor, String> map = context.getProperties();
+        log.info("map:", map)
+        t="13";
         for (PropertyDescriptor descriptor : map.keySet()) {
             descriptorMap.put(descriptor.getName(), descriptor)
         }
@@ -85,13 +90,20 @@ class GroovyProcessor implements Processor {
             Class aClass = loader.parseClass(new File("/home/sdari/script/AmsInnerKeyVo.groovy"));
 
             GroovyObject instance = (GroovyObject) aClass.newInstance();
-            String a="1"
-            String key="SCRIPT_PROCESSOR_ID"
-            if(descriptorMap.containsKey(key)){
-                a=descriptorMap.get(key).getDefaultValue()
+            String a = "1"
+            String a2 = "3"
+            String key = "SCRIPT_PROCESSOR_ID"
+            if (descriptorMap.containsKey(key)) {
+                a = descriptorMap.get(key).getName()
             }
-            flowFile = session.putAttribute(flowFile, "from-attribute-Liumouren", a)
-            flowFile = session.putAttribute(flowFile, "message",     instance.ge_fo1_total)
+            String key2 = "dbcp-connection-pool-services"
+            if (descriptorMap.containsKey(key2)) {
+                a2 = descriptorMap.get(key2).getName()
+            }
+
+            flowFile = session.putAttribute(flowFile, "from-attribute-Liumouren",a )
+            flowFile = session.putAttribute(flowFile, "message", t)
+            flowFile = session.putAttribute(flowFile, "my", a2)
             session.transfer(flowFile, REL_SUCCESS)
         } catch (final Throwable t) {
             log.error('{} failed to process due to {}', [this, t] as Object[])
