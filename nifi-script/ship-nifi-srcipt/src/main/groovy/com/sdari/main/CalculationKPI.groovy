@@ -1,4 +1,4 @@
-package com.sdari.groovy.main
+package com.sdari.main
 
 
 class CalculationKPI {

@@ -1,10 +1,4 @@
-package com.sdari.groovy.vo
-
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
-
-import java.math.BigDecimal;
-
+package com.sdari.vo
 
 public class TStreamRuleDTO {
     //  配置规则号

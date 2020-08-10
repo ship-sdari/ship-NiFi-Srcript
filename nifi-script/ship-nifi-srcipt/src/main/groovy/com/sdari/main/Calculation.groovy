@@ -1,3 +1,4 @@
+package com.sdari.main
 //package com.sdari.groovy.main
 
 class Calculation {

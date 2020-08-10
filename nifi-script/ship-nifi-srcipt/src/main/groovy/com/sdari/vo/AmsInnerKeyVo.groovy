@@ -1,3 +1,4 @@
+package com.sdari.vo
 
 class AmsInnerKeyVo {
 

@@ -1,3 +1,7 @@
+package com.sdari.kpi
+
+import com.sdari.vo.AmsInnerKeyVo
+
 //package com.sdari.groovy.kpi
 
 
