@@ -140,7 +140,7 @@ public class ScriptedReader extends AbstractScriptedRecordFactory<RecordReaderFa
                     .subject("ScriptValidation")
                     .valid(false)
                     .explanation("Unable to load script due to " + ex.getLocalizedMessage())
-                    .input(scriptingComponentHelper.getScriptPathBySql())
+                    .input(scriptingComponentHelper.getScriptPath())
                     .build());
         }
 

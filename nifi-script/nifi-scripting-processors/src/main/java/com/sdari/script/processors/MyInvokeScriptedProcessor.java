@@ -92,6 +92,8 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
     private volatile File kerberosServiceKeytab = null;
     volatile ScriptingComponentHelper scriptingComponentHelper = new ScriptingComponentHelper();
 
+    /*    */
+
     /**
      * Returns the valid relationships for this processor as supplied by the
      * script itself.
@@ -227,10 +229,10 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
         }
 
         if (scriptNeedsReload.get() || processor.get() == null) {
-            if (!ScriptingComponentHelper.isFile(scriptingComponentHelper.getScriptPathBySql())) {
+            if (!ScriptingComponentHelper.isFile(scriptingComponentHelper.getScriptPath())) {
                 scriptingComponentHelper.setScriptPath(path);
             }
-            reloadScriptFile(scriptingComponentHelper.getScriptPathBySql());
+            reloadScriptFile(scriptingComponentHelper.getScriptPath());
             scriptNeedsReload.set(false);
         }
     }
@@ -321,7 +323,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
             // get the engine and ensure its invocable
             if (scriptEngine instanceof Invocable) {
                 final Invocable invocable = (Invocable) scriptEngine;
-
+                final ComponentLog logger = getLogger();
                 // Find a custom configurator and invoke their eval() method
                 ScriptEngineConfigurator configurator = scriptingComponentHelper.scriptEngineConfiguratorMap.get(scriptingComponentHelper.getScriptEngineName().toLowerCase());
                 if (configurator != null) {
@@ -330,11 +332,18 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                     // evaluate the script
                     scriptEngine.eval(scriptBody);
                 }
+                try {
+                    Object[] conf = {scriptingComponentHelper.getDBCPService(), scriptingComponentHelper.getProcessorId()};
+                    invocable.invokeFunction("scriptInit", conf);
+                } catch (Exception e) {
+                    logger.error("Unable to invokeFunction:" + e.getLocalizedMessage(), e);
+                    throw new ProcessException(e);
+                }
 
                 // get configured processor from the script (if it exists)
                 final Object obj = scriptEngine.get("processor");
                 if (obj != null) {
-                    final ComponentLog logger = getLogger();
+
 
                     try {
                         // set the logger if the processor wants it
@@ -406,7 +415,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                     .subject("ScriptValidation")
                     .valid(false)
                     .explanation("Unable to load script due to " + ex.getLocalizedMessage())
-                    .input(scriptingComponentHelper.getScriptPathBySql())
+                    .input(scriptingComponentHelper.getScriptPath())
                     .build());
         }
 

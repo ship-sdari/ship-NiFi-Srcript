@@ -246,8 +246,8 @@ public class BaseScriptedLookupService extends AbstractScriptedControllerService
         }
 
         if (scriptNeedsReload.get() || lookupService.get() == null) {
-            if (ScriptingComponentHelper.isFile(scriptingComponentHelper.getScriptPathBySql())) {
-                reloadScriptFile(scriptingComponentHelper.getScriptPathBySql());
+            if (ScriptingComponentHelper.isFile(scriptingComponentHelper.getScriptPath())) {
+                reloadScriptFile(scriptingComponentHelper.getScriptPath());
             } else {
                 reloadScriptBody(scriptingComponentHelper.getScriptBody());
             }
@@ -365,7 +365,7 @@ public class BaseScriptedLookupService extends AbstractScriptedControllerService
                     .subject("ScriptedLookupServiceValidation")
                     .valid(false)
                     .explanation("Unable to load script due to " + ex.getLocalizedMessage())
-                    .input(scriptingComponentHelper.getScriptPathBySql())
+                    .input(scriptingComponentHelper.getScriptPath())
                     .build());
         }
 

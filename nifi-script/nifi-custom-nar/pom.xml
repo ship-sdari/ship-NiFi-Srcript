@@ -23,8 +23,8 @@
     <modelVersion>4.0.0</modelVersion>
 
 
-    <artifactId>nifi-custom-nar</artifactId>
-    <version>1.1.0</version>
+    <artifactId>nifi-custom-MyInvokeScriptedProcessor</artifactId>
+    <version>1.1.1</version>
     <packaging>nar</packaging>
 
     <dependencies>
