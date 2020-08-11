@@ -19,7 +19,6 @@ package com.sdari.script.processors;
 import com.sdari.script.utils.ScriptingComponentHelper;
 import com.sdari.script.utils.ScriptingComponentUtils;
 import com.sdari.script.utils.impl.FilteredPropertiesValidationContextAdapter;
-import lombok.SneakyThrows;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.annotation.behavior.DynamicProperty;
@@ -45,6 +44,7 @@ import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.impl.StaticLoggerBinder;
 
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
@@ -323,7 +323,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
             // get the engine and ensure its invocable
             if (scriptEngine instanceof Invocable) {
                 final Invocable invocable = (Invocable) scriptEngine;
-                final ComponentLog logger = getLogger();
+                logger.info("开始日志打印---");
                 // Find a custom configurator and invoke their eval() method
                 ScriptEngineConfigurator configurator = scriptingComponentHelper.scriptEngineConfiguratorMap.get(scriptingComponentHelper.getScriptEngineName().toLowerCase());
                 if (configurator != null) {
@@ -333,8 +333,10 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                     scriptEngine.eval(scriptBody);
                 }
                 try {
-                    Object[] conf = {scriptingComponentHelper.getDBCPService(), scriptingComponentHelper.getProcessorId()};
-                    invocable.invokeFunction("scriptInit", conf);
+                    logger.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
+                    invocable.invokeFunction("scriptByInit",
+                            scriptingComponentHelper.getDBCPService(),
+                            scriptingComponentHelper.getProcessorId());
                 } catch (Exception e) {
                     logger.error("Unable to invokeFunction:" + e.getLocalizedMessage(), e);
                     throw new ProcessException(e);
@@ -342,15 +344,45 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
 
                 // get configured processor from the script (if it exists)
                 final Object obj = scriptEngine.get("processor");
+                final ComponentLog log = getLogger();
                 if (obj != null) {
-
-
                     try {
                         // set the logger if the processor wants it
-                        invocable.invokeMethod(obj, "setLogger", logger);
-                    } catch (final NoSuchMethodException nsme) {
-                        if (logger.isDebugEnabled()) {
-                            logger.debug("Configured script Processor does not contain a setLogger method.");
+                        log.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
+                        MyInvokeScriptedProcessor.logger.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
+                        invocable.invokeMethod(obj, "scriptByInit",
+                                scriptingComponentHelper.getDBCPService(),
+                                scriptingComponentHelper.getProcessorId());
+
+                    } catch (final Exception nsme) {
+                        log.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
+                        MyInvokeScriptedProcessor.logger.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
+                        if (log.isDebugEnabled()) {
+                            log.debug("scriptInit.");
+                        }
+                    }
+                    try {
+                        // set the logger if the processor wants it
+
+                        log.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
+                        MyInvokeScriptedProcessor.logger.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
+                        invocable.invokeMethod(obj, "scriptByInitId",
+                                scriptingComponentHelper.getProcessorId());
+                    } catch (final Exception nsme) {
+                        log.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
+                        MyInvokeScriptedProcessor.logger.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
+                        if (log.isDebugEnabled()) {
+                            log.debug("scriptInit.");
+                        }
+                    }
+                    try {
+                        // set the logger if the processor wants it
+                        invocable.invokeMethod(obj, "setLogger", log, "777");
+                    } catch (final Exception nsme) {
+                        log.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
+                        MyInvokeScriptedProcessor.logger.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Configured script Processor does not contain a setLogger method.");
                         }
                     }
 
@@ -368,7 +400,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
 
                                 @Override
                                 public ComponentLog getLogger() {
-                                    return logger;
+                                    return log;
                                 }
 
                                 @Override
@@ -397,7 +429,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                                 }
                             });
                         } catch (final Exception e) {
-                            logger.error("Unable to initialize scripted Processor: " + e.getLocalizedMessage(), e);
+                            log.error("Unable to initialize scripted Processor: " + e.getLocalizedMessage(), e);
                             throw new ProcessException(e);
                         }
                     }
@@ -437,7 +469,6 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
      * @return A collection of ValidationResults returned by the custom validate
      * method
      */
-    @SneakyThrows
     @Override
     protected Collection<ValidationResult> customValidate(final ValidationContext context) {
 
@@ -445,14 +476,20 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
         if (!commonValidationResults.isEmpty()) {
             return commonValidationResults;
         }
-
+        final ComponentLog logger = getLogger();
         // do not try to build processor/compile/etc until onPropertyModified clear the validation error/s
         // and don't print anything into log.
         if (!validationResults.get().isEmpty()) {
             return validationResults.get();
         }
         scriptingComponentHelper.setScriptEngineName(context.getProperty(scriptingComponentHelper.SCRIPT_ENGINE).getValue());
-        String s = getScriptPathBySql(context);
+        String s = null;
+        try {
+            s = getScriptPathBySql(context);
+        } catch (Exception e) {
+            final String message = "Unable to getScriptPathBySql the script Processor: " + e;
+            logger.error(message, e);
+        }
         if (null != s) {
             scriptingComponentHelper.setScriptPath(s);
         } else {
@@ -465,7 +502,12 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
         } else {
             scriptingComponentHelper.setModules(new String[0]);
         }
-        setup(context);
+        try {
+            setup(context);
+        } catch (Exception e) {
+            final String message = "Unable to setup the script Processor: " + e;
+            logger.error(message, e);
+        }
 
         // Now that InvokeScriptedProcessor is validated, we can call validate on the scripted processor
         final Processor instance = processor.get();
@@ -486,7 +528,6 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                     return instanceResults;
                 }
             } catch (final Exception e) {
-                final ComponentLog logger = getLogger();
                 final String message = "Unable to validate the script Processor: " + e;
                 logger.error(message, e);
 
