@@ -5,7 +5,6 @@ import com.sdari.vo.AmsInnerKeyVo
 //package com.sdari.groovy.kpi
 
 
-
 class AuxOilDTO {
 
     private int sid;

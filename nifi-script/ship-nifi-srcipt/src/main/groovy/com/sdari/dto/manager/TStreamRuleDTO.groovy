@@ -1,4 +1,4 @@
-package com.sdari.dto
+package com.sdari.dto.manager
 
 class TStreamRuleDTO {
     //  配置规则号
