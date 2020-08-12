@@ -7,7 +7,6 @@ import com.sdari.dto.manager.NifiProcessorSubClassDTO
 import com.sdari.dto.manager.TStreamRuleDTO
 import org.apache.nifi.components.PropertyDescriptor
 import org.apache.nifi.processor.Relationship
-
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.ResultSet
@@ -22,31 +21,32 @@ class ProcessorComponentHelper {
 
     final AtomicBoolean isInitialized = new AtomicBoolean(false)
     private int processorId;
-    private List<PropertyDescriptor> descriptors
+    private Map<String, PropertyDescriptor> descriptors
     private Map<String, Relationship> relationships
     private Map parameters
     private List<NifiProcessorSubClassDTO> subClasses
     private Map<String, Map<String, TStreamRuleDTO>> tStreamRules
-    private String url = 'jdbc:mysql://10.0.16.19:3306/groovy?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true&validationQuery=select 1'
-    private String userName = 'appuser'
-    private String password = 'Qgy@815133'
-    private int timeOut = 10
+//    private String url = 'jdbc:mysql://10.0.16.19:3306/groovy?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true&validationQuery=select 1'
+//    private String userName = 'appuser'
+//    private String password = 'Qgy@815133'
+//    private int timeOut = 10
     private Connection con
 
-    ProcessorComponentHelper(int id) {
+    ProcessorComponentHelper(int id, Connection con) {
         //构造处理器编号
         processorId = id
         //构造管理库连接
-        loadConnection()
+        loadConnection(con)
         //根据管理库连接查询所有结果并暂存
         //缺
     }
 
-    void loadConnection() {
-        if (con == null || con.isClosed()) {
+    void loadConnection(Connection con) {
+        if ((this.con == null || this.con.isClosed()) && (con != null && !con.isClosed())) {
 //            Class.forName('com.mysql.jdbc.Driver').newInstance()
-            DriverManager.setLoginTimeout(timeOut)
-            con = DriverManager.getConnection(url, userName, password)
+//            DriverManager.setLoginTimeout(timeOut)
+//            con = DriverManager.getConnection(url, userName, password)
+            this.con = con
             con.setReadOnly(true)
         }
     }
@@ -57,11 +57,11 @@ class ProcessorComponentHelper {
         }
     }
 
-    List<PropertyDescriptor> getDescriptors() {
+    Map<String, PropertyDescriptor> getDescriptors() {
         return descriptors
     }
 
-    void setDescriptors(List<PropertyDescriptor> descriptors) {
+    void setDescriptors(Map<String, PropertyDescriptor> descriptors) {
         this.descriptors = descriptors
     }
 
@@ -98,7 +98,7 @@ class ProcessorComponentHelper {
     }
 
     void createDescriptors() {
-        descriptors = []
+        descriptors = [:]
 
         // descriptors.add(routes_manager_utils.SCRIPT_FILE)
         // descriptors.add(routes_manager_utils.SCRIPT_BODY)

@@ -55,6 +55,8 @@ class RoutesManagerUtils {
             }
             relationships.put(name, relationshipMap?.get(name))
         }
+        //单独添加失败路由
+        relationships.put(REL_FAILURE.getName() as String, REL_FAILURE)
         relationships as Map<String, Relationship>
     }
 

@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicReference
  * GroovyMainUtils
  */
 @EventDriven
-@CapabilityDescription()
+@CapabilityDescription('')
 class GroovyMainUtils implements Processor {
 
     static def log
