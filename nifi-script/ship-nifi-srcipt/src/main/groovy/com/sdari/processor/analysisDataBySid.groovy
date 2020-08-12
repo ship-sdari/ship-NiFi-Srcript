@@ -1,5 +1,6 @@
 package com.sdari.processor
 
+import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
 import com.sdari.publicUtils.ProcessorComponentHelper
@@ -88,13 +89,13 @@ class analysisDataBySid implements Processor {
      */
     void onTrigger(ProcessContext context, ProcessSessionFactory sessionFactory) throws ProcessException {
         final ProcessSession session = sessionFactory.createSession()
-        final AtomicReference<JSONObject> dataMap = new AtomicReference<>()
+        final AtomicReference<JSONArray> dataList = new AtomicReference<>()
         FlowFile flowFile = session.get()
         if (!flowFile) return
         /*以下为正常处理数据文件的部分*/
         session.read(flowFile, { inputStream ->
             try {
-                dataMap.set(JSONObject.parseObject(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
+                dataList.set(JSONArray.parseArray(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
             } catch (Exception e) {
                 onFailure(session, flowFile)
                 log.error("Failed to read from flowFile", e)
@@ -104,7 +105,7 @@ class analysisDataBySid implements Processor {
         try {
             def attributesMap = flowFile.getAttributes()
             //[attributesMap-> flowFile属性][dataMap -> flowFile数据]
-            Object[] objects = [attributesMap, dataMap]
+            Object[] objects = [attributesMap, dataList]
             //执行详细脚本方法 [objects -> 详细参数][calculation ->脚本方法名]
             def instanceMap = instance.invokeMethod("calculation", objects)
             //根据路由关系 获取对应数据 [{attributes-> 路由对应属性}{data->路由对应数据}]
