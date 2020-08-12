@@ -29,7 +29,7 @@ import org.apache.nifi.processor.util.StandardValidators
 @CapabilityDescription("Execute a series of JDBC queries adding the results to each JSON presented in the FlowFile")
 class GroovyProcessor implements Processor {
 
-    def log
+    static def log
     private static Map<String, PropertyDescriptor> descriptorMap = new HashMap<>()
     private static Map<String, Relationship> relationshipMap = new HashMap<>()
 
@@ -70,16 +70,25 @@ class GroovyProcessor implements Processor {
         Collections.unmodifiableList(descriptorList) as List<PropertyDescriptor>
     }
 
-    public void scriptInit(pid) throws Exception {
-        t2 = 'scriptInit -> 15'
-        id = pid
-
-    }
-
     public void scriptByInitId(pid, service) throws Exception {
         t2 = t2 + 'scriptByInitId ->15'
         id = pid
         dbcpService = service
+        relationshipInit()
+    }
+
+    static void relationshipInit(String id) {
+        log.info("脚本id: ", id)
+        final Relationship REL_SUCCESS = new Relationship.Builder()
+                .name("success")
+                .description("FlowFiles that were successfully processed")
+                .build();
+        final Relationship REL_FAILURE = new Relationship.Builder()
+                .name("failure")
+                .description("FlowFiles that were successfully processed")
+                .build();
+        relationshipMap.put("failure", REL_FAILURE);
+        relationshipMap.put("success", REL_SUCCESS);
     }
 
     public void setLogger(final ComponentLog logger) throws Exception {
@@ -145,27 +154,23 @@ class GroovyProcessor implements Processor {
             flowFile = session.putAttribute(flowFile, "my2", t2)
             if (relationshipMap.containsKey("my_success")) {
                 Relationship relationship = relationshipMap.get("my_success")
-                flowFile = session.putAttribute(flowFile, "get_my_success", relationship.getName())
+                session.transfer(session.clone(flowFile), relationship)
             }
             if (relationshipMap.containsKey("success")) {
                 Relationship relationship = relationshipMap.get("success")
-                flowFile = session.putAttribute(flowFile, "get_success", relationship.getName())
-
+                session.transfer(session.clone(flowFile), relationship)
             }
             if (relationshipMap.containsKey("failure")) {
                 Relationship relationship = relationshipMap.get("failure")
-                flowFile = session.putAttribute(flowFile, "get_failure", relationship.getName())
-
+                session.transfer(session.clone(flowFile), relationship)
             }
             if (dbcpService != null) {
                 flowFile = session.putAttribute(flowFile, "get_connection", "ok")
-
             }
             flowFile = session.putAttribute(flowFile, "get_id", id)
             session.transfer(flowFile, MY_SUCCESS)
         } catch (final Throwable t) {
             log.error('{} failed to process due to {}', [this, t] as Object[])
-//            Relationship relationship = relationshipMap.get("failure")
             session.transfer(flowFile, MY_SUCCESS)
         } finally {
             session.commit()
