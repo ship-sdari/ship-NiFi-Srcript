@@ -89,13 +89,13 @@ class analysisDataBySid implements Processor {
      */
     void onTrigger(ProcessContext context, ProcessSessionFactory sessionFactory) throws ProcessException {
         final ProcessSession session = sessionFactory.createSession()
-        final AtomicReference<JSONArray> dataList = new AtomicReference<>()
+        final AtomicReference<JSONObject> dataList = new AtomicReference<>()
         FlowFile flowFile = session.get()
         if (!flowFile) return
         /*以下为正常处理数据文件的部分*/
         session.read(flowFile, { inputStream ->
             try {
-                dataList.set(JSONArray.parseArray(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
+                dataList.set(JSONObject.parseObject(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
             } catch (Exception e) {
                 onFailure(session, flowFile)
                 log.error("Failed to read from flowFile", e)
