@@ -1,6 +1,12 @@
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
+import org.apache.nifi.components.ValidationContext
+import org.apache.nifi.components.ValidationResult
+import org.apache.nifi.processor.ProcessContext
+import org.apache.nifi.processor.ProcessSessionFactory
+import org.apache.nifi.processor.Processor
+import org.apache.nifi.processor.ProcessorInitializationContext
 
 import java.lang.String
 import java.sql.*
@@ -29,7 +35,7 @@ import org.apache.nifi.processor.util.StandardValidators
 @CapabilityDescription("Execute a series of JDBC queries adding the results to each JSON presented in the FlowFile")
 class GroovyProcessor implements Processor {
 
-    static def log
+    def log
     private static Map<String, PropertyDescriptor> descriptorMap = new HashMap<>()
     private static Map<String, Relationship> relationshipMap = new HashMap<>()
 
@@ -74,11 +80,6 @@ class GroovyProcessor implements Processor {
         t2 = t2 + 'scriptByInitId ->15'
         id = pid
         dbcpService = service
-        relationshipInit()
-    }
-
-    static void relationshipInit(String id) {
-        log.info("脚本id: ", id)
         final Relationship REL_SUCCESS = new Relationship.Builder()
                 .name("success")
                 .description("FlowFiles that were successfully processed")
@@ -171,6 +172,7 @@ class GroovyProcessor implements Processor {
             session.transfer(flowFile, MY_SUCCESS)
         } catch (final Throwable t) {
             log.error('{} failed to process due to {}', [this, t] as Object[])
+//            Relationship relationship = relationshipMap.get("failure")
             session.transfer(flowFile, MY_SUCCESS)
         } finally {
             session.commit()
