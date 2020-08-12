@@ -57,7 +57,7 @@ import com.sdari.script.processors.ScriptEngineConfigurator;
 import org.apache.nifi.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.slf4j.impl.StaticLoggerBinder;
 /**
  * This class contains variables and methods common to scripting processors, reporting tasks, etc.
  */
@@ -68,13 +68,13 @@ public class ScriptingComponentHelper {
     // A map from engine name to a custom configurator for that engine
     public final Map<String, ScriptEngineConfigurator> scriptEngineConfiguratorMap = new ConcurrentHashMap<>();
     public final AtomicBoolean isInitialized = new AtomicBoolean(false);
-    private static final Logger logger = LoggerFactory.getLogger(MyInvokeScriptedProcessor.class);
-
+  //  private  final Logger logger = LoggerFactory.getLogger(ScriptingComponentHelper.class);
     public Map<String, ScriptEngineFactory> scriptEngineFactoryMap;
     private String scriptEngineName;
     private String scriptPath;
     private String scriptBody;
     private DBCPService dbcpService;
+    private String processorId;
     private String[] modules;
     private List<PropertyDescriptor> descriptors;
     private List<AllowableValue> engineAllowableValues;
@@ -89,8 +89,20 @@ public class ScriptingComponentHelper {
         this.scriptEngineName = scriptEngineName;
     }
 
-    public String getScriptPathBySql() {
-        return scriptPath;
+    public String getScriptPath() {
+        return this.scriptPath;
+    }
+
+    public DBCPService getDBCPService() {
+        return this.dbcpService;
+    }
+
+    public String getProcessorId() {
+        return this.processorId;
+    }
+
+    public void setDBCPService(DBCPService dbcpService) {
+        this.dbcpService = dbcpService;
     }
 
     public void setScriptPath(String scriptPath) {
@@ -145,7 +157,7 @@ public class ScriptingComponentHelper {
 
             }
         } catch (Exception e) {
-            logger.error("getDescriptorsByShip", e);
+        //    logger.error("getDescriptorsByShip", e);
         }
         return descriptors;
     }
@@ -328,7 +340,7 @@ public class ScriptingComponentHelper {
         try {
             ScriptPath = getScriptByContext(context);
         } catch (Exception e) {
-            logger.error("setupVariables ProcessContext date[{}] e", Instant.now(), e);
+      //      logger.error("setupVariables ProcessContext date[{}] e", Instant.now(), e);
         }
         setupVariablesByUtils(context.getProperty(SCRIPT_ENGINE).getValue(), ScriptPath,
                 context.getProperty(ScriptingComponentUtils.SCRIPT_BODY).getValue(),
@@ -340,7 +352,7 @@ public class ScriptingComponentHelper {
         try {
             ScriptPath = getScriptByContext(context);
         } catch (Exception e) {
-            logger.error("setupVariables ConfigurationContext date[{}] e", Instant.now(), e);
+       //     logger.error("setupVariables ConfigurationContext date[{}] e", Instant.now(), e);
         }
         setupVariablesByUtils(context.getProperty(SCRIPT_ENGINE).getValue(), ScriptPath,
                 context.getProperty(ScriptingComponentUtils.SCRIPT_BODY).getValue(),
@@ -371,7 +383,7 @@ public class ScriptingComponentHelper {
      * @return getScriptPathBySql
      */
     public String getScriptByContext(ProcessContext context) throws Exception {
-        return getScriptPathBySql(context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
+        return getScriptPath(context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
                 context.getProperty(ScriptingComponentUtils.QUERY_SCRIPTName_SQL),
                 context.getProperty(ScriptingComponentUtils.SCRIPT_PROCESSOR_ID));
     }
@@ -382,7 +394,7 @@ public class ScriptingComponentHelper {
      * @return getScriptPathBySql
      */
     public String getScriptByContext(ValidationContext context) throws Exception {
-        return getScriptPathBySql(context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
+        return getScriptPath(context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
                 context.getProperty(ScriptingComponentUtils.QUERY_SCRIPTName_SQL),
                 context.getProperty(ScriptingComponentUtils.SCRIPT_PROCESSOR_ID));
     }
@@ -393,7 +405,7 @@ public class ScriptingComponentHelper {
      * @return getScriptPathBySql
      */
     public String getScriptByContext(ConfigurationContext context) throws Exception {
-        return getScriptPathBySql(context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
+        return getScriptPath(context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
                 context.getProperty(ScriptingComponentUtils.QUERY_SCRIPTName_SQL),
                 context.getProperty(ScriptingComponentUtils.SCRIPT_PROCESSOR_ID));
     }
@@ -405,18 +417,18 @@ public class ScriptingComponentHelper {
      * @return ScriptPath
      * @throws Exception Exception
      */
-    private String getScriptPathBySql(PropertyValue property, PropertyValue property2, PropertyValue property3) throws Exception {
+    private String getScriptPath(PropertyValue property, PropertyValue property2, PropertyValue property3) throws Exception {
         String ScriptPath = null;
         if (null == dbcpService) {
             dbcpService = property.asControllerService(DBCPService.class);
         }
         Connection con = dbcpService.getConnection();
         String sql = property2.getValue();
-        String processorId = property3.getValue();
+        processorId = property3.getValue();
 
         Statement stmt = con.createStatement();
         String sql_ok = MessageFormat.format(sql, processorId);
-        logger.debug("getScriptPath date[{}] Sql[{}] ", Instant.now(), sql_ok);
+     //   logger.debug("getScriptPath date[{}] Sql[{}] ", Instant.now(), sql_ok);
         ResultSet resultSet = stmt.executeQuery(sql_ok);
         while (resultSet.next()) {
             String name = resultSet.getString(1);
@@ -428,7 +440,7 @@ public class ScriptingComponentHelper {
         if (!resultSet.isClosed()) resultSet.close();
         if (!stmt.isClosed()) stmt.close();
         if (!con.isClosed()) con.close();
-        logger.debug("getScriptPath date[{}] ScriptPath[{}] ", Instant.now(), ScriptPath);
+     //   logger.debug("getScriptPath date[{}] ScriptPath[{}] ", Instant.now(), ScriptPath);
         return ScriptPath;
     }
 

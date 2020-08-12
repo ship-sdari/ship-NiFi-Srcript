@@ -41,8 +41,8 @@ public abstract class AbstractScriptedRecordFactory<T> extends AbstractScriptedC
         }
 
         if (scriptNeedsReload.get() || recordFactory.get() == null) {
-            if (ScriptingComponentHelper.isFile(scriptingComponentHelper.getScriptPathBySql())) {
-                reloadScriptFile(scriptingComponentHelper.getScriptPathBySql());
+            if (ScriptingComponentHelper.isFile(scriptingComponentHelper.getScriptPath())) {
+                reloadScriptFile(scriptingComponentHelper.getScriptPath());
             } else {
                 reloadScriptBody(scriptingComponentHelper.getScriptBody());
             }

@@ -133,7 +133,7 @@ public class ScriptedReportingTask extends AbstractReportingTask {
         scriptToRun = scriptingComponentHelper.getScriptBody();
 
         try {
-            String scriptPath = scriptingComponentHelper.getScriptPathBySql();
+            String scriptPath = scriptingComponentHelper.getScriptPath();
             if (scriptToRun == null && scriptPath != null) {
                 try (final FileInputStream scriptStream = new FileInputStream(scriptPath)) {
                     scriptToRun = IOUtils.toString(scriptStream, Charset.defaultCharset());

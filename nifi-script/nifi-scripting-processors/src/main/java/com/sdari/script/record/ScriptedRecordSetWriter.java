@@ -144,7 +144,7 @@ public class ScriptedRecordSetWriter extends AbstractScriptedRecordFactory<Recor
                     .subject("ScriptValidation")
                     .valid(false)
                     .explanation("Unable to load script due to " + ex.getLocalizedMessage())
-                    .input(scriptingComponentHelper.getScriptPathBySql())
+                    .input(scriptingComponentHelper.getScriptPath())
                     .build());
         }
 

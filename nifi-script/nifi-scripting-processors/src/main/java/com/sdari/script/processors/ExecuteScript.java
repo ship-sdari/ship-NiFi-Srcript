@@ -170,8 +170,8 @@ public class ExecuteScript extends AbstractSessionFactoryProcessor implements Se
         scriptToRun = scriptingComponentHelper.getScriptBody();
 
         try {
-            if (scriptToRun == null && scriptingComponentHelper.getScriptPathBySql() != null) {
-                try (final FileInputStream scriptStream = new FileInputStream(scriptingComponentHelper.getScriptPathBySql())) {
+            if (scriptToRun == null && scriptingComponentHelper.getScriptPath() != null) {
+                try (final FileInputStream scriptStream = new FileInputStream(scriptingComponentHelper.getScriptPath())) {
                     scriptToRun = IOUtils.toString(scriptStream, Charset.defaultCharset());
                 }
             }

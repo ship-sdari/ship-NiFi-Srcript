@@ -180,7 +180,7 @@ public abstract class AbstractScriptedControllerService extends AbstractControll
                     .subject("ScriptValidation")
                     .valid(false)
                     .explanation("Unable to load script due to " + e)
-                    .input(scriptingComponentHelper.getScriptPathBySql())
+                    .input(scriptingComponentHelper.getScriptPath())
                     .build());
         }
 
