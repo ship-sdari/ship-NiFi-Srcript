@@ -1,6 +1,12 @@
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
+import org.apache.nifi.components.ValidationContext
+import org.apache.nifi.components.ValidationResult
+import org.apache.nifi.processor.ProcessContext
+import org.apache.nifi.processor.ProcessSessionFactory
+import org.apache.nifi.processor.Processor
+import org.apache.nifi.processor.ProcessorInitializationContext
 
 import java.lang.String
 import java.sql.*
@@ -70,16 +76,20 @@ class GroovyProcessor implements Processor {
         Collections.unmodifiableList(descriptorList) as List<PropertyDescriptor>
     }
 
-    public void scriptInit(pid) throws Exception {
-        t2 = 'scriptInit -> 15'
-        id = pid
-
-    }
-
     public void scriptByInitId(pid, service) throws Exception {
         t2 = t2 + 'scriptByInitId ->15'
         id = pid
         dbcpService = service
+        final Relationship REL_SUCCESS = new Relationship.Builder()
+                .name("success")
+                .description("FlowFiles that were successfully processed")
+                .build();
+        final Relationship REL_FAILURE = new Relationship.Builder()
+                .name("failure")
+                .description("FlowFiles that were successfully processed")
+                .build();
+        relationshipMap.put("failure", REL_FAILURE);
+        relationshipMap.put("success", REL_SUCCESS);
     }
 
     public void setLogger(final ComponentLog logger) throws Exception {
@@ -145,21 +155,18 @@ class GroovyProcessor implements Processor {
             flowFile = session.putAttribute(flowFile, "my2", t2)
             if (relationshipMap.containsKey("my_success")) {
                 Relationship relationship = relationshipMap.get("my_success")
-                flowFile = session.putAttribute(flowFile, "get_my_success", relationship.getName())
+                session.transfer(session.clone(flowFile), relationship)
             }
             if (relationshipMap.containsKey("success")) {
                 Relationship relationship = relationshipMap.get("success")
-                flowFile = session.putAttribute(flowFile, "get_success", relationship.getName())
-
+                session.transfer(session.clone(flowFile), relationship)
             }
             if (relationshipMap.containsKey("failure")) {
                 Relationship relationship = relationshipMap.get("failure")
-                flowFile = session.putAttribute(flowFile, "get_failure", relationship.getName())
-
+                session.transfer(session.clone(flowFile), relationship)
             }
             if (dbcpService != null) {
                 flowFile = session.putAttribute(flowFile, "get_connection", "ok")
-
             }
             flowFile = session.putAttribute(flowFile, "get_id", id)
             session.transfer(flowFile, MY_SUCCESS)
