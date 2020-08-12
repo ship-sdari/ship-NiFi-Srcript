@@ -30,6 +30,8 @@ class RoutesTest extends GroovyTestCase {
             println "返回结果 " + JsonOutput.toJson(builder.content[0])
             println "返回类型 " + subClass.class
         }
-
+        println('----------流规则配置----------')
+        def tStreamRules = pp.getTStreamRules()
+        println "返回结果" + tStreamRules?.size()
     }
 }

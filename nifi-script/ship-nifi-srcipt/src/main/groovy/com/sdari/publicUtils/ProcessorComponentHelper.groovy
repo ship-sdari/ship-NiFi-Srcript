@@ -4,6 +4,7 @@ package com.sdari.publicUtils
 import com.sdari.dto.manager.NifiProcessorAttributesDTO
 import com.sdari.dto.manager.NifiProcessorRoutesDTO
 import com.sdari.dto.manager.NifiProcessorSubClassDTO
+import com.sdari.dto.manager.TStreamRuleDTO
 import org.apache.nifi.components.PropertyDescriptor
 import org.apache.nifi.processor.Relationship
 
@@ -25,6 +26,7 @@ class ProcessorComponentHelper {
     private Map<String, Relationship> relationships
     private Map parameters
     private List<NifiProcessorSubClassDTO> subClasses
+    private Map<String, Map<String, TStreamRuleDTO>> tStreamRules
     private String url = 'jdbc:mysql://10.0.16.19:3306/groovy?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true&validationQuery=select 1'
     private String userName = 'appuser'
     private String password = 'Qgy@815133'
@@ -87,6 +89,14 @@ class ProcessorComponentHelper {
         this.subClasses = subClasses
     }
 
+    def getTStreamRules() {
+        return this.tStreamRules
+    }
+
+    void setTStreamRules(tStreamRuleDto) {
+        this.tStreamRules = tStreamRuleDto
+    }
+
     void createDescriptors() {
         descriptors = []
 
@@ -109,6 +119,10 @@ class ProcessorComponentHelper {
 
     void createSubClasses(List<NifiProcessorSubClassDTO> subClasses) {
         setSubClasses(subClasses)
+    }
+
+    void createTStreamRules(Map<String, Map<String, TStreamRuleDTO>> tStreamRuleDto) {
+        setTStreamRules(tStreamRuleDto)
     }
 
     void initComponent() throws Exception {
@@ -146,6 +160,52 @@ class ProcessorComponentHelper {
             if (!stm.isClosed()) stm.close()
         }
         selectSubClassManagers.call()
+        //闭包查询流规则配置表
+        def tStreamRuleDto = null
+        def selectConfigs = {
+            def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule`"
+            def tStreamRuleSelectAlarm = "SELECT * FROM `tstream_rule_alarm`"
+            def tStreamRuleSelectCalculation = "SELECT * FROM `tstream_rule_calculation`"
+            def tStreamRuleSelectCollection = "SELECT * FROM `tstream_rule_collection`"
+            def tStreamRuleSelectDist = "SELECT * FROM `tstream_rule_other_distributions`"
+            def tStreamRuleSelectShoreBased = "SELECT * FROM `tstream_rule_shore_based_distributions`"
+            def tStreamRuleSelectThinning = "SELECT * FROM `tstream_rule_thinning`"
+            def tStreamRuleSelectWarehousing = "SELECT * FROM `tstream_rule_warehousing`"
+            Statement stmBasic = con.createStatement()
+            Statement stmAlarm = con.createStatement()
+            Statement stmCalculation = con.createStatement()
+            Statement stmCollection = con.createStatement()
+            Statement stmDist = con.createStatement()
+            Statement stmShoreBased = con.createStatement()
+            Statement stmThinning = con.createStatement()
+            Statement stmWarehousing = con.createStatement()
+            ResultSet resBasic = stmBasic.executeQuery(tStreamRuleSelectBasic)
+            ResultSet resAlarm = stmAlarm.executeQuery(tStreamRuleSelectAlarm)
+            ResultSet resCalculation = stmCalculation.executeQuery(tStreamRuleSelectCalculation)
+            ResultSet resCollection = stmCollection.executeQuery(tStreamRuleSelectCollection)
+            ResultSet resDist = stmDist.executeQuery(tStreamRuleSelectDist)
+            ResultSet resShoreBased = stmShoreBased.executeQuery(tStreamRuleSelectShoreBased)
+            ResultSet resThinning = stmThinning.executeQuery(tStreamRuleSelectThinning)
+            ResultSet resWarehousing = stmWarehousing.executeQuery(tStreamRuleSelectWarehousing)
+            tStreamRuleDto = TStreamRuleDTO.createDto(resBasic, resAlarm, resCalculation, resCollection, resDist, resShoreBased, resThinning, resWarehousing)
+            if (!resBasic.closed) resBasic.close()
+            if (!stmBasic.isClosed()) stmBasic.close()
+            if (!resAlarm.closed) resAlarm.close()
+            if (!stmAlarm.isClosed()) stmAlarm.close()
+            if (!resCalculation.closed) resCalculation.close()
+            if (!stmCalculation.isClosed()) stmCalculation.close()
+            if (!resCollection.closed) resCollection.close()
+            if (!stmCollection.isClosed()) stmCollection.close()
+            if (!resDist.closed) resDist.close()
+            if (!stmDist.isClosed()) stmDist.close()
+            if (!resShoreBased.closed) resShoreBased.close()
+            if (!stmShoreBased.isClosed()) stmShoreBased.close()
+            if (!resThinning.closed) resThinning.close()
+            if (!stmThinning.isClosed()) stmThinning.close()
+            if (!resWarehousing.closed) resWarehousing.close()
+            if (!stmWarehousing.isClosed()) stmWarehousing.close()
+        }
+        selectConfigs.call()
         //获取所有路由名称并设置路由暂存
         def routeNames = []
         routesDto?.each { routeNames.add(it.getProperty('route_name')) }
@@ -154,6 +214,8 @@ class ProcessorComponentHelper {
         createParameters(attributesDto)
         //设置子脚本暂存
         createSubClasses(subClassesDto)
+        //设置流规则暂存
+        createTStreamRules(tStreamRuleDto)
 
         this.isInitialized.set(true)
         releaseConnection()

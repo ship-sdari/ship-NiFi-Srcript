@@ -24,13 +24,21 @@ class NifiProcessorSubClassDTO {
             def NifiProcessorSubClasses = []
             while (res.next()) {
                 NifiProcessorSubClassDTO dto = new NifiProcessorSubClassDTO()
-                dto.setProperty('processor_id', res.getInt('processor_id'))
+                /*dto.setProperty('processor_id', res.getInt('processor_id'))
                 dto.setProperty('route_id', res.getInt('route_id'))
                 dto.setProperty('sub_full_path', res.getString('sub_full_path'))
                 dto.setProperty('sub_script_name', res.getString('sub_script_name'))
                 dto.setProperty('sub_running_way', res.getString('sub_running_way'))
                 dto.setProperty('running_order', res.getInt('running_order'))
-                dto.setProperty('status', res.getString('status'))
+                dto.setProperty('status', res.getString('status'))*/
+
+                dto.processor_id = res.getInt('processor_id')
+                dto.route_id = res.getInt('route_id')
+                dto.sub_full_path = res.getString('sub_full_path')
+                dto.sub_script_name = res.getString('sub_script_name')
+                dto.sub_running_way = res.getString('sub_running_way')
+                dto.running_order = res.getInt('running_order')
+                dto.status = res.getString('status')
                 NifiProcessorSubClasses.add(dto)
             }
             NifiProcessorSubClasses
