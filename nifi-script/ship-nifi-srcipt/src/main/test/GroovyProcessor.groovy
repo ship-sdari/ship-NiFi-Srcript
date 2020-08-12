@@ -1,7 +1,15 @@
 import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
+
+import java.lang.String
+import java.sql.*
 import groovy.sql.*
+import org.apache.nifi.flowfile.FlowFile
+import org.apache.nifi.logging.ComponentLog
+import org.apache.nifi.processor.ProcessSession
+import org.python.antlr.ast.Set
+import java.util.Set
 import java.sql.ResultSet
 import java.sql.ResultSetMetaData
 import java.sql.SQLException
@@ -23,19 +31,26 @@ class GroovyProcessor implements Processor {
 
     def log
     private static Map<String, PropertyDescriptor> descriptorMap = new HashMap<>()
+    private static Map<String, Relationship> relationshipMap = new HashMap<>()
 
-    private  static String  t="12";
-    final static Relationship REL_SUCCESS = new Relationship.Builder()
-            .name("success")
-            .description('FlowFiles that were successfully processed and had any data enriched are routed here')
-            .build()
+    public static final Relationship MY_SUCCESS = new Relationship.Builder()
+            .name("my_success")
+            .description("FlowFiles that were successfully processed")
+            .build();
+    public static String id = "1"
+    private static String t = "12"
+    private DBCPService dbcpService = null
+    private static String t2 = "13"
 
-    final static Relationship REL_FAILURE = new Relationship.Builder()
-            .name("failure")
-            .description('FlowFiles that were not successfully processed are routed here')
-            .build()
-
-    Set<Relationship> getRelationships() { [REL_FAILURE, REL_SUCCESS] as Set }
+    Set<Relationship> getRelationships() {
+        Set<Relationship> set = new HashSet<Relationship>()
+        set.add(MY_SUCCESS)
+        for (String relation : relationshipMap.keySet()) {
+            Relationship relationship = relationshipMap.get(relation)
+            set.add(relationship);
+        }
+        return Collections.unmodifiableSet(set) as Set<Relationship>;
+    }
 
     final static PropertyDescriptor DBCP_SERVICE = new PropertyDescriptor.Builder()
             .name("dbcp-connection-pool-services")
@@ -55,7 +70,27 @@ class GroovyProcessor implements Processor {
         Collections.unmodifiableList(descriptorList) as List<PropertyDescriptor>
     }
 
-    void initialize(ProcessorInitializationContext context) { log = context.getLogger() }
+    public void scriptInit(pid) throws Exception {
+        t2 = 'scriptInit -> 15'
+        id = pid
+
+    }
+
+    public void scriptByInitId(pid, service) throws Exception {
+        t2 = t2 + 'scriptByInitId ->15'
+        id = pid
+        dbcpService = service
+    }
+
+    public void setLogger(final ComponentLog logger) throws Exception {
+        t2 = t2 + 'setLogger-> 16'
+        log = logger
+        log.info("进去方法setLogger")
+    }
+
+    void initialize(ProcessorInitializationContext context) {
+
+    }
 
     public static GroovyRowResult toRowResult(ResultSet rs) throws SQLException {
         ResultSetMetaData metadata = rs.getMetaData();
@@ -71,18 +106,22 @@ class GroovyProcessor implements Processor {
      * @param context
      */
     @OnScheduled
-     void onScheduled(final ProcessContext context) {
-        Map<PropertyDescriptor, String> map = context.getProperties();
-        log.info("map:", map)
-        t="13";
+    public void onScheduled(final ProcessContext context) {
+        Map<PropertyDescriptor, String> map = context.getProperties()
+        Set<Relationship> relationshipSet = context.getAvailableRelationships()
+        t = "13";
         for (PropertyDescriptor descriptor : map.keySet()) {
             descriptorMap.put(descriptor.getName(), descriptor)
+        }
+        relationshipMap.put(MY_SUCCESS.getName(), MY_SUCCESS);
+        for (Relationship relationship : relationshipSet) {
+            relationshipMap.put(relationship.getName(), relationship)
         }
     }
 
     void onTrigger(ProcessContext context, ProcessSessionFactory sessionFactory) throws ProcessException {
-        def session = sessionFactory.createSession()
-        def flowFile = session.get()
+        final ProcessSession session = sessionFactory.createSession()
+        FlowFile flowFile = session.get()
         if (!flowFile) return
         try {
             def fromAttributeValue = flowFile.getAttribute("for-attributes")
@@ -100,14 +139,34 @@ class GroovyProcessor implements Processor {
             if (descriptorMap.containsKey(key2)) {
                 a2 = descriptorMap.get(key2).getName()
             }
-
-            flowFile = session.putAttribute(flowFile, "from-attribute-Liumouren",a )
+            flowFile = session.putAttribute(flowFile, "from-attribute-Liumouren", a)
             flowFile = session.putAttribute(flowFile, "message", t)
             flowFile = session.putAttribute(flowFile, "my", a2)
-            session.transfer(flowFile, REL_SUCCESS)
+            flowFile = session.putAttribute(flowFile, "my2", t2)
+            if (relationshipMap.containsKey("my_success")) {
+                Relationship relationship = relationshipMap.get("my_success")
+                flowFile = session.putAttribute(flowFile, "get_my_success", relationship.getName())
+            }
+            if (relationshipMap.containsKey("success")) {
+                Relationship relationship = relationshipMap.get("success")
+                flowFile = session.putAttribute(flowFile, "get_success", relationship.getName())
+
+            }
+            if (relationshipMap.containsKey("failure")) {
+                Relationship relationship = relationshipMap.get("failure")
+                flowFile = session.putAttribute(flowFile, "get_failure", relationship.getName())
+
+            }
+            if (dbcpService != null) {
+                flowFile = session.putAttribute(flowFile, "get_connection", "ok")
+
+            }
+            flowFile = session.putAttribute(flowFile, "get_id", id)
+            session.transfer(flowFile, MY_SUCCESS)
         } catch (final Throwable t) {
             log.error('{} failed to process due to {}', [this, t] as Object[])
-            session.transfer(flowFile, REL_FAILURE)
+//            Relationship relationship = relationshipMap.get("failure")
+            session.transfer(flowFile, MY_SUCCESS)
         } finally {
             session.commit()
         }

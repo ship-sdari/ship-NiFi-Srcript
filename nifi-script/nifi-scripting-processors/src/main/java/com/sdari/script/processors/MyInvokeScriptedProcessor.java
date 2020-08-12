@@ -332,42 +332,18 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                     // evaluate the script
                     scriptEngine.eval(scriptBody);
                 }
-                try {
-                    logger.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
-                    invocable.invokeFunction("scriptByInit",
-                            scriptingComponentHelper.getDBCPService(),
-                            scriptingComponentHelper.getProcessorId());
-                } catch (Exception e) {
-                    logger.error("Unable to invokeFunction:" + e.getLocalizedMessage(), e);
-                    throw new ProcessException(e);
-                }
-
                 // get configured processor from the script (if it exists)
                 final Object obj = scriptEngine.get("processor");
                 final ComponentLog log = getLogger();
                 if (obj != null) {
                     try {
                         // set the logger if the processor wants it
-                        log.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
-                        MyInvokeScriptedProcessor.logger.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
-                        invocable.invokeMethod(obj, "scriptByInit",
-                                scriptingComponentHelper.getDBCPService(),
-                                scriptingComponentHelper.getProcessorId());
-
-                    } catch (final Exception nsme) {
-                        log.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
-                        MyInvokeScriptedProcessor.logger.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
-                        if (log.isDebugEnabled()) {
-                            log.debug("scriptInit.");
-                        }
-                    }
-                    try {
-                        // set the logger if the processor wants it
 
                         log.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
                         MyInvokeScriptedProcessor.logger.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
                         invocable.invokeMethod(obj, "scriptByInitId",
-                                scriptingComponentHelper.getProcessorId());
+                                scriptingComponentHelper.getProcessorId(),
+                                scriptingComponentHelper.getDBCPService());
                     } catch (final Exception nsme) {
                         log.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
                         MyInvokeScriptedProcessor.logger.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
@@ -377,7 +353,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                     }
                     try {
                         // set the logger if the processor wants it
-                        invocable.invokeMethod(obj, "setLogger", log, "777");
+                        invocable.invokeMethod(obj, "setLogger", log);
                     } catch (final Exception nsme) {
                         log.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
                         MyInvokeScriptedProcessor.logger.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
