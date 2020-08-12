@@ -1,8 +1,8 @@
 package com.sdari.processor
 
-import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
+import com.sdari.dto.manager.NifiProcessorSubClassDTO
 import com.sdari.publicUtils.ProcessorComponentHelper
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
@@ -22,6 +22,7 @@ import org.apache.nifi.processor.ProcessorInitializationContext
 import org.apache.nifi.processor.Relationship
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
+import org.python.antlr.ast.If
 
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicReference
@@ -33,8 +34,6 @@ class analysisDataBySid implements Processor {
     private String id
     private DBCPService dbcpService = null
     private GroovyClassLoader loader = new GroovyClassLoader()
-    private Class aClass
-    private GroovyObject instance
     private ProcessorComponentHelper pch
 
     @Override
@@ -79,8 +78,9 @@ class analysisDataBySid implements Processor {
      */
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
-        aClassINit()
+        pch.initScript()
     }
+
     /**
      * 详细处理模块
      * @param context
@@ -89,13 +89,13 @@ class analysisDataBySid implements Processor {
      */
     void onTrigger(ProcessContext context, ProcessSessionFactory sessionFactory) throws ProcessException {
         final ProcessSession session = sessionFactory.createSession()
-        final AtomicReference<JSONObject> dataList = new AtomicReference<>()
+        final AtomicReference<JSONObject> dataMap = new AtomicReference<>()
         FlowFile flowFile = session.get()
         if (!flowFile) return
         /*以下为正常处理数据文件的部分*/
         session.read(flowFile, { inputStream ->
             try {
-                dataList.set(JSONObject.parseObject(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
+                dataMap.set(JSONObject.parseObject(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
             } catch (Exception e) {
                 onFailure(session, flowFile)
                 log.error("Failed to read from flowFile", e)
@@ -103,33 +103,79 @@ class analysisDataBySid implements Processor {
             }
         })
         try {
-            def attributesMap = flowFile.getAttributes()
+            //根据路由关系 获取对应脚本 [路由名称->脚本执行顺序（串行||并行）]
             //[attributesMap-> flowFile属性][dataMap -> flowFile数据]
-            Object[] objects = [attributesMap, dataList]
-            //执行详细脚本方法 [objects -> 详细参数][calculation ->脚本方法名]
-            def instanceMap = instance.invokeMethod("calculation", objects)
-            //根据路由关系 获取对应数据 [{attributes-> 路由对应属性}{data->路由对应数据}]
-            for (String key : pch.getRelationships().keySet()) {
-                OutputStream outputStream
-                def keyData = instanceMap[key]
-                //路由对应数据
-                JSONObject data = keyData["data"] as JSONObject
-                //路由对应属性
-                def attributes = keyData["attributes"]
-                FlowFile flowFileEvent = session.create()
-                //FlowFile put 属性
-                session.putAllAttributes(flowFileEvent, attributes as Map<String, String>)
-                //FlowFile write 数据
-                session.write(flowFileEvent, {
-                    outputStream.write(JSONObject.toJSONBytes(data,
-                            SerializerFeature.WriteMapNullValue))
-                } as OutputStreamCallback)
-                //路由
-                session.transfer(flowFileEvent, pch.getRelationships().get(key))
-                outputStream.close()
+            def attributesMap = flowFile.getAttributes()
+            Object[] objects = [attributesMap, dataMap]
+            for (String key : pch.getSubClasses().keySet()) {
+                for (String k : pch.getSubClasses().get(key).keySet()) {
+                    def dtoData = objects
+                    def size = pch.getSubClasses().get(key).get(k).size()
+                    int runI = 0;
+                    def flowFileDto = session.create()
+                    boolean bo = true
+                    for (NifiProcessorSubClassDTO dto : pch.getSubClasses().get(key).get(k)) {
+                        runI += 1
+                        FlowFile flowFileEvent = null
+                        switch (dto.status) {
+                            case "A":
+                                //根据路由名称 获取脚本实体GroovyObject instance
+                                GroovyObject instance = pch.getScriptMapByName(dto.sub_script_name)
+                                //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
+                                dtoData = instance.invokeMethod("calculation", dtoData)
+                                //def keyData = instanceMap[key]
+                                //路由对应数据
+                                JSONObject data = dtoData["data"] as JSONObject
+                                //路由对应属性
+                                def attributes = dtoData["attributes"]
+                                if ("A".equals(k)) {
+                                    //FlowFile put 属性
+                                    flowFileEvent = session.create()
+                                } else {
+                                    flowFileEvent = flowFileDto
+                                }
+                                session.putAllAttributes(flowFileEvent, attributes as Map<String, String>)
+
+                                //FlowFile write 数据
+                                OutputStream outputStream
+                                session.write(flowFileEvent, {
+                                    outputStream.write(JSONObject.toJSONBytes(data,
+                                            SerializerFeature.WriteMapNullValue))
+                                } as OutputStreamCallback)
+                                outputStream.close()
+                                bo = false
+                                break;
+                            case "S":
+                                if ("A".equals(k)) {
+                                    flowFileEvent = session.clone(flowFile)
+                                } else {
+                                    if (bo) {
+                                        flowFileEvent = session.clone(flowFile)
+                                        bo = false
+                                    } else {
+                                        flowFileEvent = session.clone(flowFileDto)
+                                    }
+                                }
+                                break;
+                            default:
+                                break
+                        }
+                        //路由
+                        if (null != flowFileEvent) {
+                            if ("A".equals(k) || runI == size) {
+                                session.transfer(flowFileEvent, pch.getRelationships().get(key))
+                            } else {
+                                flowFileDto = flowFileEvent
+                            }
+                        }
+                    }
+                    session.remove(flowFileDto)
+                }
             }
             session.remove(flowFile)
-        } catch (final Throwable t) {
+        } catch (
+                final Throwable t
+                ) {
             log.error('{} failed to process due to {}', [this, t] as Object[])
             onFailure(session, flowFile)
         } finally {
@@ -170,20 +216,6 @@ class analysisDataBySid implements Processor {
         id = pid
         dbcpService = service
         pch = new ProcessorComponentHelper(id as int, dbcpService.getConnection())
-    }
-
-    /**
-     * 初始化详细处理脚本
-     */
-    private void aClassINit() {
-        def subClasses = pch.getSubClasses()
-        //遍历生成分脚本（缺）
-        String path = ""
-        aClass = loader.parseClass(new File(path))
-        instance = (GroovyObject) aClass.newInstance()
-        //执行详细脚本方法 [objects -> 详细参数][calculation ->脚本方法名]
-        Object[] objects = []
-        instance.invokeMethod("calculation", objects)
     }
 }
 
