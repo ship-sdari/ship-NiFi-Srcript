@@ -24,7 +24,8 @@ class ProcessorComponentHelper {
     private Map<String, PropertyDescriptor> descriptors
     private Map<String, Relationship> relationships
     private Map parameters
-    private List<NifiProcessorSubClassDTO> subClasses
+    private Map<String, Map<String, List<NifiProcessorSubClassDTO>>> subClasses
+    private Map<String, GroovyObject> scriptMap
     private Map<String, Map<String, TStreamRuleDTO>> tStreamRules
 //    private String url = 'jdbc:mysql://10.0.16.19:3306/groovy?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true&validationQuery=select 1'
 //    private String userName = 'appuser'
@@ -57,6 +58,7 @@ class ProcessorComponentHelper {
         }
     }
 
+
     Map<String, PropertyDescriptor> getDescriptors() {
         return descriptors
     }
@@ -85,8 +87,12 @@ class ProcessorComponentHelper {
         return this.subClasses
     }
 
-    void setSubClasses(subClasses) {
-        this.subClasses = subClasses
+    def getScriptMapByName(String name) {
+        return this.scriptMap.get(name)
+    }
+def
+    void setSubClasses(subClassGroups) {
+        this.subClasses = subClassGroups
     }
 
     def getTStreamRules() {
@@ -117,8 +123,17 @@ class ProcessorComponentHelper {
         parameters.putAll(AttributesManagerUtils.createAttributesMap(attributeRows))
     }
 
-    void createSubClasses(List<NifiProcessorSubClassDTO> subClasses) {
-        setSubClasses(subClasses)
+    void createSubClasses(List<NifiProcessorSubClassDTO> subClasses, Map<Integer, NifiProcessorRoutesDTO> routeMap) {
+        Map<String, Map<String, List<NifiProcessorSubClassDTO>>> subClassGroups = [:]
+        subClasses?.each {
+            final int route_id = it.getProperty('route_id') as int
+            final String route_name = routeMap.get(route_id).getProperty('route_name')
+            final String sub_running_way = it.getProperty('sub_running_way')
+            if (!subClassGroups.containsKey(route_name)) subClassGroups.put(route_name, [:])
+            if (!subClassGroups.get(route_name).containsKey(sub_running_way)) subClassGroups.get(route_name).put(sub_running_way, [])
+            subClassGroups.get(route_name).get(sub_running_way).add(it)
+        }
+        setSubClasses(subClassGroups)
     }
 
     void createTStreamRules(Map<String, Map<String, TStreamRuleDTO>> tStreamRuleDto) {
@@ -208,16 +223,40 @@ class ProcessorComponentHelper {
         selectConfigs.call()
         //获取所有路由名称并设置路由暂存
         def routeNames = []
-        routesDto?.each { routeNames.add(it.getProperty('route_name')) }
+        Map<Integer, NifiProcessorRoutesDTO> routeMap = [:]
+        routesDto?.each {
+            routeNames.add(it.getProperty('route_name'))
+            routeMap.put(it.getProperty('route_id') as int, it)
+        }
         createRelationships(routeNames)
         //设置属性暂存
         createParameters(attributesDto)
-        //设置子脚本暂存
-        createSubClasses(subClassesDto)
+        //设置子脚本分组并暂存
+        createSubClasses(subClassesDto, routeMap)
         //设置流规则暂存
         createTStreamRules(tStreamRuleDto)
 
         this.isInitialized.set(true)
         releaseConnection()
+    }
+    /**
+     * 初始化子脚本并暂存至脚本实例仓库
+     */
+    void initScript() throws Exception {
+        Map<String, GroovyObject> GroovyObjectMap = new HashMap<>()
+        for (classDTOMap in subClasses.values()) {
+            for (classDTOList in classDTOMap.values()) {
+                for (classDTO in classDTOList) {
+                    if ("A" == classDTO.status && !GroovyObjectMap.containsKey(classDTO.sub_script_name)) {
+                        def path = classDTO.sub_full_path + classDTO.sub_script_name
+                        GroovyClassLoader loader = new GroovyClassLoader()
+                        Class aClass = loader.parseClass(new File(path))
+                        GroovyObjectMap.put(classDTO.sub_script_name, aClass.newInstance() as GroovyObject)
+                    }
+
+                }
+            }
+        }
+        scriptMap.putAll(GroovyObjectMap)
     }
 }
