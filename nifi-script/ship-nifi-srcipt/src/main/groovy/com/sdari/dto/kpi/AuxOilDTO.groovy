@@ -1,9 +1,8 @@
-package com.sdari.kpi
+package com.sdari.dto.kpi
 
 import com.sdari.vo.AmsInnerKeyVo
 
 //package com.sdari.groovy.kpi
-
 
 
 class AuxOilDTO {

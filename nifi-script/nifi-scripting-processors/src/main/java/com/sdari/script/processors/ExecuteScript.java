@@ -101,9 +101,9 @@ public class ExecuteScript extends AbstractSessionFactoryProcessor implements Se
 
 
     /**
-     * Returns the valid relationships for this processor.
+     * Returns the valid relationships for this com.sdari.processor.
      *
-     * @return a Set of Relationships supported by this processor
+     * @return a Set of Relationships supported by this com.sdari.processor
      */
     @Override
     public Set<Relationship> getRelationships() {
@@ -114,11 +114,11 @@ public class ExecuteScript extends AbstractSessionFactoryProcessor implements Se
     }
 
     /**
-     * Returns a list of property descriptors supported by this processor. The list always includes properties such as
+     * Returns a list of property descriptors supported by this com.sdari.processor. The list always includes properties such as
      * script engine name, script file name, script body name, script arguments, and an external module path. If the
-     * scripted processor also defines supported properties, those are added to the list as well.
+     * scripted com.sdari.processor also defines supported properties, those are added to the list as well.
      *
-     * @return a List of PropertyDescriptor objects supported by this processor
+     * @return a List of PropertyDescriptor objects supported by this com.sdari.processor
      */
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
@@ -155,7 +155,7 @@ public class ExecuteScript extends AbstractSessionFactoryProcessor implements Se
     }
 
     /**
-     * Performs setup operations when the processor is scheduled to run. This includes evaluating the processor's
+     * Performs setup operations when the com.sdari.processor is scheduled to run. This includes evaluating the com.sdari.processor's
      * properties, as well as reloading the script (from file or the "Script Body" property)
      *
      * @param context the context in which to perform the setup operations
@@ -189,7 +189,7 @@ public class ExecuteScript extends AbstractSessionFactoryProcessor implements Se
      * @param context        the current process context
      * @param sessionFactory provides access to a {@link ProcessSessionFactory}, which
      *                       can be used for accessing FlowFiles, etc.
-     * @throws ProcessException if the scripted processor's onTrigger() method throws an exception
+     * @throws ProcessException if the scripted com.sdari.processor's onTrigger() method throws an exception
      */
     @Override
     public void onTrigger(ProcessContext context, ProcessSessionFactory sessionFactory) throws ProcessException {
@@ -248,8 +248,8 @@ public class ExecuteScript extends AbstractSessionFactoryProcessor implements Se
             } catch (ScriptException e) {
                 // The below 'session.rollback(true)' reverts any changes made during this session (all FlowFiles are
                 // restored back to their initial session state and back to their original queues after being penalized).
-                // However if the incoming relationship is full of flow files, this processor will keep failing and could
-                // cause resource exhaustion. In case a user does not want to yield, it can be set to 0s in the processor
+                // However if the incoming relationship is full of flow files, this com.sdari.processor will keep failing and could
+                // cause resource exhaustion. In case a user does not want to yield, it can be set to 0s in the com.sdari.processor
                 // configuration.
                 context.yield();
                 throw new ProcessException(e);

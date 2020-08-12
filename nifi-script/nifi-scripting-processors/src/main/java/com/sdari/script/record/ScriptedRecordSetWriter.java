@@ -101,13 +101,13 @@ public class ScriptedRecordSetWriter extends AbstractScriptedRecordFactory<Recor
                     scriptEngine.eval(scriptBody);
                 }
 
-                // get configured processor from the script (if it exists)
+                // get configured com.sdari.processor from the script (if it exists)
                 final Object obj = scriptEngine.get("writer");
                 if (obj != null) {
                     final ComponentLog logger = getLogger();
 
                     try {
-                        // set the logger if the processor wants it
+                        // set the logger if the com.sdari.processor wants it
                         invocable.invokeMethod(obj, "setLogger", logger);
                     } catch (final NoSuchMethodException nsme) {
                         if (logger.isDebugEnabled()) {
@@ -117,7 +117,7 @@ public class ScriptedRecordSetWriter extends AbstractScriptedRecordFactory<Recor
 
                     if (configurationContext != null) {
                         try {
-                            // set the logger if the processor wants it
+                            // set the logger if the com.sdari.processor wants it
                             invocable.invokeMethod(obj, "setConfigurationContext", configurationContext);
                         } catch (final NoSuchMethodException nsme) {
                             if (logger.isDebugEnabled()) {
@@ -126,7 +126,7 @@ public class ScriptedRecordSetWriter extends AbstractScriptedRecordFactory<Recor
                         }
                     }
 
-                    // record the processor for use later
+                    // record the com.sdari.processor for use later
                     final RecordSetWriterFactory scriptedWriter = invocable.getInterface(obj, RecordSetWriterFactory.class);
                     recordFactory.set(scriptedWriter);
 

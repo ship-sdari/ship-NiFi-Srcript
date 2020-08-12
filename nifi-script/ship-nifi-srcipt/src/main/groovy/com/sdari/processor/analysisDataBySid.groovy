@@ -1,21 +1,22 @@
-import groovy.sql.*
+package com.sdari.processor
+
+import groovy.sql.GroovyRowResult
+import org.apache.nifi.annotation.behavior.EventDriven
+import org.apache.nifi.annotation.documentation.CapabilityDescription
+import org.apache.nifi.components.PropertyDescriptor
 import org.apache.nifi.components.ValidationContext
 import org.apache.nifi.components.ValidationResult
+import org.apache.nifi.dbcp.DBCPService
 import org.apache.nifi.processor.ProcessContext
 import org.apache.nifi.processor.ProcessSessionFactory
 import org.apache.nifi.processor.Processor
 import org.apache.nifi.processor.ProcessorInitializationContext
+import org.apache.nifi.processor.Relationship
+import org.apache.nifi.processor.exception.ProcessException
 
 import java.sql.ResultSet
 import java.sql.ResultSetMetaData
 import java.sql.SQLException
-
-import org.apache.nifi.annotation.behavior.EventDriven
-import org.apache.nifi.annotation.documentation.CapabilityDescription
-import org.apache.nifi.components.PropertyDescriptor
-import org.apache.nifi.dbcp.DBCPService
-import org.apache.nifi.processor.Relationship
-import org.apache.nifi.processor.exception.ProcessException
 
 @EventDriven
 @CapabilityDescription("Execute a series of JDBC queries adding the results to each JSON presented in the FlowFile")
@@ -99,8 +100,4 @@ import org.apache.nifi.processor.exception.ProcessException
 
     @Override
     String getIdentifier() { null }
-
 }
-
-processor = new analysisDataBySid()
-

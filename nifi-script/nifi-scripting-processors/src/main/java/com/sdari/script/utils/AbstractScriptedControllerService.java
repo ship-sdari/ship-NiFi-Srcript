@@ -55,7 +55,7 @@ public abstract class AbstractScriptedControllerService extends AbstractControll
      * list always includes properties such as script engine name, script file
      * name, script body name, script arguments, and an external module path.
      *
-     * @return a List of PropertyDescriptor objects supported by this processor
+     * @return a List of PropertyDescriptor objects supported by this com.sdari.processor
      */
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
@@ -92,7 +92,7 @@ public abstract class AbstractScriptedControllerService extends AbstractControll
     }
 
     /**
-     * Handles changes to this processor's properties. If changes are made to
+     * Handles changes to this com.sdari.processor's properties. If changes are made to
      * script- or engine-related properties, the script will be reloaded.
      *
      * @param descriptor of the modified property
