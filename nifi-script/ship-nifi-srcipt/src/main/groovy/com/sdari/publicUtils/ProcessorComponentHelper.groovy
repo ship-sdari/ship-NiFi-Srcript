@@ -8,7 +8,6 @@ import com.sdari.dto.manager.TStreamRuleDTO
 import org.apache.nifi.components.PropertyDescriptor
 import org.apache.nifi.processor.Relationship
 import java.sql.Connection
-import java.sql.DriverManager
 import java.sql.ResultSet
 import java.sql.Statement
 import java.util.concurrent.atomic.AtomicBoolean
@@ -20,10 +19,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 class ProcessorComponentHelper {
 
     final AtomicBoolean isInitialized = new AtomicBoolean(false)
-    private int processorId;
+    private int processorId
     private Map<String, PropertyDescriptor> descriptors
     private Map<String, Relationship> relationships
     private Map parameters
+    private Map<String, NifiProcessorRoutesDTO> routeConf
     private Map<String, Map<String, List<NifiProcessorSubClassDTO>>> subClasses
     private Map<String, GroovyObject> scriptMap
     private Map<String, Map<String, TStreamRuleDTO>> tStreamRules
@@ -58,6 +58,13 @@ class ProcessorComponentHelper {
         }
     }
 
+    Map<String, NifiProcessorRoutesDTO> setRouteConf() {
+        return this.routeConf
+    }
+
+    void setDescriptors(Map<String, NifiProcessorRoutesDTO> routeConf) {
+        this.routeConf = routeConf
+    }
 
     Map<String, PropertyDescriptor> getDescriptors() {
         return descriptors
@@ -90,7 +97,7 @@ class ProcessorComponentHelper {
     def getScriptMapByName(String name) {
         return this.scriptMap.get(name)
     }
-def
+
     void setSubClasses(subClassGroups) {
         this.subClasses = subClassGroups
     }
@@ -221,14 +228,15 @@ def
             if (!stmWarehousing.isClosed()) stmWarehousing.close()
         }
         selectConfigs.call()
-        //获取所有路由名称并设置路由暂存
-        def routeNames = []
+        //获取所有路由名称并设置路由暂存,并暂存路由配置
+        Map<String, NifiProcessorRoutesDTO> routeConf = [:]
         Map<Integer, NifiProcessorRoutesDTO> routeMap = [:]
         routesDto?.each {
-            routeNames.add(it.getProperty('route_name'))
+            routeConf.put(it.getProperty('route_name') as String, it)
             routeMap.put(it.getProperty('route_id') as int, it)
         }
-        createRelationships(routeNames)
+        createRelationships(routeConf.keySet() as List<String>)
+        setDescriptors(routeConf)//路由表配置
         //设置属性暂存
         createParameters(attributesDto)
         //设置子脚本分组并暂存
