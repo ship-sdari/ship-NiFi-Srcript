@@ -104,29 +104,29 @@ class analysisDataBySid implements Processor {
             }
         })
         try {
-
             final def attributesMap = flowFile.getAttributes()
             //调用脚本需要传的参数[attributesMap-> flowFile属性][dataList -> flowFile数据]
-            Object[] objects = [attributesMap, dataList]
+            final Object[] args = [[pch.returnRules: pch.getTStreamRules(), pch.returnAttributes: attributesMap, pch.returnData: dataList]]
+
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             for (routesDTO in pch.getRouteConf()?.values()) {
+                if ('A' == routesDTO.route_running_way) {
+                    log.error "处理器：" + id + "路由：" + routesDTO.route_name + "的运行方式，暂不支持并行执行方式，请检查管理表!"
+                    continue
+                }
                 //用来接收脚本返回的数据
-                def dtoData = objects
-                //用来接收脚本返回的属性
-                def DataAttributesMap = attributesMap
-                //需要路由下取的数据
-                def data = null as JSONArray
-                //用来判断脚本有没有被调用
-                boolean bo = false
+                Object[] returnList = args
+                //用来判断有没有脚本被调用
+                boolean isScripted = false
                 //路由关系
                 switch (routesDTO.status) {
                 //路由关系禁用
                     case "S":
-                        break;
+                        break
                 //路由关系忽略
                     case "I":
                         session.transfer(session.clone(flowFile), pch.getRelationships().get(routesDTO.route_name))
-                        break;
+                        break
                 //路由关系正常执行
                     default:
                         //开始循环分脚本
@@ -134,35 +134,41 @@ class analysisDataBySid implements Processor {
                             log.error "处理器：" + id + "路由：" + routesDTO.route_name + "的分脚本运行方式配置异常，请检查管理表!"
                             break
                         }
-                        for (subClassDTOS in pch.getSubClasses().get(routesDTO.route_name).values()) {
-                            if ("A" == dto.status) {
-                                bo = true
-                                //根据路由名称 获取脚本实体GroovyObject instance
-                                GroovyObject instance = pch.getScriptMapByName(subClassDTOS.sub_script_name)
-                                //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                dtoData = instance.invokeMethod(pch.funName, dtoData)
-                                //路由对应数据
-                                data = dtoData[pch.funData] as JSONArray
-                                //路由对应属性
-                                DataAttributesMap = dtoData[pch.funAttributes]
+                        for (runningWay in pch.getSubClasses().get(routesDTO.route_name).keySet()) {
+                            //执行方式 A-并行 S-串行
+                            if ("S" == runningWay) {
+                                for (subClassDTO in pch.getSubClasses().get(routesDTO.route_name).get(runningWay)) {
+                                    if ('A' == subClassDTO.status) {
+                                        isScripted = true
+                                        //根据路由名称 获取脚本实体GroovyObject instance
+                                        final GroovyObject instance = pch.getScriptMapByName(subClassDTO.sub_script_name)
+                                        //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
+                                        returnList = instance.invokeMethod(pch.funName, returnList)
+                                    }
+                                }
                             } else {
-                                throw Exception("占不支持并行")
+                                log.error "处理器：" + id + "路由：" + routesDTO.route_name + "的分脚本运行方式，暂不支持并行执行方式，请检查管理表!"
                             }
                         }
-                        break
                 }
                 //如果脚本执行了路由下去
-                if (bo) {
-                    FlowFile flowFileEvent = session.create()
-                    OutputStream outputStream
-                    session.putAllAttributes(flowFileEvent, DataAttributesMap as Map<String, String>)
-                    //FlowFile write 数据
-                    session.write(flowFileEvent, {
-                        outputStream.write(JSONArray.toJSONBytes(data,
-                                SerializerFeature.WriteMapNullValue))
-                    } as OutputStreamCallback)
-                    outputStream.close()
-                    session.transfer(flowFileEvent, pch.getRelationships().get(routesDTO.route_name))
+                def flowFiles = []
+                if (isScripted) {
+                    for (data in returnList ?[0] ?[pch.returnData]) {
+                        FlowFile flowFileNew = session.create()
+                        OutputStream outputStream
+                        session.putAllAttributes(flowFileNew, returnList[pch.returnAttributes] as Map<String, String>)
+                        //FlowFile write 数据
+                        session.write(flowFileNew, {
+                            outputStream.write(JSONArray.toJSONBytes(data,
+                                    SerializerFeature.WriteMapNullValue))
+                        } as OutputStreamCallback)
+                        outputStream.close()
+                        flowFiles.add(flowFileNew)
+                    }
+                    session.transfer(flowFiles, pch.getRelationships().get(routesDTO.route_name))
+                } else {
+                    session.transfer(session.clone(flowFile), pch.getRelationships().get(routesDTO.route_name))
                 }
             }
             session.remove(flowFile)

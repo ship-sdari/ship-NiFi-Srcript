@@ -35,9 +35,11 @@ class ProcessorComponentHelper {
     //脚本的方法名
     public final static String funName = "calculation"
     //脚本返回的数据
-    public final static String funData = "calculation"
+    public final static String returnData = "data"
     //脚本返回的属性
-    public final static String funAttributes = "calculation"
+    public final static String returnAttributes = "attributes"
+    //脚本返回的配置
+    public final static String returnRules = "rules"
 
     ProcessorComponentHelper(int id, Connection con) {
         //构造处理器编号
