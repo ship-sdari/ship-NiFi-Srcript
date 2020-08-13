@@ -1,9 +1,7 @@
 package com.sdari.processor
 
 import com.alibaba.fastjson.JSONArray
-import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
-import com.sdari.dto.manager.NifiProcessorSubClassDTO
 import com.sdari.publicUtils.ProcessorComponentHelper
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
@@ -23,8 +21,6 @@ import org.apache.nifi.processor.ProcessorInitializationContext
 import org.apache.nifi.processor.Relationship
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
-import org.python.antlr.ast.If
-
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicReference
 
@@ -34,7 +30,6 @@ class analysisDataBySid implements Processor {
     static def log
     private String id
     private DBCPService dbcpService = null
-    private GroovyClassLoader loader = new GroovyClassLoader()
     private ProcessorComponentHelper pch
 
     @Override
