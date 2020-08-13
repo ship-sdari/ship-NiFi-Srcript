@@ -58,11 +58,11 @@ class ProcessorComponentHelper {
         }
     }
 
-    Map<String, NifiProcessorRoutesDTO> setRouteConf() {
+    Map<String, NifiProcessorRoutesDTO> getRouteConf() {
         return this.routeConf
     }
 
-    void setDescriptors(Map<String, NifiProcessorRoutesDTO> routeConf) {
+    void setRouteConf(Map<String, NifiProcessorRoutesDTO> routeConf) {
         this.routeConf = routeConf
     }
 
@@ -236,7 +236,7 @@ class ProcessorComponentHelper {
             routeMap.put(it.getProperty('route_id') as int, it)
         }
         createRelationships(routeConf.keySet() as List<String>)
-        setDescriptors(routeConf)//路由表配置
+        setRouteConf(routeConf)//路由表配置
         //设置属性暂存
         createParameters(attributesDto)
         //设置子脚本分组并暂存

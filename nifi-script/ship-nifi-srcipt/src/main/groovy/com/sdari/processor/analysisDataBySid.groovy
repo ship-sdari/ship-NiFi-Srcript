@@ -1,5 +1,6 @@
 package com.sdari.processor
 
+import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
 import com.sdari.dto.manager.NifiProcessorSubClassDTO
@@ -89,13 +90,13 @@ class analysisDataBySid implements Processor {
      */
     void onTrigger(ProcessContext context, ProcessSessionFactory sessionFactory) throws ProcessException {
         final ProcessSession session = sessionFactory.createSession()
-        final AtomicReference<JSONObject> dataMap = new AtomicReference<>()
+        final AtomicReference<JSONArray> dataList = new AtomicReference<>()
         FlowFile flowFile = session.get()
         if (!flowFile) return
         /*以下为正常处理数据文件的部分*/
         session.read(flowFile, { inputStream ->
             try {
-                dataMap.set(JSONObject.parseObject(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
+                dataList.set(JSONArray.parseArray(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
             } catch (Exception e) {
                 onFailure(session, flowFile)
                 log.error("Failed to read from flowFile", e)
@@ -105,69 +106,93 @@ class analysisDataBySid implements Processor {
         try {
             //根据路由关系 获取对应脚本 [路由名称->脚本执行顺序（串行||并行）]
             //[attributesMap-> flowFile属性][dataMap -> flowFile数据]
-            def attributesMap = flowFile.getAttributes()
-            Object[] objects = [attributesMap, dataMap]
+            final def attributesMap = flowFile.getAttributes()
+            Object[] objects = [attributesMap, dataList]
+            for (routesDTO in pch.getRouteConf()?.values()) {
+                //路由关系禁用
+                if (routesDTO.status == 'S') continue
+                //路由关系忽略
+                if (routesDTO.status == 'I') continue//直接路由出去
+
+                //开始循环分脚本
+                if (pch.getSubClasses().get(routesDTO.route_name).size() > 1){
+                    log.error "处理器：" + id + "路由：" + routesDTO.route_name + "的分脚本运行方式配置异常，请检查管理表!"
+                    continue
+                }
+
+                def dtoData = objects
+                def size = pch.getSubClasses().get(routesDTO.route_name).values().size()
+                int runI = 0;
+                def flowFileDto = session.create()
+                boolean bo = true
+                for (subClassDTOS in pch.getSubClasses().get(routesDTO.route_name).values()) {
+                    runI += 1
+                    FlowFile flowFileEvent = null
+                    switch (dto.status) {
+                        case "A":
+                            //根据路由名称 获取脚本实体GroovyObject instance
+                            GroovyObject instance = pch.getScriptMapByName(dto.sub_script_name)
+                            //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
+                            dtoData = instance.invokeMethod("calculation", dtoData)
+                            //def keyData = instanceMap[key]
+                            //路由对应数据
+                            JSONObject data = dtoData["data"] as JSONObject
+                            //路由对应属性
+                            def attributes = dtoData["attributes"]
+                            if ("A".equals(k)) {
+                                //FlowFile put 属性
+                                flowFileEvent = session.create()
+                            } else {
+                                flowFileEvent = flowFileDto
+                            }
+                            session.putAllAttributes(flowFileEvent, attributes as Map<String, String>)
+
+                            //FlowFile write 数据
+                            OutputStream outputStream
+                            session.write(flowFileEvent, {
+                                outputStream.write(JSONObject.toJSONBytes(data,
+                                        SerializerFeature.WriteMapNullValue))
+                            } as OutputStreamCallback)
+                            outputStream.close()
+                            bo = false
+                            break;
+                        case "S":
+                            if ("A".equals(k)) {
+                                flowFileEvent = session.clone(flowFile)
+                            } else {
+                                if (bo) {
+                                    flowFileEvent = session.clone(flowFile)
+                                    bo = false
+                                } else {
+                                    flowFileEvent = session.clone(flowFileDto)
+                                }
+                            }
+                            break;
+                        default:
+                            break
+                    }
+                    //路由
+                    if (null != flowFileEvent) {
+                        if ("A".equals(k) || runI == size) {
+                            session.transfer(flowFileEvent, pch.getRelationships().get(key))
+                        } else {
+                            flowFileDto = flowFileEvent
+                        }
+                    }
+                }
+                //运行方式-并行
+                if (routesDTO.route_running_way == 'A') {
+                    //
+                } else {//串行
+                    //
+                }
+
+            }
             for (String key : pch.getSubClasses().keySet()) {
                 for (String k : pch.getSubClasses().get(key).keySet()) {
-                    def dtoData = objects
-                    def size = pch.getSubClasses().get(key).get(k).size()
-                    int runI = 0;
-                    def flowFileDto = session.create()
-                    boolean bo = true
-                    for (NifiProcessorSubClassDTO dto : pch.getSubClasses().get(key).get(k)) {
-                        runI += 1
-                        FlowFile flowFileEvent = null
-                        switch (dto.status) {
-                            case "A":
-                                //根据路由名称 获取脚本实体GroovyObject instance
-                                GroovyObject instance = pch.getScriptMapByName(dto.sub_script_name)
-                                //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                dtoData = instance.invokeMethod("calculation", dtoData)
-                                //def keyData = instanceMap[key]
-                                //路由对应数据
-                                JSONObject data = dtoData["data"] as JSONObject
-                                //路由对应属性
-                                def attributes = dtoData["attributes"]
-                                if ("A".equals(k)) {
-                                    //FlowFile put 属性
-                                    flowFileEvent = session.create()
-                                } else {
-                                    flowFileEvent = flowFileDto
-                                }
-                                session.putAllAttributes(flowFileEvent, attributes as Map<String, String>)
 
-                                //FlowFile write 数据
-                                OutputStream outputStream
-                                session.write(flowFileEvent, {
-                                    outputStream.write(JSONObject.toJSONBytes(data,
-                                            SerializerFeature.WriteMapNullValue))
-                                } as OutputStreamCallback)
-                                outputStream.close()
-                                bo = false
-                                break;
-                            case "S":
-                                if ("A".equals(k)) {
-                                    flowFileEvent = session.clone(flowFile)
-                                } else {
-                                    if (bo) {
-                                        flowFileEvent = session.clone(flowFile)
-                                        bo = false
-                                    } else {
-                                        flowFileEvent = session.clone(flowFileDto)
-                                    }
-                                }
-                                break;
-                            default:
-                                break
-                        }
-                        //路由
-                        if (null != flowFileEvent) {
-                            if ("A".equals(k) || runI == size) {
-                                session.transfer(flowFileEvent, pch.getRelationships().get(key))
-                            } else {
-                                flowFileDto = flowFileEvent
-                            }
-                        }
+                    for (NifiProcessorSubClassDTO dto : pch.getSubClasses().get(key).get(k)) {
+
                     }
                     session.remove(flowFileDto)
                 }
