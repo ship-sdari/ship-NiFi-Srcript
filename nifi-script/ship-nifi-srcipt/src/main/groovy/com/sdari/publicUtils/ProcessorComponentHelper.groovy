@@ -32,6 +32,12 @@ class ProcessorComponentHelper {
 //    private String password = 'Qgy@815133'
 //    private int timeOut = 10
     private Connection con
+    //脚本的方法名
+    public final static String funName = "calculation"
+    //脚本返回的数据
+    public final static String funData = "calculation"
+    //脚本返回的属性
+    public final static String funAttributes = "calculation"
 
     ProcessorComponentHelper(int id, Connection con) {
         //构造处理器编号
