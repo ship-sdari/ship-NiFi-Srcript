@@ -116,17 +116,17 @@ class analysisDataBySid implements Processor {
                 }
                 //用来接收脚本返回的数据
                 Object[] returnList = args
-                //用来判断有没有脚本被调用
-                boolean isScripted = false
+                //路由方式 A-正常路由 I-源文本路由 S-不路由
+                def routeWay = 'S'
                 //路由关系
                 switch (routesDTO.status) {
                 //路由关系禁用
                     case "S":
-                        continue//下一个路由关系
+                        routeWay = 'S'
                         break
-                //路由关系忽略
+                //路由关系忽略，应当源文本路由
                     case "I":
-                        session.transfer(session.clone(flowFile), pch.getRelationships().get(routesDTO.route_name))
+                        routeWay = 'I'
                         break
                 //路由关系正常执行
                     default:
@@ -140,11 +140,11 @@ class analysisDataBySid implements Processor {
                             if ("S" == runningWay) {
                                 for (subClassDTO in pch.getSubClasses().get(routesDTO.route_name).get(runningWay)) {
                                     if ('A' == subClassDTO.status) {
-                                        isScripted = true
                                         //根据路由名称 获取脚本实体GroovyObject instance
                                         final GroovyObject instance = pch.getScriptMapByName(subClassDTO.sub_script_name)
                                         //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
                                         returnList = instance.invokeMethod(pch.funName, returnList)
+                                        routeWay = 'A'
                                     }
                                 }
                             } else {
@@ -153,23 +153,29 @@ class analysisDataBySid implements Processor {
                         }
                 }
                 //如果脚本执行了路由下去
-                def flowFiles = []
-                if (isScripted) {
-                    for (data in returnList ?[0] ?[pch.returnData]) {
-                        FlowFile flowFileNew = session.create()
-                        OutputStream outputStream
-                        session.putAllAttributes(flowFileNew, returnList[pch.returnAttributes] as Map<String, String>)
-                        //FlowFile write 数据
-                        session.write(flowFileNew, {
-                            outputStream.write(JSONArray.toJSONBytes(data,
-                                    SerializerFeature.WriteMapNullValue))
-                        } as OutputStreamCallback)
-                        outputStream.close()
-                        flowFiles.add(flowFileNew)
-                    }
-                    session.transfer(flowFiles, pch.getRelationships().get(routesDTO.route_name))
-                } else {
-                    session.transfer(session.clone(flowFile), pch.getRelationships().get(routesDTO.route_name))
+                switch (routeWay){
+                    case 'A':
+                        def flowFiles = []
+                        for (data in returnList ?[0] ?[pch.returnData]) {
+                            FlowFile flowFileNew = session.create()
+                            OutputStream outputStream
+                            session.putAllAttributes(flowFileNew, returnList[pch.returnAttributes] as Map<String, String>)
+                            //FlowFile write 数据
+                            session.write(flowFileNew, {
+                                outputStream.write(JSONArray.toJSONBytes(data,
+                                        SerializerFeature.WriteMapNullValue))
+                            } as OutputStreamCallback)
+                            outputStream.close()
+                            flowFiles.add(flowFileNew)
+                        }
+                        session.transfer(flowFiles, pch.getRelationships().get(routesDTO.route_name))
+                        break
+                    case 'I':
+                        session.transfer(session.clone(flowFile), pch.getRelationships().get(routesDTO.route_name))
+                        break
+                    default:
+                        //不路由
+                        break
                 }
             }
             session.remove(flowFile)
