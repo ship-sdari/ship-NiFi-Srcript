@@ -101,7 +101,7 @@ class analysisDataBySid implements Processor {
         try {
             final def attributesMap = flowFile.getAttributes()
             //调用脚本需要传的参数[attributesMap-> flowFile属性][dataList -> flowFile数据]
-            final Object[] args = [[pch.returnRules: pch.getTStreamRules(), pch.returnAttributes: attributesMap, pch.returnData: dataList]]
+            final Object[] args = [[pch.returnRules: pch.getTStreamRules(), pch.returnAttributes: attributesMap, pch.returnData: dataList.get()]]
 
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             for (routesDTO in pch.getRouteConf()?.values()) {
@@ -148,10 +148,10 @@ class analysisDataBySid implements Processor {
                         }
                 }
                 //如果脚本执行了路由下去
-                switch (routeWay){
+                switch (routeWay) {
                     case 'A':
                         def flowFiles = []
-                        for (data in returnList ?[0] ?[pch.returnData]) {
+                        for (data in returnList[0][pch.returnData]) {
                             FlowFile flowFileNew = session.create()
                             OutputStream outputStream
                             session.putAllAttributes(flowFileNew, returnList[pch.returnAttributes] as Map<String, String>)
