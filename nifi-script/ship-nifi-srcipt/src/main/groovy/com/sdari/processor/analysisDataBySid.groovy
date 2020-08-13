@@ -122,6 +122,7 @@ class analysisDataBySid implements Processor {
                 switch (routesDTO.status) {
                 //路由关系禁用
                     case "S":
+                        continue//下一个路由关系
                         break
                 //路由关系忽略
                     case "I":
