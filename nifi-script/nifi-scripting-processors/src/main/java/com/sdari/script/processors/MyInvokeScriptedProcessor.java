@@ -336,6 +336,17 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                 final Object obj = scriptEngine.get("processor");
                 final ComponentLog log = getLogger();
                 if (obj != null) {
+
+                    try {
+                        // set the logger if the processor wants it
+                        invocable.invokeMethod(obj, "setLogger", log);
+                    } catch (final Exception nsme) {
+                        log.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
+                        MyInvokeScriptedProcessor.logger.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Configured script Processor does not contain a setLogger method.");
+                        }
+                    }
                     try {
                         // set the logger if the processor wants it
 
@@ -351,17 +362,6 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                             log.debug("scriptInit.");
                         }
                     }
-                    try {
-                        // set the logger if the processor wants it
-                        invocable.invokeMethod(obj, "setLogger", log);
-                    } catch (final Exception nsme) {
-                        log.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
-                        MyInvokeScriptedProcessor.logger.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
-                        if (log.isDebugEnabled()) {
-                            log.debug("Configured script Processor does not contain a setLogger method.");
-                        }
-                    }
-
                     // record the processor for use later
                     final Processor scriptProcessor = invocable.getInterface(obj, Processor.class);
                     processor.set(scriptProcessor);
