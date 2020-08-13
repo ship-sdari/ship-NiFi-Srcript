@@ -1,4 +1,4 @@
-package com.sdari.processor
+package com.sdari.processor.analysisDataBySid
 
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.serializer.SerializerFeature
@@ -31,6 +31,7 @@ class analysisDataBySid implements Processor {
     private String id
     private DBCPService dbcpService = null
     private ProcessorComponentHelper pch
+    private static GroovyClassLoader loader = new GroovyClassLoader()
 
     @Override
     Set<Relationship> getRelationships() {

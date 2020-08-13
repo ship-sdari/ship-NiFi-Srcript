@@ -7,7 +7,7 @@ class test {
     public static void main(String[] args) {
         GroovyClassLoader loader1 = new GroovyClassLoader();
         //File 需要绝对路径
-        Class aClass2 = loader1.parseClass(new File("src\\com\\vo\\TStreamRuleDTO.groovy"));
+        Class aClass2 = loader1.parseClass(new File("src\\com\\vo\\com.sdari.processor.testOn1.TStreamRuleDTO.groovy"));
         GroovyObject instance2 = (GroovyObject) aClass2.newInstance();
         Map<String, List<Object>> colgroups = new ConcurrentHashMap<>();
         Map<String, Set<String>> distgroups = new ConcurrentHashMap<>();

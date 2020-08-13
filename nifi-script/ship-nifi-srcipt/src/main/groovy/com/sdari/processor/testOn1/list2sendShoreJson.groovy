@@ -1,7 +1,8 @@
+package com.sdari.processor.testOn1
 //import com.alibaba.fastjson.JSONArray
 //import com.sdari.dto.manager.TStreamRuleDTO
 
-public class list2mysqlJson {
+public class list2sendShoreJson {
 
 
     public static Object calculation(Map<String, Object> param) {
