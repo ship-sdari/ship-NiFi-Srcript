@@ -5,8 +5,11 @@ import com.sdari.dto.manager.NifiProcessorAttributesDTO
 import com.sdari.dto.manager.NifiProcessorRoutesDTO
 import com.sdari.dto.manager.NifiProcessorSubClassDTO
 import com.sdari.dto.manager.TStreamRuleDTO
+import org.apache.commons.lang3.StringUtils
 import org.apache.nifi.components.PropertyDescriptor
 import org.apache.nifi.processor.Relationship
+import org.codehaus.groovy.runtime.InvokerHelper
+
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Statement
@@ -18,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class ProcessorComponentHelper {
 
     final AtomicBoolean isInitialized = new AtomicBoolean(false)
+    private final GroovyClassLoader classLoader = new GroovyClassLoader();
     private int processorId
     private Map<String, PropertyDescriptor> descriptors
     private Map<String, Relationship> relationships
@@ -166,8 +170,8 @@ class ProcessorComponentHelper {
                 routesDto = NifiProcessorRoutesDTO.createDto(res)
                 if (!res.closed) res.close()
                 if (!stm.isClosed()) stm.close()
-            }catch(Exception e){
-                throw new Exception("闭包查询路由表异常",e)
+            } catch (Exception e) {
+                throw new Exception("闭包查询路由表异常", e)
             }
         }
         selectRouteManagers.call()
@@ -182,7 +186,7 @@ class ProcessorComponentHelper {
                 if (!res.closed) res.close()
                 if (!stm.isClosed()) stm.close()
             } catch (Exception e) {
-                throw new Exception("闭包查询属性表异常",e)
+                throw new Exception("闭包查询属性表异常", e)
             }
         }
         selectAttributeManagers.call()
@@ -197,7 +201,7 @@ class ProcessorComponentHelper {
                 if (!res.closed) res.close()
                 if (!stm.isClosed()) stm.close()
             } catch (Exception e) {
-                throw new Exception("闭包查询子脚本表异常",e)
+                throw new Exception("闭包查询子脚本表异常", e)
             }
         }
         selectSubClassManagers.call()
@@ -247,7 +251,7 @@ class ProcessorComponentHelper {
                 if (!resWarehousing.closed) resWarehousing.close()
                 if (!stmWarehousing.isClosed()) stmWarehousing.close()
             } catch (Exception e) {
-                throw new Exception("闭包查询流规则配置表异常",e)
+                throw new Exception("闭包查询流规则配置表异常", e)
             }
         }
         selectConfigs.call()
@@ -268,7 +272,7 @@ class ProcessorComponentHelper {
             //设置流规则暂存
             createTStreamRules(tStreamRuleDto)
         } catch (Exception e) {
-            throw new Exception("配置暂存异常",e)
+            throw new Exception("配置暂存异常", e)
         }
         releaseConnection()
         this.isInitialized.set(true)
@@ -295,7 +299,7 @@ class ProcessorComponentHelper {
             scriptMap = GroovyObjectMap
         } catch (Exception e) {
             this.isInitialized.set(false)
-            throw new Exception("初始化子脚本并暂存至脚本实例仓库异常",e)
+            throw new Exception("初始化子脚本并暂存至脚本实例仓库异常", e)
         }
     }
 
@@ -315,14 +319,36 @@ class ProcessorComponentHelper {
                     case "uuid":
                         break
                     default:
-                        break
-                // map.put(key, attributes.get(key))
+                        map.put(key, attributes.get(key))
                 }
             }
-            map.put("ss", "ss")
         } catch (Exception e) {
-            throw new Exception("流文件属性更新异常",e)
+            throw new Exception("流文件属性更新异常", e)
         }
         return map
+    }
+    /**
+     * 根据路径名称 加载class
+     */
+    private Script loadScript(String rule) {
+        return loadScript(rule, new Binding())
+    }
+
+    private Script loadScript(String rule, Binding binding) throws Exception {
+        Script script = null
+        if (StringUtils.isEmpty(rule)) {
+            return null;
+        }
+        try {
+            Class ruleClazz = classLoader.parseClass(rule);
+            if (ruleClazz != null) {
+                return InvokerHelper.createScript(ruleClazz, binding)
+            }
+        } catch (Exception e) {
+            throw new Exception("loadScript:", e)
+        } finally {
+            classLoader.clearCache()
+        }
+        return script
     }
 }
