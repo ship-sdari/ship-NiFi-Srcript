@@ -198,6 +198,6 @@ class GroovyProcessor implements Processor {
 
 }
 
-processor = new GroovyProcessor()
+//processor = new GroovyProcessor()
 
 

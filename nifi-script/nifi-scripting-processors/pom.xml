@@ -210,12 +210,12 @@
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy-test</artifactId>
-            <version>3.0.5</version>
+            <version>${groovy.version}</version>
         </dependency>
         <dependency>
             <groupId>org.codehaus.groovy</groupId>
             <artifactId>groovy-sql</artifactId>
-            <version>3.0.5</version>
+            <version>${groovy.version}</version>
         </dependency>
     </dependencies>
 </project>

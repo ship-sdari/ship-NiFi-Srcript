@@ -160,10 +160,10 @@ class analysisDataBySid implements Processor {
                     switch (routeWay) {
                         case 'A':
                             def flowFiles = []
-                            for (data in returnMap as LinkedHashMap [pch.returnData]) {
+                            for (data in (returnMap as LinkedHashMap)[pch.returnData]) {
                                 FlowFile flowFileNew = session.create()
                                 try {
-                                session.putAllAttributes(flowFileNew, (returnMap as LinkedHashMap[pch.returnAttributes] as Map<String, String>))
+                                    session.putAllAttributes(flowFileNew, ((returnMap as LinkedHashMap)[pch.returnAttributes] as Map<String, String>))
                                     //FlowFile write 数据
                                     session.write(flowFileNew, { out ->
                                         out.write(JSONArray.toJSONBytes(data,
@@ -185,7 +185,7 @@ class analysisDataBySid implements Processor {
                             break
                     }
                 } catch (Exception e) {
-                    log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routesDTO.route_name}的处理过程有异常", e
+                    log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routesDTO.route_name} 的处理过程有异常", e
                 }
             }
             session.remove(flowFile)
@@ -244,7 +244,7 @@ class analysisDataBySid implements Processor {
      * @param logger
      * @throws Exception
      */
-    public static void setLogger(final ComponentLog logger) {
+     void setLogger(final ComponentLog logger) {
         try {
             log = logger
             log.info "[Processor_id = ${id} Processor_name = ${this.class}] setLogger 执行成功，日志已设置完毕"

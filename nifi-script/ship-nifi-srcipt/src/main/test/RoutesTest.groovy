@@ -1,7 +1,6 @@
 import com.sdari.dto.manager.NifiProcessorSubClassDTO
 import com.sdari.publicUtils.ProcessorComponentHelper
 import groovy.json.JsonOutput
-import groovy.test.GroovyTestCase
 
 /**
  * @author jinkaisong@sdari.mail.com
@@ -33,5 +32,10 @@ class RoutesTest extends GroovyTestCase {
         println('----------流规则配置----------')
         def tStreamRules = pp.getTStreamRules()
         println "返回结果" + tStreamRules?.size()
+    }
+    void test(){
+        def map = ['key1':['k1':1,'k2':2]]
+        println(map as Map)
+        println(map['key1'] as Map<String,Integer>)
     }
 }
