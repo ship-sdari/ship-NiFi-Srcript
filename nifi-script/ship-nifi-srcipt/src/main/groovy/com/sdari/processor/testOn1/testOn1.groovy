@@ -1,4 +1,3 @@
-
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/13 14:44
@@ -25,6 +24,8 @@ import org.apache.nifi.processor.ProcessorInitializationContext
 import org.apache.nifi.processor.Relationship
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
+import org.luaj.vm2.ast.Str
+
 import java.nio.charset.StandardCharsets
 import java.sql.Connection
 import java.sql.ResultSet
@@ -113,9 +114,13 @@ class analysisDataBySid implements Processor {
         try {
             final def attributesMap = pch.updateAttributes(flowFile.getAttributes())
             //调用脚本需要传的参数[attributesMap-> flowFile属性][dataList -> flowFile数据]
+
             final def former = ["rules"     : pch.getTStreamRules(),
                                 "attributes": attributesMap,
                                 "data"      : dataList.get()]
+            log.info "class returnList " + former.getClass()
+            log.info "class  attributes" + former["attributes"].getClass()
+
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             for (routesDTO in pch.getRouteConf()?.values()) {
                 log.info "路由循环"
@@ -124,7 +129,9 @@ class analysisDataBySid implements Processor {
                     continue
                 }
                 //用来接收脚本返回的数据
-                def returnList = former
+                def returnList = former as LinkedHashMap
+                log.info "class returnList " + returnList.getClass()
+                log.info "class  attributes" + returnList["attributes"].getClass()
                 //路由方式 A-正常路由 I-源文本路由 S-不路由
                 def routeWay = 'S'
                 //路由关系
@@ -167,11 +174,17 @@ class analysisDataBySid implements Processor {
                 switch (routeWay) {
                     case 'A':
                         def flowFiles = []
-                        for (data in returnList[pch.returnData]) {
+                        def returnListData = returnList as LinkedHashMap
+                        for (data in returnListData[pch.returnData]) {
                             try {
                                 FlowFile flowFileNew = session.create()
-                                session.putAllAttributes(flowFileNew, (returnList["attributes"] as Map<String, String>))
-                                //FlowFile write 数据
+//                                def attributesMaps = returnList["attributes"] as Map<String, String>
+//                                for (String s : attributesMaps.keySet()) {
+//                                    session.putAttribute(flowFileNew, s, attributesMaps.get(s))
+//                                }
+                                log.info "class returnList " + returnListData.getClass()
+                                log.info "class  attributes" + returnListData["attributes"].getClass()
+                                session.putAllAttributes(flowFileNew, (returnListData["attributes"]) as Map)
                                 log.info '开始写数据'
                                 session.write(flowFileNew, { out ->
                                     out.write(JSONArray.toJSONBytes(data,
