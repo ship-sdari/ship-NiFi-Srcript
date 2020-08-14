@@ -46,7 +46,7 @@ class RoutesManagerUtils {
         relationshipMap.put(REL_SEND_TO_DIST.getName() as String, (REL_SEND_TO_DIST))
     }
 
-    static Map<String, Relationship> createRelationshipMap(List<String> names) {
+    static Map<String, Relationship> createRelationshipMap(List<String> names) throws Exception{
         def relationships = [:]
         for (name in names) {
             if (relationshipMap?.get(name) == null) {

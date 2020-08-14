@@ -7,7 +7,7 @@ import com.sdari.dto.manager.NifiProcessorAttributesDTO
  */
 class AttributesManagerUtils {
 
-    static createAttributesMap(List<NifiProcessorAttributesDTO> attributeRows) {
+    static createAttributesMap(List<NifiProcessorAttributesDTO> attributeRows) throws Exception {
         def attributes = [:]
         attributeRows.each {
             switch ((it.getProperty('attribute_type') as String).toLowerCase()) {
@@ -28,6 +28,9 @@ class AttributesManagerUtils {
                     break
                 case 'double':
                     attributes.put(it.getProperty('attribute_name'), it.getProperty('attribute_value') as Double)
+                    break
+                case 'boolean':
+                    attributes.put(it.getProperty('attribute_name'), it.getProperty('attribute_value') as Boolean)
                     break
                 default:
                     attributes.put(it.getProperty('attribute_name'), it.getProperty('attribute_value') as String)

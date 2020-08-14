@@ -127,17 +127,17 @@ class ProcessorComponentHelper {
         this.isInitialized.set(true)
     }
 
-    void createRelationships(List<String> names) {
+    void createRelationships(List<String> names) throws Exception {
         relationships = [:]
         relationships.putAll(RoutesManagerUtils.createRelationshipMap(names))
     }
 
-    void createParameters(List<NifiProcessorAttributesDTO> attributeRows) {
+    void createParameters(List<NifiProcessorAttributesDTO> attributeRows) throws Exception {
         parameters = [:]
         parameters.putAll(AttributesManagerUtils.createAttributesMap(attributeRows))
     }
 
-    void createSubClasses(List<NifiProcessorSubClassDTO> subClasses, Map<Integer, NifiProcessorRoutesDTO> routeMap) {
+    void createSubClasses(List<NifiProcessorSubClassDTO> subClasses, Map<Integer, NifiProcessorRoutesDTO> routeMap) throws Exception {
         Map<String, Map<String, List<NifiProcessorSubClassDTO>>> subClassGroups = [:]
         subClasses?.each {
             final int route_id = it.getProperty('route_id') as int
@@ -159,119 +159,143 @@ class ProcessorComponentHelper {
         //闭包查询路由表
         List<NifiProcessorRoutesDTO> routesDto = null
         def selectRouteManagers = {
-            def routesSelect = "SELECT * FROM `nifi_processor_route` WHERE `processor_id` = ${processorId};"
-            Statement stm = con.createStatement()
-            ResultSet res = stm.executeQuery(routesSelect)
-            routesDto = NifiProcessorRoutesDTO.createDto(res)
-            if (!res.closed) res.close()
-            if (!stm.isClosed()) stm.close()
+            try {
+                def routesSelect = "SELECT * FROM `nifi_processor_route` WHERE `processor_id` = ${processorId};"
+                Statement stm = con.createStatement()
+                ResultSet res = stm.executeQuery(routesSelect)
+                routesDto = NifiProcessorRoutesDTO.createDto(res)
+                if (!res.closed) res.close()
+                if (!stm.isClosed()) stm.close()
+            }catch(Exception e){
+                throw new Exception("闭包查询路由表异常",e)
+            }
         }
         selectRouteManagers.call()
         //闭包查询属性表
         List<NifiProcessorAttributesDTO> attributesDto = null
         def selectAttributeManagers = {
-            def attributesSelect = "SELECT * FROM `nifi_processor_attributes` WHERE `processor_id` = ${processorId};"
-            Statement stm = con.createStatement()
-            ResultSet res = stm.executeQuery(attributesSelect)
-            attributesDto = NifiProcessorAttributesDTO.createDto(res)
-            if (!res.closed) res.close()
-            if (!stm.isClosed()) stm.close()
+            try {
+                def attributesSelect = "SELECT * FROM `nifi_processor_attributes` WHERE `processor_id` = ${processorId};"
+                Statement stm = con.createStatement()
+                ResultSet res = stm.executeQuery(attributesSelect)
+                attributesDto = NifiProcessorAttributesDTO.createDto(res)
+                if (!res.closed) res.close()
+                if (!stm.isClosed()) stm.close()
+            } catch (Exception e) {
+                throw new Exception("闭包查询属性表异常",e)
+            }
         }
         selectAttributeManagers.call()
         //闭包查询子脚本表
         def subClassesDto = null
         def selectSubClassManagers = {
-            def subClassesSelect = "SELECT * FROM `nifi_processor_sub_class` WHERE `processor_id` = ${processorId} ORDER BY `running_order`;"
-            Statement stm = con.createStatement()
-            ResultSet res = stm.executeQuery(subClassesSelect)
-            subClassesDto = NifiProcessorSubClassDTO.createDto(res)
-            if (!res.closed) res.close()
-            if (!stm.isClosed()) stm.close()
+            try {
+                def subClassesSelect = "SELECT * FROM `nifi_processor_sub_class` WHERE `processor_id` = ${processorId} ORDER BY `running_order`;"
+                Statement stm = con.createStatement()
+                ResultSet res = stm.executeQuery(subClassesSelect)
+                subClassesDto = NifiProcessorSubClassDTO.createDto(res)
+                if (!res.closed) res.close()
+                if (!stm.isClosed()) stm.close()
+            } catch (Exception e) {
+                throw new Exception("闭包查询子脚本表异常",e)
+            }
         }
         selectSubClassManagers.call()
         //闭包查询流规则配置表
         def tStreamRuleDto = null
         def selectConfigs = {
-            def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule`"
-            def tStreamRuleSelectAlarm = "SELECT * FROM `tstream_rule_alarm`"
-            def tStreamRuleSelectCalculation = "SELECT * FROM `tstream_rule_calculation`"
-            def tStreamRuleSelectCollection = "SELECT * FROM `tstream_rule_collection`"
-            def tStreamRuleSelectDist = "SELECT * FROM `tstream_rule_other_distributions`"
-            def tStreamRuleSelectShoreBased = "SELECT * FROM `tstream_rule_shore_based_distributions`"
-            def tStreamRuleSelectThinning = "SELECT * FROM `tstream_rule_thinning`"
-            def tStreamRuleSelectWarehousing = "SELECT * FROM `tstream_rule_warehousing`"
-            Statement stmBasic = con.createStatement()
-            Statement stmAlarm = con.createStatement()
-            Statement stmCalculation = con.createStatement()
-            Statement stmCollection = con.createStatement()
-            Statement stmDist = con.createStatement()
-            Statement stmShoreBased = con.createStatement()
-            Statement stmThinning = con.createStatement()
-            Statement stmWarehousing = con.createStatement()
-            ResultSet resBasic = stmBasic.executeQuery(tStreamRuleSelectBasic)
-            ResultSet resAlarm = stmAlarm.executeQuery(tStreamRuleSelectAlarm)
-            ResultSet resCalculation = stmCalculation.executeQuery(tStreamRuleSelectCalculation)
-            ResultSet resCollection = stmCollection.executeQuery(tStreamRuleSelectCollection)
-            ResultSet resDist = stmDist.executeQuery(tStreamRuleSelectDist)
-            ResultSet resShoreBased = stmShoreBased.executeQuery(tStreamRuleSelectShoreBased)
-            ResultSet resThinning = stmThinning.executeQuery(tStreamRuleSelectThinning)
-            ResultSet resWarehousing = stmWarehousing.executeQuery(tStreamRuleSelectWarehousing)
-            tStreamRuleDto = TStreamRuleDTO.createDto(resBasic, resAlarm, resCalculation, resCollection, resDist, resShoreBased, resThinning, resWarehousing)
-            if (!resBasic.closed) resBasic.close()
-            if (!stmBasic.isClosed()) stmBasic.close()
-            if (!resAlarm.closed) resAlarm.close()
-            if (!stmAlarm.isClosed()) stmAlarm.close()
-            if (!resCalculation.closed) resCalculation.close()
-            if (!stmCalculation.isClosed()) stmCalculation.close()
-            if (!resCollection.closed) resCollection.close()
-            if (!stmCollection.isClosed()) stmCollection.close()
-            if (!resDist.closed) resDist.close()
-            if (!stmDist.isClosed()) stmDist.close()
-            if (!resShoreBased.closed) resShoreBased.close()
-            if (!stmShoreBased.isClosed()) stmShoreBased.close()
-            if (!resThinning.closed) resThinning.close()
-            if (!stmThinning.isClosed()) stmThinning.close()
-            if (!resWarehousing.closed) resWarehousing.close()
-            if (!stmWarehousing.isClosed()) stmWarehousing.close()
+            try {
+                def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule`"
+                def tStreamRuleSelectAlarm = "SELECT * FROM `tstream_rule_alarm`"
+                def tStreamRuleSelectCalculation = "SELECT * FROM `tstream_rule_calculation`"
+                def tStreamRuleSelectCollection = "SELECT * FROM `tstream_rule_collection`"
+                def tStreamRuleSelectDist = "SELECT * FROM `tstream_rule_other_distributions`"
+                def tStreamRuleSelectShoreBased = "SELECT * FROM `tstream_rule_shore_based_distributions`"
+                def tStreamRuleSelectThinning = "SELECT * FROM `tstream_rule_thinning`"
+                def tStreamRuleSelectWarehousing = "SELECT * FROM `tstream_rule_warehousing`"
+                Statement stmBasic = con.createStatement()
+                Statement stmAlarm = con.createStatement()
+                Statement stmCalculation = con.createStatement()
+                Statement stmCollection = con.createStatement()
+                Statement stmDist = con.createStatement()
+                Statement stmShoreBased = con.createStatement()
+                Statement stmThinning = con.createStatement()
+                Statement stmWarehousing = con.createStatement()
+                ResultSet resBasic = stmBasic.executeQuery(tStreamRuleSelectBasic)
+                ResultSet resAlarm = stmAlarm.executeQuery(tStreamRuleSelectAlarm)
+                ResultSet resCalculation = stmCalculation.executeQuery(tStreamRuleSelectCalculation)
+                ResultSet resCollection = stmCollection.executeQuery(tStreamRuleSelectCollection)
+                ResultSet resDist = stmDist.executeQuery(tStreamRuleSelectDist)
+                ResultSet resShoreBased = stmShoreBased.executeQuery(tStreamRuleSelectShoreBased)
+                ResultSet resThinning = stmThinning.executeQuery(tStreamRuleSelectThinning)
+                ResultSet resWarehousing = stmWarehousing.executeQuery(tStreamRuleSelectWarehousing)
+                tStreamRuleDto = TStreamRuleDTO.createDto(resBasic, resAlarm, resCalculation, resCollection, resDist, resShoreBased, resThinning, resWarehousing)
+                if (!resBasic.closed) resBasic.close()
+                if (!stmBasic.isClosed()) stmBasic.close()
+                if (!resAlarm.closed) resAlarm.close()
+                if (!stmAlarm.isClosed()) stmAlarm.close()
+                if (!resCalculation.closed) resCalculation.close()
+                if (!stmCalculation.isClosed()) stmCalculation.close()
+                if (!resCollection.closed) resCollection.close()
+                if (!stmCollection.isClosed()) stmCollection.close()
+                if (!resDist.closed) resDist.close()
+                if (!stmDist.isClosed()) stmDist.close()
+                if (!resShoreBased.closed) resShoreBased.close()
+                if (!stmShoreBased.isClosed()) stmShoreBased.close()
+                if (!resThinning.closed) resThinning.close()
+                if (!stmThinning.isClosed()) stmThinning.close()
+                if (!resWarehousing.closed) resWarehousing.close()
+                if (!stmWarehousing.isClosed()) stmWarehousing.close()
+            } catch (Exception e) {
+                throw new Exception("闭包查询流规则配置表异常",e)
+            }
         }
         selectConfigs.call()
-        //获取所有路由名称并设置路由暂存,并暂存路由配置
-        Map<String, NifiProcessorRoutesDTO> routeConf = [:]
-        Map<Integer, NifiProcessorRoutesDTO> routeMap = [:]
-        routesDto?.each {
-            routeConf.put(it.getProperty('route_name') as String, it)
-            routeMap.put(it.getProperty('route_id') as int, it)
+        try {
+            //获取所有路由名称并设置路由暂存,并暂存路由配置
+            Map<String, NifiProcessorRoutesDTO> routeConf = [:]
+            Map<Integer, NifiProcessorRoutesDTO> routeMap = [:]
+            routesDto?.each {
+                routeConf.put(it.getProperty('route_name') as String, it)
+                routeMap.put(it.getProperty('route_id') as int, it)
+            }
+            createRelationships(routeConf.keySet() as List<String>)
+            setRouteConf(routeConf)//路由表配置
+            //设置属性暂存
+            createParameters(attributesDto)
+            //设置子脚本分组并暂存
+            createSubClasses(subClassesDto, routeMap)
+            //设置流规则暂存
+            createTStreamRules(tStreamRuleDto)
+        } catch (Exception e) {
+            throw new Exception("配置暂存异常",e)
         }
-        createRelationships(routeConf.keySet() as List<String>)
-        setRouteConf(routeConf)//路由表配置
-        //设置属性暂存
-        createParameters(attributesDto)
-        //设置子脚本分组并暂存
-        createSubClasses(subClassesDto, routeMap)
-        //设置流规则暂存
-        createTStreamRules(tStreamRuleDto)
-
-        this.isInitialized.set(true)
         releaseConnection()
+        this.isInitialized.set(true)
     }
     /**
      * 初始化子脚本并暂存至脚本实例仓库
      */
     void initScript() throws Exception {
-        Map<String, GroovyObject> GroovyObjectMap = new HashMap<>()
-        for (classDTOMap in subClasses.values()) {
-            for (classDTOList in classDTOMap.values()) {
-                for (classDTO in classDTOList) {
-                    if ("A" == classDTO.status && !GroovyObjectMap.containsKey(classDTO.sub_script_name)) {
-                        def path = classDTO.sub_full_path + classDTO.sub_script_name
-                        GroovyClassLoader loader = new GroovyClassLoader()
-                        Class aClass = loader.parseClass(new File(path))
-                        GroovyObjectMap.put(classDTO.sub_script_name, aClass.newInstance() as GroovyObject)
-                    }
+        try {
+            Map<String, GroovyObject> GroovyObjectMap = new HashMap<>()
+            for (classDTOMap in subClasses.values()) {
+                for (classDTOList in classDTOMap.values()) {
+                    for (classDTO in classDTOList) {
+                        if ("A" == classDTO.status && !GroovyObjectMap.containsKey(classDTO.sub_script_name)) {
+                            def path = classDTO.sub_full_path + classDTO.sub_script_name
+                            GroovyClassLoader loader = new GroovyClassLoader()
+                            Class aClass = loader.parseClass(new File(path))
+                            GroovyObjectMap.put(classDTO.sub_script_name, aClass.newInstance() as GroovyObject)
+                        }
 
+                    }
                 }
             }
+            scriptMap = GroovyObjectMap
+        } catch (Exception e) {
+            this.isInitialized.set(false)
+            throw new Exception("初始化子脚本并暂存至脚本实例仓库异常",e)
         }
-        scriptMap = GroovyObjectMap
     }
 }
