@@ -1,5 +1,6 @@
 import com.sdari.dto.manager.NifiProcessorSubClassDTO
 import com.sdari.publicUtils.ProcessorComponentHelper
+import groovy.json.JsonBuilder
 import groovy.json.JsonOutput
 
 /**
@@ -8,7 +9,7 @@ import groovy.json.JsonOutput
  */
 class RoutesTest extends GroovyTestCase {
     void testRoutes() {
-        def pp = new ProcessorComponentHelper(1)
+        def pp = new ProcessorComponentHelper(1, null)
         pp.initComponent()//初始化
         println('----------路由关系----------')
         def relationships = pp.getRelationships()
@@ -33,9 +34,16 @@ class RoutesTest extends GroovyTestCase {
         def tStreamRules = pp.getTStreamRules()
         println "返回结果" + tStreamRules?.size()
     }
-    void test(){
-        def map = ['key1':['k1':1,'k2':2]]
-        println(map as Map)
-        println(map['key1'] as Map<String,Integer>)
+    void testClassLoader(){
+        def pp = new ProcessorComponentHelper(1, null)
+        GroovyObject object1 = pp.getClassInstanceByNameAndPath('NifiProcessorSubClassDTO.groovy','E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
+        object1.setProperty('sub_full_path','第一次测试')
+        println "返回结果 " + object1.getProperty('sub_full_path') as String
+        println pp.aClasses.size()
+
+        GroovyObject object2 = pp.getClassInstanceByNameAndPath('NifiProcessorSubClassDTO.groovy','E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
+        object2.setProperty('sub_full_path','第二次测试')
+        println "返回结果 " + object2.getProperty('sub_full_path') as String
+        println pp.aClasses.size()
     }
 }

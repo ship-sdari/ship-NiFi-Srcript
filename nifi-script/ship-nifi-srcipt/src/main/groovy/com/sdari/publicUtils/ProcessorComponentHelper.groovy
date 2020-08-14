@@ -34,6 +34,8 @@ class ProcessorComponentHelper {
 //    private String password = 'Qgy@815133'
 //    private int timeOut = 10
     private Connection con
+    private final GroovyClassLoader classLoader
+    private Map<String, Class> aClasses
     //脚本的方法名
     public final static String funName = "calculation"
     //脚本返回的数据
@@ -44,6 +46,8 @@ class ProcessorComponentHelper {
     public final static String returnRules = "rules"
 
     ProcessorComponentHelper(int id, Connection con) {
+        classLoader = new GroovyClassLoader()
+        aClasses = [:]
         //构造处理器编号
         processorId = id
         //构造管理库连接
@@ -305,11 +309,11 @@ class ProcessorComponentHelper {
     /**
      * 将流文件无用的属性删掉掉
      */
-    static def updateAttributes(def attributes) throws Exception {
+    static Map<String, String> updateAttributes(Map<String, String> attributes) throws Exception {
         Map<String, String> map = new HashMap<>()
         try {
             if (null == attributes || attributes.size() < 1) return attributes
-            for (String key : attributes.keySet()) {
+            for (key in attributes.keySet()) {
                 switch (key) {
                     case "filename":
                         break
@@ -324,7 +328,28 @@ class ProcessorComponentHelper {
         } catch (Exception e) {
             throw new Exception("流文件属性更新异常", e)
         }
-        return map
+        map
     }
 
+    /**
+     * groovy实例化外部脚本类的获取
+     */
+    GroovyObject getClassInstanceByNameAndPath(String name, String path) {
+        def returnInstance = null
+        final String fullPath = path + name
+        try {
+            final Class aClass
+            if (aClasses.containsKey(fullPath)) {
+                aClass = aClasses.get(fullPath)
+            } else {
+                aClass = classLoader.parseClass(new File(fullPath))
+                aClasses.put(fullPath, aClass)
+            }
+            returnInstance = aClass.newInstance() as GroovyObject
+        } catch (Exception e) {
+            throw new Exception("实例化脚本对象 ${fullPath} 出现异常", e)
+        } finally {
+            returnInstance
+        }
+    }
 }
