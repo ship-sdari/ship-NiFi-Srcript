@@ -298,4 +298,31 @@ class ProcessorComponentHelper {
             throw new Exception("初始化子脚本并暂存至脚本实例仓库异常",e)
         }
     }
+
+    /**
+     * 将流文件无用的属性删掉掉
+     */
+    static def updateAttributes(def attributes) throws Exception {
+        Map<String, String> map = new HashMap<>()
+        try {
+            if (null == attributes || attributes.size() < 1) return attributes
+            for (String key : attributes.keySet()) {
+                switch (key) {
+                    case "filename":
+                        break
+                    case "path":
+                        break
+                    case "uuid":
+                        break
+                    default:
+                        break
+                // map.put(key, attributes.get(key))
+                }
+            }
+            map.put("ss", "ss")
+        } catch (Exception e) {
+            throw new Exception("流文件属性更新异常",e)
+        }
+        return map
+    }
 }

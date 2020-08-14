@@ -1,4 +1,4 @@
-package com.sdari.processor.testOn1
+
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/13 14:44
@@ -111,7 +111,7 @@ class analysisDataBySid implements Processor {
             }
         })
         try {
-            final def attributesMap = flowFile.getAttributes()
+            final def attributesMap = pch.updateAttributes(flowFile.getAttributes())
             //调用脚本需要传的参数[attributesMap-> flowFile属性][dataList -> flowFile数据]
             final def former = ["rules"     : pch.getTStreamRules(),
                                 "attributes": attributesMap,
@@ -170,7 +170,7 @@ class analysisDataBySid implements Processor {
                         for (data in returnList[pch.returnData]) {
                             try {
                                 FlowFile flowFileNew = session.create()
-//                                session.putAllAttributes(flowFileNew, (returnList[pch.returnAttributes] as Map<String, String>))
+                                session.putAllAttributes(flowFileNew, (returnList["attributes"] as Map<String, String>))
                                 //FlowFile write 数据
                                 log.info '开始写数据'
                                 session.write(flowFileNew, { out ->
@@ -660,13 +660,19 @@ class analysisDataBySid implements Processor {
 //    private int timeOut = 10
         private Connection con
         //脚本的方法名
-        public final static String funName = "calculation"
+        public final String funName = "calculation"
         //脚本返回的数据
-        public final static String returnData = "data"
+        public final String returnData = "data"
         //脚本返回的属性
-        public final static String returnAttributes = "attributes"
+        public final String returnAttributes = "attributes"
         //脚本返回的配置
-        public final static String returnRules = "rules"
+        public final String returnRules = "rules"
+
+        public final String fileName = "filename"
+
+        public final String filePath = "path"
+
+        public final String fileUuid = "uuid"
 
         ProcessorComponentHelper(int id, Connection con) {
             //构造处理器编号
@@ -901,6 +907,32 @@ class analysisDataBySid implements Processor {
                 }
             }
             scriptMap = GroovyObjectMap
+        }
+
+        /**
+         * 将流文件无用的属性删掉掉
+         */
+        static def updateAttributes(def attributes) throws Exception {
+            Map<String, String> map = new HashMap<>()
+            log.info "updateAttributes 开始"
+            if (null == attributes || attributes.size() < 1) return attributes
+            log.info "updateAttributes 循环"
+            for (String key : attributes.keySet()) {
+                switch (key) {
+                    case "filename":
+                        break
+                    case "path":
+                        break
+                    case "uuid":
+                        break
+                    default:
+                        break
+                // map.put(key, attributes.get(key))
+                }
+            }
+            map.put("ss", "ss")
+            log.info "updateAttributes 结束 " + map.toString()
+            return map
         }
     }
 

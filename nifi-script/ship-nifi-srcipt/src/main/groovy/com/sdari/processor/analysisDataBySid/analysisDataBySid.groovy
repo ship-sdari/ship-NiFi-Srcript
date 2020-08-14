@@ -106,7 +106,7 @@ class analysisDataBySid implements Processor {
             }
         })
         try {
-            final def attributesMap = flowFile.getAttributes()
+            final def attributesMap = pch.updateAttributes(flowFile.getAttributes())
             //调用脚本需要传的参数[attributesMap-> flowFile属性][dataList -> flowFile数据]
             final def former = ["rules"     : pch.getTStreamRules(),
                                 "attributes": attributesMap,
