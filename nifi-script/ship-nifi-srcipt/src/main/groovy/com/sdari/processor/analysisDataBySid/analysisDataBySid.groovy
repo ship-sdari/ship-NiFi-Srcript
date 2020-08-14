@@ -31,15 +31,16 @@ class analysisDataBySid implements Processor {
     private String id
     private DBCPService dbcpService = null
     private ProcessorComponentHelper pch
-    private static GroovyClassLoader loader = new GroovyClassLoader()
 
     @Override
     Set<Relationship> getRelationships() {
         Set<Relationship> set = new HashSet<Relationship>()
         Map<String, Relationship> relationshipMap = pch.getRelationships()
-        for (String relation : relationshipMap.keySet()) {
-            Relationship relationship = relationshipMap.get(relation)
-            set.add(relationship)
+        if (relationshipMap != null && relationshipMap.size() > 0) {
+            for (String relation : relationshipMap.keySet()) {
+                Relationship relationship = relationshipMap.get(relation)
+                set.add(relationship)
+            }
         }
         return Collections.unmodifiableSet(set) as Set<Relationship>
     }
@@ -48,8 +49,10 @@ class analysisDataBySid implements Processor {
     List<PropertyDescriptor> getPropertyDescriptors() {
         List<PropertyDescriptor> descriptorList = new ArrayList<>()
         Map<String, PropertyDescriptor> descriptorMap = pch.getDescriptors()
-        for (String name : descriptorMap.keySet()) {
-            descriptorList.add(descriptorMap.get(name))
+        if (descriptorMap != null && descriptorMap.size() > 0) {
+            for (String name : descriptorMap.keySet()) {
+                descriptorList.add(descriptorMap.get(name))
+            }
         }
         Collections.unmodifiableList(descriptorList) as List<PropertyDescriptor>
     }
@@ -102,16 +105,18 @@ class analysisDataBySid implements Processor {
         try {
             final def attributesMap = flowFile.getAttributes()
             //调用脚本需要传的参数[attributesMap-> flowFile属性][dataList -> flowFile数据]
-            final Object[] args = [[pch.returnRules: pch.getTStreamRules(), pch.returnAttributes: attributesMap, pch.returnData: dataList.get()]]
-
+            final def former = ["rules"     : pch.getTStreamRules(),
+                                "attributes": attributesMap,
+                                "data"      : dataList.get()]
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             for (routesDTO in pch.getRouteConf()?.values()) {
+                log.info "路由循环"
                 if ('A' == routesDTO.route_running_way) {
                     log.error "处理器：" + id + "路由：" + routesDTO.route_name + "的运行方式，暂不支持并行执行方式，请检查管理表!"
                     continue
                 }
                 //用来接收脚本返回的数据
-                Object[] returnList = args
+                def returnList = former
                 //路由方式 A-正常路由 I-源文本路由 S-不路由
                 def routeWay = 'S'
                 //路由关系
@@ -132,14 +137,16 @@ class analysisDataBySid implements Processor {
                             break
                         }
                         for (runningWay in pch.getSubClasses().get(routesDTO.route_name).keySet()) {
+                            log.info "脚本循环"
                             //执行方式 A-并行 S-串行
                             if ("S" == runningWay) {
                                 for (subClassDTO in pch.getSubClasses().get(routesDTO.route_name).get(runningWay)) {
+                                    log.info "脚本明细循环"
                                     if ('A' == subClassDTO.status) {
                                         //根据路由名称 获取脚本实体GroovyObject instance
                                         final GroovyObject instance = pch.getScriptMapByName(subClassDTO.sub_script_name)
                                         //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                        returnList = instance.invokeMethod(pch.funName, returnList)
+                                        returnList = instance.invokeMethod(pch.funName, [returnList])
                                         routeWay = 'A'
                                     }
                                 }
@@ -152,18 +159,23 @@ class analysisDataBySid implements Processor {
                 switch (routeWay) {
                     case 'A':
                         def flowFiles = []
-                        for (data in returnList[0][pch.returnData]) {
-                            FlowFile flowFileNew = session.create()
-                            OutputStream outputStream
-                            session.putAllAttributes(flowFileNew, returnList[pch.returnAttributes] as Map<String, String>)
-                            //FlowFile write 数据
-                            session.write(flowFileNew, {
-                                outputStream.write(JSONArray.toJSONBytes(data,
-                                        SerializerFeature.WriteMapNullValue))
-                            } as OutputStreamCallback)
-                            outputStream.close()
-                            flowFiles.add(flowFileNew)
+                        for (data in returnList[pch.returnData]) {
+                            try {
+                                FlowFile flowFileNew = session.create()
+//                                session.putAllAttributes(flowFileNew, (returnList[pch.returnAttributes] as Map<String, String>))
+                                //FlowFile write 数据
+                                log.info '开始写数据'
+                                session.write(flowFileNew, { out ->
+                                    out.write(JSONArray.toJSONBytes(data,
+                                            SerializerFeature.WriteMapNullValue))
+                                } as OutputStreamCallback)
+                                log.info '放入流文件列表'
+                                flowFiles.add(flowFileNew)
+                            } catch (Exception e) {
+                                log.error '处理器' + id + "创建流文件异常", e
+                            }
                         }
+                        log.info '进行路由操作'
                         session.transfer(flowFiles, pch.getRelationships().get(routesDTO.route_name))
                         break
                     case 'I':
@@ -212,10 +224,17 @@ class analysisDataBySid implements Processor {
      * @param service
      * @throws Exception
      */
-    public void scriptByInitId(pid, service) throws Exception {
+    void scriptByInitId(pid, service) throws Exception {
         id = pid
         dbcpService = service
-        pch = new ProcessorComponentHelper(id as int, dbcpService.getConnection())
+        try {
+            pch = new ProcessorComponentHelper(pid as int, service.getConnection())
+            pch.initComponent()
+        } catch (Exception e) {
+            log.error("InitByDto 异常", e)
+        }
+
+        log.info(" 初始化结果")
     }
 }
 

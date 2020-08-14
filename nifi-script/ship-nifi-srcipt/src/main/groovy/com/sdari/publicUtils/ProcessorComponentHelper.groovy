@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * This class contains variables and methods common to processors.
  */
-
 class ProcessorComponentHelper {
 
     final AtomicBoolean isInitialized = new AtomicBoolean(false)
@@ -273,6 +272,6 @@ class ProcessorComponentHelper {
                 }
             }
         }
-        scriptMap.putAll(GroovyObjectMap)
+        scriptMap = GroovyObjectMap
     }
 }

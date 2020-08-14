@@ -16,7 +16,7 @@ class NifiProcessorAttributesDTO {
     private String attribute_type
     private String status
 
-    static List<NifiProcessorAttributesDTO> createDto(ResultSet res) throws Exception{
+    static List<NifiProcessorAttributesDTO> createDto(ResultSet res) throws Exception {
         try {
             def nifiProcessorAttributes = []
             while (res.next()) {

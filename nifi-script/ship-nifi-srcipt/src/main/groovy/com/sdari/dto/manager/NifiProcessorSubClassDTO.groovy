@@ -43,7 +43,7 @@ class NifiProcessorSubClassDTO {
             }
             NifiProcessorSubClasses
         } catch (Exception e) {
-            throw new Exception("NifiProcessorSubClassDTO createDto has an error", e)
+            throw new Exception("com.sdari.processor.testOn1.NifiProcessorSubClassDTO createDto has an error", e)
         }
     }
 
