@@ -119,7 +119,7 @@ class analysisDataBySid implements Processor {
                         continue
                     }
                     //用来接收脚本返回的数据
-                    def returnList = former
+                    def returnMap = former
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeWay = 'S'
                     //路由关系
@@ -147,7 +147,7 @@ class analysisDataBySid implements Processor {
                                             //根据路由名称 获取脚本实体GroovyObject instance
                                             final GroovyObject instance = pch.getScriptMapByName(subClassDTO.sub_script_name)
                                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                            returnList = instance.invokeMethod(pch.funName, [returnList])
+                                            returnMap = instance.invokeMethod(pch.funName, [returnMap])
                                             routeWay = 'A'
                                         }
                                     }
@@ -160,10 +160,10 @@ class analysisDataBySid implements Processor {
                     switch (routeWay) {
                         case 'A':
                             def flowFiles = []
-                            for (data in returnList[pch.returnData]) {
+                            for (data in returnMap[pch.returnData]) {
                                 FlowFile flowFileNew = session.create()
                                 try {
-                                    //                                session.putAllAttributes(flowFileNew, (returnList[pch.returnAttributes] as Map<String, String>))
+                                    //                                session.putAllAttributes(flowFileNew, (returnMap[pch.returnAttributes] as Map<String, String>))
                                     //FlowFile write 数据
                                     session.write(flowFileNew, { out ->
                                         out.write(JSONArray.toJSONBytes(data,
