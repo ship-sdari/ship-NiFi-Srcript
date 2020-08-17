@@ -73,6 +73,14 @@ class ProcessorComponentHelper {
         }
     }
 
+    Map<String, GroovyObject> getScriptMap() {
+        return scriptMap
+    }
+
+    void setScriptMap(Map<String, GroovyObject> scriptMap) {
+        this.scriptMap = scriptMap
+    }
+
     int getProcessorId() {
         return processorId
     }
@@ -159,24 +167,22 @@ class ProcessorComponentHelper {
 
     void createDescriptors() {
         descriptors = [:]
-
         // descriptors.add(routes_manager_utils.SCRIPT_FILE)
         // descriptors.add(routes_manager_utils.SCRIPT_BODY)
         // descriptors.add(routes_manager_utils.MODULES)
-
-        this.isInitialized.set(true)
+        setDescriptors([:])
     }
 
     void createRelationships(List<String> names) throws Exception {
         relationships = [:]
         def routesManager = getClassInstanceByNameAndPath("", RoutesManagerUtils)
-        relationships.putAll(routesManager.invokeMethod('createRelationshipMap', names) as Map<String, Relationship>)
+        setRelationships(routesManager.invokeMethod('createRelationshipMap', names) as Map<String, Relationship>)
     }
 
     void createParameters(List<GroovyObject> attributeRows) throws Exception {
         parameters = [:]
         def attributesManager = getClassInstanceByNameAndPath("", AttributesManagerUtils)
-        parameters.putAll(attributesManager.invokeMethod('createAttributesMap', attributeRows) as Map)
+        setParameters(attributesManager.invokeMethod('createAttributesMap', attributeRows) as Map)
     }
 
     void createSubClasses(List<GroovyObject> subClasses, Map<Integer, GroovyObject> routeMap) throws Exception {
@@ -350,21 +356,20 @@ class ProcessorComponentHelper {
                 for (classDTOList in classDTOMap.values()) {
                     for (classDTO in classDTOList) {
                         if ("A" == classDTO.getProperty('status') && !GroovyObjectMap.containsKey(classDTO.getProperty('sub_script_name'))) {
-                            def path
-                            if (null == classDTO.getProperty('sub_script_test') && null != classDTO.getProperty('sub_full_path')){
-                                path = classDTO.getProperty('sub_full_path') + classDTO.getProperty('sub_script_name')
-                            }else if (null != classDTO.getProperty('sub_script_test')){
-                                path = classDTO.getProperty('sub_script_test') as String
+                            Class aClass = null
+                            if (null == classDTO.getProperty('sub_script_text') && null != classDTO.getProperty('sub_full_path')) {
+                                def path = classDTO.getProperty('sub_full_path') + classDTO.getProperty('sub_script_name')
+                                aClass = classLoader.parseClass(new File(path))
+                            } else if (null != classDTO.getProperty('sub_script_text')) {
+                                def path = classDTO.getProperty('sub_script_text') as String
+                                aClass = classLoader.parseClass(path)
                             }
-
-                            GroovyClassLoader loader = new GroovyClassLoader()
-                            Class aClass = loader.parseClass(new File(path))
-                            GroovyObjectMap.put(classDTO.getProperty('sub_script_name') as String, aClass.newInstance() as GroovyObject)
+                            GroovyObjectMap.put(classDTO.getProperty('sub_script_name') as String, aClass?.newInstance() as GroovyObject)
                         }
                     }
                 }
             }
-            scriptMap = GroovyObjectMap
+            setScriptMap(GroovyObjectMap)
         } catch (Exception e) {
             this.isInitialized.set(false)
             throw new Exception("初始化子脚本并暂存至脚本实例仓库异常", e)
