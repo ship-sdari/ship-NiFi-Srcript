@@ -90,7 +90,8 @@ class analysisDataBySid implements Processor {
         final ProcessSession session = sessionFactory.createSession()
         FlowFile flowFile = session.get()
         if (flowFile == null) session.commit()
-        if (!pch?.isInitialized?.get() || 'A' != pch?.processor?.status) {//工具类初始化有异常或者该处理管理表处于不是开启状态就删除流文件不做任何处理
+        if (!pch?.isInitialized?.get() || 'A' != pch?.processor?.getProperty('status')) {
+//工具类初始化有异常或者该处理管理表处于不是开启状态就删除流文件不做任何处理
             session.remove(flowFile)
             session.commit()
         }
@@ -112,10 +113,12 @@ class analysisDataBySid implements Processor {
                                 pch.returnAttributes: attributesMap,
                                 pch.returnData      : dataList.get()]
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
+            String routeName = ''
             for (routesDTO in pch.getRouteConf()?.values()) {
                 try {
-                    if ('A' == routesDTO.route_running_way) {
-                        log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routesDTO.route_name} 的运行方式，暂不支持并行执行方式，请检查路由管理表!"
+                    routeName = routesDTO.getProperty('route_name') as String
+                    if ('A' == routesDTO.getProperty('route_running_way')) {
+                        log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routeName} 的运行方式，暂不支持并行执行方式，请检查路由管理表!"
                         continue
                     }
                     //用来接收脚本返回的数据
@@ -123,7 +126,7 @@ class analysisDataBySid implements Processor {
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeWay = 'S'
                     //路由关系
-                    switch (routesDTO.status) {
+                    switch (routesDTO.getProperty('status')) {
                     //路由关系禁用
                         case "S":
                             routeWay = 'S'
@@ -135,24 +138,24 @@ class analysisDataBySid implements Processor {
                     //路由关系正常执行
                         default:
                             //开始循环分脚本
-                            if (pch.getSubClasses().get(routesDTO.route_name).size() > 1) {
-                                log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routesDTO.route_name} 的分脚本运行方式配置异常，请检查子脚本管理表!"
+                            if (pch.getSubClasses().get(routeName).size() > 1) {
+                                log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routeName} 的分脚本运行方式配置异常，请检查子脚本管理表!"
                                 break
                             }
-                            for (runningWay in pch.getSubClasses().get(routesDTO.route_name).keySet()) {
+                            for (runningWay in pch.getSubClasses().get(routeName).keySet()) {
                                 //执行方式 A-并行 S-串行
                                 if ("S" == runningWay) {
-                                    for (subClassDTO in pch.getSubClasses().get(routesDTO.route_name).get(runningWay)) {
-                                        if ('A' == subClassDTO.status) {
+                                    for (subClassDTO in pch.getSubClasses().get(routeName).get(runningWay)) {
+                                        if ('A' == subClassDTO.getProperty('status')) {
                                             //根据路由名称 获取脚本实体GroovyObject instance
-                                            final GroovyObject instance = pch.getScriptMapByName(subClassDTO.sub_script_name)
+                                            final GroovyObject instance = pch.getScriptMapByName(subClassDTO.getProperty('sub_script_name') as String)
                                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
                                             returnMap = instance.invokeMethod(pch.funName, [returnMap])
                                             routeWay = 'A'
                                         }
                                     }
                                 } else {
-                                    log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routesDTO.route_name} 的分脚本运行方式，暂不支持并行执行方式，请检查子脚本管理表!"
+                                    log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routeName} 的分脚本运行方式，暂不支持并行执行方式，请检查子脚本管理表!"
                                 }
                             }
                     }
@@ -171,21 +174,21 @@ class analysisDataBySid implements Processor {
                                     } as OutputStreamCallback)
                                     flowFiles.add(flowFileNew)
                                 } catch (Exception e) {
-                                    log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routesDTO.route_name} 创建流文件异常", e
+                                    log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routeName} 创建流文件异常", e
                                     session.remove(flowFileNew)
                                 }
                             }
-                            session.transfer(flowFiles, pch.getRelationships().get(routesDTO.route_name))
+                            session.transfer(flowFiles, pch.getRelationships().get(routeName))
                             break
                         case 'I':
-                            session.transfer(session.clone(flowFile), pch.getRelationships().get(routesDTO.route_name))
+                            session.transfer(session.clone(flowFile), pch.getRelationships().get(routeName))
                             break
                         default:
                             //不路由
                             break
                     }
                 } catch (Exception e) {
-                    log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routesDTO.route_name} 的处理过程有异常", e
+                    log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routeName} 的处理过程有异常", e
                 }
             }
             session.remove(flowFile)
