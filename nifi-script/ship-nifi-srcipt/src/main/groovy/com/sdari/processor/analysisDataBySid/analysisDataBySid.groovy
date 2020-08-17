@@ -90,7 +90,7 @@ class analysisDataBySid implements Processor {
         final ProcessSession session = sessionFactory.createSession()
         FlowFile flowFile = session.get()
         if (flowFile == null) session.commit()
-        if (!pch?.isInitialized?.get()) {//工具类初始化有异常就删除流文件不做任何处理
+        if (!pch?.isInitialized?.get() || 'A' != pch?.processor?.status) {//工具类初始化有异常或者该处理管理表处于不是开启状态就删除流文件不做任何处理
             session.remove(flowFile)
             session.commit()
         }

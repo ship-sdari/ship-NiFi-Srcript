@@ -2,13 +2,12 @@ package com.sdari.publicUtils
 
 
 import com.sdari.dto.manager.NifiProcessorAttributesDTO
+import com.sdari.dto.manager.NifiProcessorManagerDTO
 import com.sdari.dto.manager.NifiProcessorRoutesDTO
 import com.sdari.dto.manager.NifiProcessorSubClassDTO
 import com.sdari.dto.manager.TStreamRuleDTO
-import org.apache.commons.lang3.StringUtils
 import org.apache.nifi.components.PropertyDescriptor
 import org.apache.nifi.processor.Relationship
-import org.codehaus.groovy.runtime.InvokerHelper
 
 import java.sql.Connection
 import java.sql.ResultSet
@@ -22,6 +21,7 @@ class ProcessorComponentHelper {
 
     final AtomicBoolean isInitialized = new AtomicBoolean(false)
     private int processorId
+    private NifiProcessorManagerDTO processor
     private Map<String, PropertyDescriptor> descriptors
     private Map<String, Relationship> relationships
     private Map parameters
@@ -52,8 +52,6 @@ class ProcessorComponentHelper {
         processorId = id
         //构造管理库连接
         loadConnection(con)
-        //根据管理库连接查询所有结果并暂存
-        //缺
     }
 
     void loadConnection(Connection con) {
@@ -70,6 +68,14 @@ class ProcessorComponentHelper {
         if (con != null && !con.isClosed()) {
             con.close()
         }
+    }
+
+    NifiProcessorManagerDTO getProcessor() {
+        return this.processor
+    }
+
+    void setProcessor(NifiProcessorManagerDTO processorManagerDTO) {
+        this.processor = processorManagerDTO
     }
 
     Map<String, NifiProcessorRoutesDTO> getRouteConf() {
@@ -163,6 +169,22 @@ class ProcessorComponentHelper {
 
     void initComponent() throws Exception {
         loadConnection()
+        //闭包查询处理器表
+        NifiProcessorManagerDTO processorDto = null
+        def selectProcessorManagers = {
+            try {
+                def processorsSelect = "SELECT * FROM `nifi_processor_manager` WHERE `processor_id` = ${processorId};"
+                Statement stm = con.createStatement()
+                ResultSet res = stm.executeQuery(processorsSelect)
+                processorDto = NifiProcessorManagerDTO.createDto(res)
+                if (!res.closed) res.close()
+                if (!stm.isClosed()) stm.close()
+            } catch (Exception e) {
+                throw new Exception("闭包查询处理器表异常", e)
+            }
+        }
+        selectProcessorManagers.call()
+        setProcessor(processorDto)//设置处理器管理配置
         //闭包查询路由表
         List<NifiProcessorRoutesDTO> routesDto = null
         def selectRouteManagers = {
@@ -212,14 +234,16 @@ class ProcessorComponentHelper {
         def tStreamRuleDto = null
         def selectConfigs = {
             try {
-                def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule`"
-                def tStreamRuleSelectAlarm = "SELECT * FROM `tstream_rule_alarm`"
-                def tStreamRuleSelectCalculation = "SELECT * FROM `tstream_rule_calculation`"
-                def tStreamRuleSelectCollection = "SELECT * FROM `tstream_rule_collection`"
-                def tStreamRuleSelectDist = "SELECT * FROM `tstream_rule_other_distributions`"
-                def tStreamRuleSelectShoreBased = "SELECT * FROM `tstream_rule_shore_based_distributions`"
-                def tStreamRuleSelectThinning = "SELECT * FROM `tstream_rule_thinning`"
-                def tStreamRuleSelectWarehousing = "SELECT * FROM `tstream_rule_warehousing`"
+                if ('A' != processor.is_need_rules || 'A' != processor.status) return
+                final int sid = processor.sid
+                def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectAlarm = "SELECT * FROM `tstream_rule_alarm` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectCalculation = "SELECT * FROM `tstream_rule_calculation` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectCollection = "SELECT * FROM `tstream_rule_collection` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectDist = "SELECT * FROM `tstream_rule_other_distributions` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectShoreBased = "SELECT * FROM `tstream_rule_shore_based_distributions` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectThinning = "SELECT * FROM `tstream_rule_thinning` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectWarehousing = "SELECT * FROM `tstream_rule_warehousing` WHERE `sid` = ${sid};"
                 Statement stmBasic = con.createStatement()
                 Statement stmAlarm = con.createStatement()
                 Statement stmCalculation = con.createStatement()
