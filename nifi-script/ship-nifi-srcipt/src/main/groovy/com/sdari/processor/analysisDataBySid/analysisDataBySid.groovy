@@ -22,6 +22,7 @@ import org.apache.nifi.processor.Relationship
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
@@ -31,12 +32,12 @@ class analysisDataBySid implements Processor {
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
     private DBCPService dbcpService = null
-    private ProcessorComponentHelper pch
+    private GroovyObject pch
 
     @Override
     Set<Relationship> getRelationships() {
         Set<Relationship> set = new HashSet<Relationship>()
-        Map<String, Relationship> relationshipMap = pch.getRelationships()
+        Map<String, Relationship> relationshipMap = pch.getProperty('relationships') as Map<String, Relationship>
         if (relationshipMap != null && relationshipMap.size() > 0) {
             for (String relation : relationshipMap.keySet()) {
                 Relationship relationship = relationshipMap.get(relation)
@@ -49,7 +50,7 @@ class analysisDataBySid implements Processor {
     @Override
     List<PropertyDescriptor> getPropertyDescriptors() {
         List<PropertyDescriptor> descriptorList = new ArrayList<>()
-        Map<String, PropertyDescriptor> descriptorMap = pch.getDescriptors()
+        Map<String, PropertyDescriptor> descriptorMap = pch.getProperty('descriptors') as Map<String, PropertyDescriptor>
         if (descriptorMap != null && descriptorMap.size() > 0) {
             for (String name : descriptorMap.keySet()) {
                 descriptorList.add(descriptorMap.get(name))
@@ -73,7 +74,7 @@ class analysisDataBySid implements Processor {
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
         try {
-            pch.initScript()
+            pch.invokeMethod("initScript",[])
             log.info "[Processor_id = ${id} Processor_name = ${this.class}] 处理器起始运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${this.class}] 处理器起始运行异常", e
@@ -90,8 +91,8 @@ class analysisDataBySid implements Processor {
         final ProcessSession session = sessionFactory.createSession()
         FlowFile flowFile = session.get()
         if (flowFile == null) session.commit()
-        if (!pch?.isInitialized?.get() || 'A' != pch?.processor?.getProperty('status')) {
-//工具类初始化有异常或者该处理管理表处于不是开启状态就删除流文件不做任何处理
+        if (!(pch?.getProperty('isInitialized') as AtomicBoolean)?.get() || 'A' != (pch?.getProperty('processor') as GroovyObject)?.getProperty('status')) {
+            //工具类初始化有异常或者该处理管理表处于不是开启状态就删除流文件不做任何处理
             session.remove(flowFile)
             session.commit()
         }
@@ -107,14 +108,14 @@ class analysisDataBySid implements Processor {
             }
         })
         try {
-            final def attributesMap = pch.updateAttributes(flowFile.getAttributes())
+            final def attributesMap = pch.invokeMethod("updateAttributes",[flowFile.getAttributes()]) as Map<String, String>
             //调用脚本需要传的参数[attributesMap-> flowFile属性][dataList -> flowFile数据]
-            final def former = [pch.returnRules     : pch.getTStreamRules(),
-                                pch.returnAttributes: attributesMap,
-                                pch.returnData      : dataList.get()]
+            final def former = [pch.getProperty('returnRules')     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
+                                pch.getProperty('returnAttributes'): attributesMap,
+                                pch.getProperty('returnData')      : dataList.get()]
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             String routeName = ''
-            for (routesDTO in pch.getRouteConf()?.values()) {
+            for (routesDTO in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
                 try {
                     routeName = routesDTO.getProperty('route_name') as String
                     if ('A' == routesDTO.getProperty('route_running_way')) {
@@ -137,15 +138,16 @@ class analysisDataBySid implements Processor {
                             break
                     //路由关系正常执行
                         default:
+                            Map<String, Map<String, List<GroovyObject>>> subClasses = pch.getProperty('subClasses') as Map<String, Map<String, List<GroovyObject>>>
                             //开始循环分脚本
-                            if (pch.getSubClasses().get(routeName).size() > 1) {
+                            if (subClasses.get(routeName).size() > 1) {
                                 log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routeName} 的分脚本运行方式配置异常，请检查子脚本管理表!"
                                 break
                             }
-                            for (runningWay in pch.getSubClasses().get(routeName).keySet()) {
+                            for (runningWay in subClasses.get(routeName).keySet()) {
                                 //执行方式 A-并行 S-串行
                                 if ("S" == runningWay) {
-                                    for (subClassDTO in pch.getSubClasses().get(routeName).get(runningWay)) {
+                                    for (subClassDTO in subClasses.get(routeName).get(runningWay)) {
                                         if ('A' == subClassDTO.getProperty('status')) {
                                             //根据路由名称 获取脚本实体GroovyObject instance
                                             final GroovyObject instance = pch.getScriptMapByName(subClassDTO.getProperty('sub_script_name') as String)
