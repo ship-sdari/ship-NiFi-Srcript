@@ -108,9 +108,9 @@ class analysisDataBySid implements Processor {
         try {
             final def attributesMap = pch.updateAttributes(flowFile.getAttributes())
             //调用脚本需要传的参数[attributesMap-> flowFile属性][dataList -> flowFile数据]
-            final def former = ["rules"     : pch.getTStreamRules(),
-                                "attributes": attributesMap,
-                                "data"      : dataList.get()]
+            final def former = [pch.returnRules     : pch.getTStreamRules(),
+                                pch.returnAttributes: attributesMap,
+                                pch.returnData      : dataList.get()]
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             for (routesDTO in pch.getRouteConf()?.values()) {
                 try {
@@ -244,7 +244,7 @@ class analysisDataBySid implements Processor {
      * @param logger
      * @throws Exception
      */
-     void setLogger(final ComponentLog logger) {
+    void setLogger(final ComponentLog logger) {
         try {
             log = logger
             log.info "[Processor_id = ${id} Processor_name = ${this.class}] setLogger 执行成功，日志已设置完毕"

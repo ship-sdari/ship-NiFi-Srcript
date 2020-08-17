@@ -14,6 +14,7 @@ class NifiProcessorAttributesDTO {
     private String attribute_name
     private String attribute_value
     private String attribute_type
+    private String attribute_desc
     private String status
 
     static List<NifiProcessorAttributesDTO> createDto(ResultSet res) throws Exception {
@@ -25,6 +26,7 @@ class NifiProcessorAttributesDTO {
                 dto.setProperty('attribute_name', res.getString('attribute_name'))
                 dto.setProperty('attribute_value', res.getString('attribute_value'))
                 dto.setProperty('attribute_type', res.getString('attribute_type'))
+                dto.setProperty('attribute_desc', res.getString('attribute_desc'))
                 dto.setProperty('status', res.getString('status'))
                 nifiProcessorAttributes.add(dto)
             }

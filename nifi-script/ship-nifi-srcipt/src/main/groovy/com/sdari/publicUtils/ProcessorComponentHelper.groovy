@@ -49,7 +49,7 @@ class ProcessorComponentHelper {
         classLoader = new GroovyClassLoader()
         aClasses = [:]
         //构造处理器编号
-        processorId = id
+        setProcessorId(id)
         //构造管理库连接
         loadConnection(con)
     }
@@ -68,6 +68,30 @@ class ProcessorComponentHelper {
         if (con != null && !con.isClosed()) {
             con.close()
         }
+    }
+
+    int getProcessorId() {
+        return processorId
+    }
+
+    void setProcessorId(int processorId) {
+        this.processorId = processorId
+    }
+
+    static String getFunName() {
+        return funName
+    }
+
+    static String getReturnData() {
+        return returnData
+    }
+
+    static String getReturnAttributes() {
+        return returnAttributes
+    }
+
+    static String getReturnRules() {
+        return returnRules
     }
 
     NifiProcessorManagerDTO getProcessor() {

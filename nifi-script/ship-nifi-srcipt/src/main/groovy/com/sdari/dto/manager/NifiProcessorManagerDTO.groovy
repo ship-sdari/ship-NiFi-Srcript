@@ -15,6 +15,7 @@ class NifiProcessorManagerDTO {
     private Integer sid
     private String full_path
     private String script_name
+    private String script_text
     private String is_need_rules
     private String status
     private String processor_desc
@@ -28,6 +29,7 @@ class NifiProcessorManagerDTO {
                 dto.setProperty('sid', res.getInt('sid'))
                 dto.setProperty('full_path', res.getString('full_path'))
                 dto.setProperty('script_name', res.getString('script_name'))
+                dto.setProperty('script_text', res.getString('script_text'))
                 dto.setProperty('is_need_rules', res.getString('is_need_rules'))
                 dto.setProperty('status', res.getString('status'))
                 dto.setProperty('processor_desc', res.getString('processor_desc'))
