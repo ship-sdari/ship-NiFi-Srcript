@@ -31,7 +31,7 @@ class analysisDataBySid implements Processor {
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
     private DBCPService dbcpService = null
-    private ProcessorComponentHelper pch
+    private GroovyObject pch
 
     @Override
     Set<Relationship> getRelationships() {
@@ -107,6 +107,7 @@ class analysisDataBySid implements Processor {
             }
         })
         try {
+            def relationships = pch.invokeMethod("getRelationships", null) as Map<String, Relationship>
             final def attributesMap = pch.updateAttributes(flowFile.getAttributes())
             //调用脚本需要传的参数[attributesMap-> flowFile属性][dataList -> flowFile数据]
             final def former = [pch.returnRules     : pch.getTStreamRules(),
@@ -114,7 +115,7 @@ class analysisDataBySid implements Processor {
                                 pch.returnData      : dataList.get()]
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             String routeName = ''
-            for (routesDTO in pch.getRouteConf()?.values()) {
+            for (routesDTO in pch.routeConf?.values()) {
                 try {
                     routeName = routesDTO.getProperty('route_name') as String
                     if ('A' == routesDTO.getProperty('route_running_way')) {
@@ -163,10 +164,10 @@ class analysisDataBySid implements Processor {
                     switch (routeWay) {
                         case 'A':
                             def flowFiles = []
-                            for (data in (returnMap as LinkedHashMap)[pch.returnData]) {
+                            for (data in (returnMap as LinkedHashMap)[pch.getProperty("returnData")]) {
                                 FlowFile flowFileNew = session.create()
                                 try {
-                                    session.putAllAttributes(flowFileNew, ((returnMap as LinkedHashMap)[pch.returnAttributes] as Map<String, String>))
+                                    session.putAllAttributes(flowFileNew, ((returnMap as LinkedHashMap)[pch.getProperty("returnAttributes")] as Map<String, String>))
                                     //FlowFile write 数据
                                     session.write(flowFileNew, { out ->
                                         out.write(JSONArray.toJSONBytes(data,
@@ -178,10 +179,10 @@ class analysisDataBySid implements Processor {
                                     session.remove(flowFileNew)
                                 }
                             }
-                            session.transfer(flowFiles, pch.getRelationships().get(routeName))
+                            session.transfer(flowFiles, relationships.get(routeName))
                             break
                         case 'I':
-                            session.transfer(session.clone(flowFile), pch.getRelationships().get(routeName))
+                            session.transfer(session.clone(flowFile), relationships.get(routeName))
                             break
                         default:
                             //不路由
@@ -206,7 +207,7 @@ class analysisDataBySid implements Processor {
 
     @Override
     PropertyDescriptor getPropertyDescriptor(String name) {
-        return pch.getDescriptors().get(name)
+        return (pch.invokeMethod("getDescriptors", null) as Map<String, PropertyDescriptor>).get(name)
     }
 
     @Override
@@ -221,7 +222,7 @@ class analysisDataBySid implements Processor {
      * @param flowFile
      */
     private void onFailure(final ProcessSession session, final FlowFile flowFile) {
-        session.transfer(flowFile, pch.getRelationships().get('failure'))
+        session.transfer(flowFile, (pch.invokeMethod("getRelationships", null) as Map<String, Relationship>).get('failure'))
     }
     /**
      * 任务功能处理器最开始的同步和初始化调用方法，由调度处理器调用
