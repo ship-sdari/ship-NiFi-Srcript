@@ -2,7 +2,6 @@ package com.sdari.publicUtils
 
 import org.apache.nifi.components.PropertyDescriptor
 import org.apache.nifi.processor.Relationship
-
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Statement
@@ -23,10 +22,6 @@ class ProcessorComponentHelper {
     private Map<String, Map<String, List<GroovyObject>>> subClasses
     private Map<String, GroovyObject> scriptMap
     private Map<String, Map<String, GroovyObject>> tStreamRules
-//    private String url = 'jdbc:mysql://10.0.16.19:3306/groovy?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true&validationQuery=select 1'
-//    private String userName = 'appuser'
-//    private String password = 'Qgy@815133'
-//    private int timeOut = 10
     private Connection con
     private final GroovyClassLoader classLoader
     private Map<String, Class> aClasses
@@ -38,19 +33,20 @@ class ProcessorComponentHelper {
     public final static String returnAttributes = "attributes"
     //脚本返回的配置
     public final static String returnRules = "rules"
-    public final String GroovyPath = "F:\\IDEA\\nifi\\ship-NiFi-Srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\"
-    public final String GroovyUtilsPath = "F:\\IDEA\\nifi\\ship-NiFi-Srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\publicUtils\\"
+    //相关公共类全路径
+    public final static String managerDtoPath = "F:\\IDEA\\nifi\\ship-NiFi-Srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\"
+    public final static String publicUtilsPath = "F:\\IDEA\\nifi\\ship-NiFi-Srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\publicUtils\\"
 
-    //公共实体路径path
-    public String NifiProcessorAttributesDTO = GroovyPath + "NifiProcessorAttributesDTO.groovy"
-    public String NifiProcessorManagerDTO = GroovyPath + "NifiProcessorManagerDTO.groovy"
-    public String NifiProcessorRoutesDTO = GroovyPath + "NifiProcessorRoutesDTO.groovy"
-    public String NifiProcessorSubClassDTO = GroovyPath + "NifiProcessorSubClassDTO.groovy"
-    public String TStreamRuleDTO = GroovyPath + "TStreamRuleDTO.groovy"
+    //相关实体全路径path(包括脚本名称)
+    public final static String NifiProcessorAttributesDTO = "${managerDtoPath}NifiProcessorAttributesDTO.groovy"
+    public final static String NifiProcessorManagerDTO = "${managerDtoPath}NifiProcessorManagerDTO.groovy"
+    public final static String NifiProcessorRoutesDTO = "${managerDtoPath}NifiProcessorRoutesDTO.groovy"
+    public final static String NifiProcessorSubClassDTO = "${managerDtoPath}NifiProcessorSubClassDTO.groovy"
+    public final static String TStreamRuleDTO = "${managerDtoPath}TStreamRuleDTO.groovy"
 
     //公共实体工具类path
-    public String AttributesManagerUtils = GroovyUtilsPath + "AttributesManagerUtils.groovy"
-    public String RoutesManagerUtils = GroovyUtilsPath + "RoutesManagerUtils.groovy"
+    public String AttributesManagerUtils = "${publicUtilsPath}AttributesManagerUtils.groovy"
+    public String RoutesManagerUtils = "${publicUtilsPath}RoutesManagerUtils.groovy"
 
     ProcessorComponentHelper(int id, Connection con) {
         classLoader = new GroovyClassLoader()
@@ -209,7 +205,7 @@ class ProcessorComponentHelper {
                 def processorsSelect = "SELECT * FROM `nifi_processor_manager` WHERE `processor_id` = ${processorId};"
                 Statement stm = con.createStatement()
                 ResultSet res = stm.executeQuery(processorsSelect)
-                def processorDtoGroovy = getClassInstanceByNameAndPath("",NifiProcessorManagerDTO) as GroovyObject
+                def processorDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorManagerDTO) as GroovyObject
                 processorDto = processorDtoGroovy.invokeMethod("createDto", res) as GroovyObject
                 if (!res.closed) res.close()
                 if (!stm.isClosed()) stm.close()
@@ -226,7 +222,7 @@ class ProcessorComponentHelper {
                 def routesSelect = "SELECT * FROM `nifi_processor_route` WHERE `processor_id` = ${processorId};"
                 Statement stm = con.createStatement()
                 ResultSet res = stm.executeQuery(routesSelect)
-                def routesDtoGroovy = getClassInstanceByNameAndPath("",NifiProcessorRoutesDTO) as GroovyObject
+                def routesDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorRoutesDTO) as GroovyObject
                 routesDto = routesDtoGroovy.invokeMethod("createDto", res) as List<GroovyObject>
                 if (!res.closed) res.close()
                 if (!stm.isClosed()) stm.close()
@@ -272,8 +268,8 @@ class ProcessorComponentHelper {
         def tStreamRuleDto = null
         def selectConfigs = {
             try {
-                if ('A' != processor.is_need_rules || 'A' != processor.status) return
-                final int sid = processor.sid
+                if ('A' != processor.getProperty('is_need_rules') || 'A' != processor.getProperty('status')) return
+                final int sid = processor.getProperty('sid') as int
                 def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule` WHERE `sid` = ${sid};"
                 def tStreamRuleSelectAlarm = "SELECT * FROM `tstream_rule_alarm` WHERE `sid` = ${sid};"
                 def tStreamRuleSelectCalculation = "SELECT * FROM `tstream_rule_calculation` WHERE `sid` = ${sid};"
@@ -353,11 +349,17 @@ class ProcessorComponentHelper {
             for (classDTOMap in subClasses.values()) {
                 for (classDTOList in classDTOMap.values()) {
                     for (classDTO in classDTOList) {
-                        if ("A" == classDTO.status && !GroovyObjectMap.containsKey(classDTO.sub_script_name)) {
-                            def path = classDTO.sub_full_path + classDTO.sub_script_name
+                        if ("A" == classDTO.getProperty('status') && !GroovyObjectMap.containsKey(classDTO.getProperty('sub_script_name'))) {
+                            def path
+                            if (null == classDTO.getProperty('sub_script_test') && null != classDTO.getProperty('sub_full_path')){
+                                path = classDTO.getProperty('sub_full_path') + classDTO.getProperty('sub_script_name')
+                            }else if (null != classDTO.getProperty('sub_script_test')){
+                                path = classDTO.getProperty('sub_script_test') as String
+                            }
+
                             GroovyClassLoader loader = new GroovyClassLoader()
                             Class aClass = loader.parseClass(new File(path))
-                            GroovyObjectMap.put(classDTO.sub_script_name, aClass.newInstance() as GroovyObject)
+                            GroovyObjectMap.put(classDTO.getProperty('sub_script_name') as String, aClass.newInstance() as GroovyObject)
                         }
                     }
                 }
