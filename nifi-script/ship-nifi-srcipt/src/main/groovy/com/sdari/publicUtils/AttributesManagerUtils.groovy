@@ -1,13 +1,11 @@
 package com.sdari.publicUtils
 
-import com.sdari.dto.manager.NifiProcessorAttributesDTO
-
 /**
  * Utility methods and constants used by the scripting components.
  */
 class AttributesManagerUtils {
 
-    static createAttributesMap(List<NifiProcessorAttributesDTO> attributeRows) throws Exception {
+    static createAttributesMap(List<GroovyObject> attributeRows) throws Exception {
         def attributes = [:]
         attributeRows.each {
             switch ((it.getProperty('attribute_type') as String).toLowerCase()) {

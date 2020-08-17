@@ -1,11 +1,5 @@
 package com.sdari.publicUtils
 
-
-import com.sdari.dto.manager.NifiProcessorAttributesDTO
-import com.sdari.dto.manager.NifiProcessorManagerDTO
-import com.sdari.dto.manager.NifiProcessorRoutesDTO
-import com.sdari.dto.manager.NifiProcessorSubClassDTO
-import com.sdari.dto.manager.TStreamRuleDTO
 import org.apache.nifi.components.PropertyDescriptor
 import org.apache.nifi.processor.Relationship
 
@@ -21,14 +15,14 @@ class ProcessorComponentHelper {
 
     final AtomicBoolean isInitialized = new AtomicBoolean(false)
     private int processorId
-    private NifiProcessorManagerDTO processor
+    private GroovyObject processor
     private Map<String, PropertyDescriptor> descriptors
     private Map<String, Relationship> relationships
     private Map parameters
-    private Map<String, NifiProcessorRoutesDTO> routeConf
-    private Map<String, Map<String, List<NifiProcessorSubClassDTO>>> subClasses
+    private Map<String, GroovyObject> routeConf
+    private Map<String, Map<String, List<GroovyObject>>> subClasses
     private Map<String, GroovyObject> scriptMap
-    private Map<String, Map<String, TStreamRuleDTO>> tStreamRules
+    private Map<String, Map<String, GroovyObject>> tStreamRules
 //    private String url = 'jdbc:mysql://10.0.16.19:3306/groovy?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true&validationQuery=select 1'
 //    private String userName = 'appuser'
 //    private String password = 'Qgy@815133'
@@ -44,6 +38,19 @@ class ProcessorComponentHelper {
     public final static String returnAttributes = "attributes"
     //脚本返回的配置
     public final static String returnRules = "rules"
+    public final String GroovyPath = "F:\\IDEA\\nifi\\ship-NiFi-Srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\"
+    public final String GroovyUtilsPath = "F:\\IDEA\\nifi\\ship-NiFi-Srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\publicUtils\\"
+
+    //公共实体路径path
+    public String NifiProcessorAttributesDTO = GroovyPath + "NifiProcessorAttributesDTO.groovy"
+    public String NifiProcessorManagerDTO = GroovyPath + "NifiProcessorManagerDTO.groovy"
+    public String NifiProcessorRoutesDTO = GroovyPath + "NifiProcessorRoutesDTO.groovy"
+    public String NifiProcessorSubClassDTO = GroovyPath + "NifiProcessorSubClassDTO.groovy"
+    public String TStreamRuleDTO = GroovyPath + "TStreamRuleDTO.groovy"
+
+    //公共实体工具类path
+    public String AttributesManagerUtils = GroovyUtilsPath + "AttributesManagerUtils.groovy"
+    public String RoutesManagerUtils = GroovyUtilsPath + "RoutesManagerUtils.groovy"
 
     ProcessorComponentHelper(int id, Connection con) {
         classLoader = new GroovyClassLoader()
@@ -94,19 +101,19 @@ class ProcessorComponentHelper {
         return returnRules
     }
 
-    NifiProcessorManagerDTO getProcessor() {
+    GroovyObject getProcessor() {
         return this.processor
     }
 
-    void setProcessor(NifiProcessorManagerDTO processorManagerDTO) {
+    void setProcessor(GroovyObject processorManagerDTO) {
         this.processor = processorManagerDTO
     }
 
-    Map<String, NifiProcessorRoutesDTO> getRouteConf() {
+    Map<String, GroovyObject> getRouteConf() {
         return this.routeConf
     }
 
-    void setRouteConf(Map<String, NifiProcessorRoutesDTO> routeConf) {
+    void setRouteConf(Map<String, GroovyObject> routeConf) {
         this.routeConf = routeConf
     }
 
@@ -166,16 +173,18 @@ class ProcessorComponentHelper {
 
     void createRelationships(List<String> names) throws Exception {
         relationships = [:]
-        relationships.putAll(RoutesManagerUtils.createRelationshipMap(names))
+        def routesManager = getClassInstanceByNameAndPath("", RoutesManagerUtils)
+        relationships.putAll(routesManager.invokeMethod('createRelationshipMap', names) as Map<String, Relationship>)
     }
 
-    void createParameters(List<NifiProcessorAttributesDTO> attributeRows) throws Exception {
+    void createParameters(List<GroovyObject> attributeRows) throws Exception {
         parameters = [:]
-        parameters.putAll(AttributesManagerUtils.createAttributesMap(attributeRows))
+        def attributesManager = getClassInstanceByNameAndPath("", AttributesManagerUtils)
+        parameters.putAll(attributesManager.invokeMethod('createAttributesMap', attributeRows) as Map)
     }
 
-    void createSubClasses(List<NifiProcessorSubClassDTO> subClasses, Map<Integer, NifiProcessorRoutesDTO> routeMap) throws Exception {
-        Map<String, Map<String, List<NifiProcessorSubClassDTO>>> subClassGroups = [:]
+    void createSubClasses(List<GroovyObject> subClasses, Map<Integer, GroovyObject> routeMap) throws Exception {
+        Map<String, Map<String, List<GroovyObject>>> subClassGroups = [:]
         subClasses?.each {
             final int route_id = it.getProperty('route_id') as int
             final String route_name = routeMap.get(route_id).getProperty('route_name')
@@ -187,20 +196,21 @@ class ProcessorComponentHelper {
         setSubClasses(subClassGroups)
     }
 
-    void createTStreamRules(Map<String, Map<String, TStreamRuleDTO>> tStreamRuleDto) {
+    void createTStreamRules(Map<String, Map<String, GroovyObject>> tStreamRuleDto) {
         setTStreamRules(tStreamRuleDto)
     }
 
     void initComponent() throws Exception {
         loadConnection()
         //闭包查询处理器表
-        NifiProcessorManagerDTO processorDto = null
+        GroovyObject processorDto = null
         def selectProcessorManagers = {
             try {
                 def processorsSelect = "SELECT * FROM `nifi_processor_manager` WHERE `processor_id` = ${processorId};"
                 Statement stm = con.createStatement()
                 ResultSet res = stm.executeQuery(processorsSelect)
-                processorDto = NifiProcessorManagerDTO.createDto(res)
+                def processorDtoGroovy = getClassInstanceByNameAndPath("",NifiProcessorManagerDTO) as GroovyObject
+                processorDto = processorDtoGroovy.invokeMethod("createDto", res) as GroovyObject
                 if (!res.closed) res.close()
                 if (!stm.isClosed()) stm.close()
             } catch (Exception e) {
@@ -210,13 +220,14 @@ class ProcessorComponentHelper {
         selectProcessorManagers.call()
         setProcessor(processorDto)//设置处理器管理配置
         //闭包查询路由表
-        List<NifiProcessorRoutesDTO> routesDto = null
+        List<GroovyObject> routesDto = null
         def selectRouteManagers = {
             try {
                 def routesSelect = "SELECT * FROM `nifi_processor_route` WHERE `processor_id` = ${processorId};"
                 Statement stm = con.createStatement()
                 ResultSet res = stm.executeQuery(routesSelect)
-                routesDto = NifiProcessorRoutesDTO.createDto(res)
+                def routesDtoGroovy = getClassInstanceByNameAndPath("",NifiProcessorRoutesDTO) as GroovyObject
+                routesDto = routesDtoGroovy.invokeMethod("createDto", res) as List<GroovyObject>
                 if (!res.closed) res.close()
                 if (!stm.isClosed()) stm.close()
             } catch (Exception e) {
@@ -225,13 +236,15 @@ class ProcessorComponentHelper {
         }
         selectRouteManagers.call()
         //闭包查询属性表
-        List<NifiProcessorAttributesDTO> attributesDto = null
+        List<GroovyObject> attributesDto = null
         def selectAttributeManagers = {
             try {
                 def attributesSelect = "SELECT * FROM `nifi_processor_attributes` WHERE `processor_id` = ${processorId};"
                 Statement stm = con.createStatement()
                 ResultSet res = stm.executeQuery(attributesSelect)
-                attributesDto = NifiProcessorAttributesDTO.createDto(res)
+
+                def attributesDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorAttributesDTO)
+                attributesDto = attributesDtoGroovy.invokeMethod("createDto", res) as List<GroovyObject>
                 if (!res.closed) res.close()
                 if (!stm.isClosed()) stm.close()
             } catch (Exception e) {
@@ -246,7 +259,8 @@ class ProcessorComponentHelper {
                 def subClassesSelect = "SELECT * FROM `nifi_processor_sub_class` WHERE `processor_id` = ${processorId} ORDER BY `running_order`;"
                 Statement stm = con.createStatement()
                 ResultSet res = stm.executeQuery(subClassesSelect)
-                subClassesDto = NifiProcessorSubClassDTO.createDto(res)
+                def subClassDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorSubClassDTO)
+                subClassesDto = subClassDtoGroovy.invokeMethod("createDto", res)
                 if (!res.closed) res.close()
                 if (!stm.isClosed()) stm.close()
             } catch (Exception e) {
@@ -284,7 +298,9 @@ class ProcessorComponentHelper {
                 ResultSet resShoreBased = stmShoreBased.executeQuery(tStreamRuleSelectShoreBased)
                 ResultSet resThinning = stmThinning.executeQuery(tStreamRuleSelectThinning)
                 ResultSet resWarehousing = stmWarehousing.executeQuery(tStreamRuleSelectWarehousing)
-                tStreamRuleDto = TStreamRuleDTO.createDto(resBasic, resAlarm, resCalculation, resCollection, resDist, resShoreBased, resThinning, resWarehousing)
+
+                def ruleDtoGroovy = getClassInstanceByNameAndPath("", TStreamRuleDTO)
+                tStreamRuleDto = ruleDtoGroovy.invokeMethod('createDto', [resBasic, resAlarm, resCalculation, resCollection, resDist, resShoreBased, resThinning, resWarehousing])
                 if (!resBasic.closed) resBasic.close()
                 if (!stmBasic.isClosed()) stmBasic.close()
                 if (!resAlarm.closed) resAlarm.close()
@@ -308,8 +324,8 @@ class ProcessorComponentHelper {
         selectConfigs.call()
         try {
             //获取所有路由名称并设置路由暂存,并暂存路由配置
-            Map<String, NifiProcessorRoutesDTO> routeConf = [:]
-            Map<Integer, NifiProcessorRoutesDTO> routeMap = [:]
+            Map<String, GroovyObject> routeConf = [:]
+            Map<Integer, GroovyObject> routeMap = [:]
             routesDto?.each {
                 routeConf.put(it.getProperty('route_name') as String, it)
                 routeMap.put(it.getProperty('route_id') as int, it)
@@ -343,7 +359,6 @@ class ProcessorComponentHelper {
                             Class aClass = loader.parseClass(new File(path))
                             GroovyObjectMap.put(classDTO.sub_script_name, aClass.newInstance() as GroovyObject)
                         }
-
                     }
                 }
             }
