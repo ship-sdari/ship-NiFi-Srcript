@@ -362,12 +362,15 @@ class ProcessorComponentHelper {
                     for (classDTO in classDTOList) {
                         if ("A" == classDTO.getProperty('status') && !GroovyObjectMap.containsKey(classDTO.getProperty('sub_script_name'))) {
                             Class aClass = null
-                            if (null == classDTO.getProperty('sub_script_text') && null != classDTO.getProperty('sub_full_path')) {
+                            if ((null == classDTO.getProperty('sub_script_text') || (classDTO.getProperty('sub_script_text') as String).isEmpty())
+                                    && (null != classDTO.getProperty('sub_full_path'))) {
                                 def path = classDTO.getProperty('sub_full_path') + classDTO.getProperty('sub_script_name')
                                 aClass = classLoader.parseClass(new File(path))
-                            } else if (null != classDTO.getProperty('sub_script_text')) {
+                            } else if (null != classDTO.getProperty('sub_script_text') && !(classDTO.getProperty('sub_script_text') as String).isEmpty()) {
                                 def path = classDTO.getProperty('sub_script_text') as String
                                 aClass = classLoader.parseClass(path)
+                            } else {
+                                throw new Exception("无法定位 route_id = ${classDTO.getProperty('route_id')} 的子脚本！")
                             }
                             GroovyObjectMap.put(classDTO.getProperty('sub_script_name') as String, aClass?.newInstance() as GroovyObject)
                         }
