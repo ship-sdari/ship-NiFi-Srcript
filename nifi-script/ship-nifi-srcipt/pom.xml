@@ -56,5 +56,11 @@
             <artifactId>groovy-test</artifactId>
             <scope>compile</scope>
         </dependency>
+        <!-- mysql-->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.19</version>
+        </dependency>
     </dependencies>
 </project>

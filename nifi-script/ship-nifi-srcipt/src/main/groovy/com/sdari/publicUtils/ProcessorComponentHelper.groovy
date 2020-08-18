@@ -33,9 +33,14 @@ class ProcessorComponentHelper {
     public final static String returnAttributes = "attributes"
     //脚本返回的配置
     public final static String returnRules = "rules"
-    //相关公共类全路径
+    //相关公共类全路径(服务器路径)
     public final static String managerDtoPath = "/home/sdari/app/nifi/share/groovy/com/sdari/dto/manager/"
     public final static String publicUtilsPath = "/home/sdari/app/nifi/share/groovy/com/sdari/publicUtils/"
+/*
+    //相关公共类全路径(本地绝对路径)
+    public final static String managerDtoPath = "F:\\IDEA\\nifi\\ship-NiFi-Srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\"
+    public final static String publicUtilsPath = "F:\\IDEA\\nifi\\ship-NiFi-Srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\publicUtils\\"
+*/
 
     //相关实体全路径path(包括脚本名称)
     public final static String NifiProcessorAttributesDTO = "${managerDtoPath}NifiProcessorAttributesDTO.groovy"
