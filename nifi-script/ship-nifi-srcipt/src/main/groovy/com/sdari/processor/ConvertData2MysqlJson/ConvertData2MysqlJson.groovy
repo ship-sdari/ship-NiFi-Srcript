@@ -1,6 +1,7 @@
-package com.sdari.processor.analysisDataBySid
+package com.sdari.processor.ConvertData2MysqlJson
 
 import com.alibaba.fastjson.JSONArray
+import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
@@ -12,21 +13,17 @@ import org.apache.nifi.components.ValidationResult
 import org.apache.nifi.dbcp.DBCPService
 import org.apache.nifi.flowfile.FlowFile
 import org.apache.nifi.logging.ComponentLog
-import org.apache.nifi.processor.ProcessContext
-import org.apache.nifi.processor.ProcessSession
-import org.apache.nifi.processor.ProcessSessionFactory
-import org.apache.nifi.processor.Processor
-import org.apache.nifi.processor.ProcessorInitializationContext
-import org.apache.nifi.processor.Relationship
+import org.apache.nifi.processor.*
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
+
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
 @CapabilityDescription('岸基-解析数据包路由处理器')
-class analysisDataBySid implements Processor {
+class ConvertData2MysqlJson implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
@@ -96,10 +93,10 @@ class analysisDataBySid implements Processor {
             session.commit()
         }
         /*以下为正常处理数据文件的部分*/
-        final AtomicReference<JSONArray> dataList = new AtomicReference<>()
+        final AtomicReference<JSONObject> dataList = new AtomicReference<>()
         session.read(flowFile, { inputStream ->
             try {
-                dataList.set(JSONArray.parseArray(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
+                dataList.set(JSONObject.parseObject(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
             } catch (Exception e) {
                 log.error "[Processor_id = ${id} Processor_name = ${this.class}] 读取流文件失败", e
                 onFailure(session, flowFile)
@@ -155,7 +152,7 @@ class analysisDataBySid implements Processor {
                                             //根据路由名称 获取脚本实体GroovyObject instance
                                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
                                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                            returnMap = instance.invokeMethod(pch.getProperty("funName") as String, [returnMap])
+                                            returnMap = instance.invokeMethod(pch.getProperty("funName") as String, returnMap)
                                             routeWay = 'A'
                                         }
                                     }
@@ -174,7 +171,7 @@ class analysisDataBySid implements Processor {
                                     session.putAllAttributes(flowFileNew, ((returnMap as LinkedHashMap)[pch.getProperty("returnAttributes")] as Map<String, String>))
                                     //FlowFile write 数据
                                     session.write(flowFileNew, { out ->
-                                        out.write(JSONArray.toJSONBytes(data,
+                                        out.write(JSONObject.toJSONBytes(data,
                                                 SerializerFeature.WriteMapNullValue))
                                     } as OutputStreamCallback)
                                     flowFiles.add(flowFileNew)
