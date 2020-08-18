@@ -113,9 +113,9 @@ class analysisDataBySid implements Processor {
             def relationships = pch.invokeMethod("getRelationships", null) as Map<String, Relationship>
             final def attributesMap = pch.invokeMethod("updateAttributes", [flowFile.getAttributes()]) as Map<String, String>
             //调用脚本需要传的参数[attributesMap-> flowFile属性][dataList -> flowFile数据]
-            final def former = ["rules"     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
+            final def former = [["rules"     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
                                 "attributes": attributesMap,
-                                "data"      : dataList.get()]
+                                "data"      : dataList.get()]]
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             String routeName = ''
             for (routesDTO in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
@@ -126,7 +126,7 @@ class analysisDataBySid implements Processor {
                         continue
                     }
                     //用来接收脚本返回的数据
-                    def returnMap = former as LinkedHashMap
+                    def returnMap = former
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeWay = 'S'
                     //路由关系
@@ -155,7 +155,7 @@ class analysisDataBySid implements Processor {
                                             //根据路由名称 获取脚本实体GroovyObject instance
                                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
                                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                            returnMap = instance.invokeMethod(pch.getProperty("funName") as String, [returnMap])
+                                            returnMap = instance.invokeMethod(pch.getProperty("funName") as String, returnMap)
                                             routeWay = 'A'
                                         }
                                     }
@@ -168,13 +168,13 @@ class analysisDataBySid implements Processor {
                     switch (routeWay) {
                         case 'A':
                             def flowFiles = []
-                            for (data in (returnMap as LinkedHashMap)[pch.getProperty("returnData")]) {
+                            for (data in (returnMap as List<LinkedHashMap>)) {
                                 FlowFile flowFileNew = session.create()
                                 try {
-                                    session.putAllAttributes(flowFileNew, ((returnMap as LinkedHashMap)[pch.getProperty("returnAttributes")] as Map<String, String>))
+                                    session.putAllAttributes(flowFileNew, (data[pch.getProperty("returnAttributes")] as Map<String, String>))
                                     //FlowFile write 数据
                                     session.write(flowFileNew, { out ->
-                                        out.write(JSONArray.toJSONBytes(data,
+                                        out.write(JSONArray.toJSONBytes(data[pch.getProperty("returnData")],
                                                 SerializerFeature.WriteMapNullValue))
                                     } as OutputStreamCallback)
                                     flowFiles.add(flowFileNew)
