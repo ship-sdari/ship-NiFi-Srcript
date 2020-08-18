@@ -209,7 +209,7 @@ class analysisDataBySid implements Processor {
 
     @Override
     PropertyDescriptor getPropertyDescriptor(String name) {
-        return (pch.invokeMethod("getDescriptors", null) as Map<String, PropertyDescriptor>).get(name)
+        return (pch.getProperty('descriptors') as Map<String, PropertyDescriptor>).get(name)
     }
 
     @Override
@@ -224,7 +224,7 @@ class analysisDataBySid implements Processor {
      * @param flowFile
      */
     private void onFailure(final ProcessSession session, final FlowFile flowFile) {
-        session.transfer(flowFile, (pch.invokeMethod("getRelationships", null) as Map<String, Relationship>).get('failure'))
+        session.transfer(flowFile, (pch.getProperty('relationships') as Map<String, Relationship>).get('failure'))
     }
     /**
      * 任务功能处理器最开始的同步和初始化调用方法，由调度处理器调用
