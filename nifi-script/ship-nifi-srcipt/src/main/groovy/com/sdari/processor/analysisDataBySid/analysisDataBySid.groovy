@@ -238,8 +238,12 @@ class analysisDataBySid implements Processor {
         try {
             id = pid //同步处理器id
             dbcpService = service
-            pch = new ProcessorComponentHelper(pid as int, service.getConnection())//有参构造
-            pch.initComponent()//相关公共配置实例查询
+            //工具类实例化
+            def fullPath = "E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\publicUtils\\ProcessorComponentHelper.groovy"
+            GroovyClassLoader classLoader = new GroovyClassLoader()
+            Class aClass = classLoader.parseClass(new File(fullPath))
+            pch = aClass.newInstance([pid as int, service.getConnection()])//有参构造
+            pch.invokeMethod("initComponent",[])//相关公共配置实例查询
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${this.class}] 任务功能处理器最开始的同步和初始化调用方法异常", e
         }
