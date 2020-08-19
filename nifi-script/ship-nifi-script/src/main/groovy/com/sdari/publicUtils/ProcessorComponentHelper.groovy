@@ -6,6 +6,7 @@ import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Statement
 import java.util.concurrent.atomic.AtomicBoolean
+import org.apache.nifi.logging.ComponentLog
 
 /**
  * This class contains variables and methods common to processors.
@@ -354,7 +355,7 @@ class ProcessorComponentHelper {
     /**
      * 初始化子脚本并暂存至脚本实例仓库
      */
-    void initScript() throws Exception {
+    void initScript(final ComponentLog log, def id) throws Exception {
         try {
             Map<String, GroovyObject> GroovyObjectMap = new HashMap<>()
             for (classDTOMap in subClasses.values()) {
@@ -372,7 +373,7 @@ class ProcessorComponentHelper {
                             } else {
                                 throw new Exception("无法定位 route_id = ${classDTO.getProperty('route_id')} 的子脚本！")
                             }
-                            GroovyObjectMap.put(classDTO.getProperty('sub_script_name') as String, aClass?.newInstance() as GroovyObject)
+                            GroovyObjectMap.put(classDTO.getProperty('sub_script_name') as String, aClass?.newInstance(log, id) as GroovyObject)
                         }
                     }
                 }
