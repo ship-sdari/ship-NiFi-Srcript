@@ -156,13 +156,13 @@ class TStreamRuleDTO {
         //通讯协议
         private String protocol
         //采样频率
-        private String col_freq
+        private Double col_freq
         // 主题
         private String topic
         // modbus信号标签
         private String modbus_sig_tag
         //数据包请求间隔
-        private String col_interval
+        private Double col_interval
         //数据包请求数量
         private int col_count
         //nema0183_config关联id
@@ -178,13 +178,16 @@ class TStreamRuleDTO {
         //数据分发分组
         private String dist_group
         //数据分发目的IP
-        private String dist_ip_addr
+        private String dist_ip
+
+        //数据分发目的端口
+        private String dist_port
 
         //    链路中断暂存字段
         private String dist_ip_addr_down
 
         //  数据分发频率
-        private String dist_freq
+        private Double dist_freq
 
         //数据分发协议
         private String dist_protocol
@@ -194,6 +197,9 @@ class TStreamRuleDTO {
 
         //    链路中断暂存字段
         private String dis_user_and_password
+
+        //启用状态
+        private String od_status
     }
 
     @Data
@@ -205,13 +211,17 @@ class TStreamRuleDTO {
         //船岸传输组
         private String to_shore_group
         //船岸传输目的IP
-        private String to_shore_ip_addr
+        private String to_shore_ip
+        //船岸传输目的port
+        private Integer to_shore_port
         //船岸传输频率
-        private String to_shore_freq
+        private Double to_shore_freq
         //船岸传输协议
         private String to_shore_protocol
         //岸基压缩方式
         private String compress_type
+        //启用状态
+        private String sbd_status
     }
 
     @Data
@@ -296,10 +306,10 @@ class TStreamRuleDTO {
                 dto.from_table_id = res.getString('from_table_id')
                 dto.from_column_id = res.getString('from_column_id')
                 dto.protocol = res.getString('protocol')
-                dto.col_freq = res.getString('col_freq')
+                dto.col_freq = res.getDouble('col_freq')
                 dto.topic = res.getString('topic')
                 dto.modbus_sig_tag = res.getString('modbus_sig_tag')
-                dto.col_interval = res.getString('col_interval')
+                dto.col_interval = res.getDouble('col_interval')
                 dto.col_count = res.getInt('col_count')
                 dto.nmea_id = res.getLong('nmea_id')
             }
@@ -307,21 +317,25 @@ class TStreamRuleDTO {
                 dto.sid = res.getInt('sid')
                 dto.doss_key = res.getInt('doss_key')
                 dto.dist_group = res.getString('dist_group')
-                dto.dist_ip_addr = res.getString('dist_ip_addr')
+                dto.dist_ip = res.getString('dist_ip')
+                dto.dist_port = res.getInt('dist_port')
                 dto.dist_ip_addr_down = res.getString('dist_ip_addr_down')
-                dto.dist_freq = res.getString('dist_freq')
+                dto.dist_freq = res.getDouble('dist_freq')
                 dto.dist_protocol = res.getString('dist_protocol')
                 dto.dis_user_and_password_down = res.getString('dis_user_and_password_down')
                 dto.dis_user_and_password = res.getString('dis_user_and_password')
+                dto.od_status = res.getString('od_status')
             }
             def createShoreBasedDto = { dto, res ->
                 dto.sid = res.getInt('sid')
                 dto.doss_key = res.getInt('doss_key')
                 dto.to_shore_group = res.getString('to_shore_group')
-                dto.to_shore_ip_addr = res.getString('to_shore_ip_addr')
-                dto.to_shore_freq = res.getString('to_shore_freq')
+                dto.to_shore_ip = res.getString('to_shore_ip')
+                dto.to_shore_port = res.getInt('to_shore_port')
+                dto.to_shore_freq = res.getDouble('to_shore_freq')
                 dto.to_shore_protocol = res.getString('to_shore_protocol')
                 dto.compress_type = res.getString('compress_type')
+                dto.sbd_status= res.getString('sbd_status')
             }
             def createThinningDto = { dto, res ->
                 dto.sid = res.getInt('sid')
