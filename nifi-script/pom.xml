@@ -31,6 +31,6 @@
     <modules>
         <module>nifi-scripting-processors</module>
         <module>nifi-custom-nar</module>
-        <module>ship-nifi-srcipt</module>
+        <module>ship-nifi-script</module>
     </modules>
 </project>
