@@ -3,8 +3,19 @@ package com.sdari.processor.analysisDataBySid
 import com.alibaba.fastjson.JSONObject
 
 import java.time.Instant
+import org.apache.nifi.logging.ComponentLog
 
 public class testByJSONObject {
+
+    def log
+    def id
+
+    testByJSONObject(final ComponentLog logger, String pid) {
+        log = logger
+        id = pid
+        log.info "[Processor_id = ${id} Processor_name = ${this.class}] 脚本 setLogger 执行成功，日志已设置完毕"
+
+    }
 
     public static def calculation(def param) {
         if (null == param) return null
