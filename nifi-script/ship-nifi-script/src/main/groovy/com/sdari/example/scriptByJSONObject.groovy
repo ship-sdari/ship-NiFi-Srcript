@@ -70,7 +70,7 @@ class scriptByJSONObject implements Processor {
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
         try {
-            pch.invokeMethod("initScript", null)
+            pch.invokeMethod("initScript",  [log,id])
             log.info "[Processor_id = ${id} Processor_name = ${this.class}] 处理器起始运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${this.class}] 处理器起始运行异常", e
