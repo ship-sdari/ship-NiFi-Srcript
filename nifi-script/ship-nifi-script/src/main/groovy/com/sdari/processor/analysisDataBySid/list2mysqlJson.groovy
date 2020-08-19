@@ -20,8 +20,12 @@ public class list2mysqlJson {
                 LinkedHashMap map = new LinkedHashMap()
                 def dataAttribute = attributes
                 JSONObject jsonData = data as JSONObject
-                dataAttribute.put("coltime", String.valueOf(Instant.ofEpochMilli(jsonData.getLongValue("time"))))
-                jsonData.remove("time")
+                if (jsonData.containsKey("time")) {
+                    dataAttribute.put("coltime", String.valueOf(Instant.ofEpochMilli(jsonData.getLongValue("time"))))
+                    jsonData.remove("time")
+                } else {
+                    dataAttribute.put("gettime", String.valueOf(Instant.now()))
+                }
                 map.put("rules", rules)//规则
                 map.put("attributes", dataAttribute)//属性
                 map.put("data", jsonData)
