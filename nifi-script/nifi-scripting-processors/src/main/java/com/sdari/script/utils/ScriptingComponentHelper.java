@@ -16,7 +16,6 @@
  */
 package com.sdari.script.utils;
 
-import com.sdari.script.processors.MyInvokeScriptedProcessor;
 import org.apache.nifi.components.*;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.dbcp.DBCPService;
@@ -31,6 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.MessageFormat;
 import java.time.Instant;
@@ -57,18 +57,20 @@ import com.sdari.script.processors.ScriptEngineConfigurator;
 import org.apache.nifi.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.impl.StaticLoggerBinder;
+
 /**
  * This class contains variables and methods common to scripting processors, reporting tasks, etc.
  */
 public class ScriptingComponentHelper {
 
     public PropertyDescriptor SCRIPT_ENGINE;
+    public final String mapBody = "body";
+    public final String mapPath = "path";
 
     // A map from engine name to a custom configurator for that engine
     public final Map<String, ScriptEngineConfigurator> scriptEngineConfiguratorMap = new ConcurrentHashMap<>();
     public final AtomicBoolean isInitialized = new AtomicBoolean(false);
-  //  private  final Logger logger = LoggerFactory.getLogger(ScriptingComponentHelper.class);
+    private final Logger logger = LoggerFactory.getLogger(ScriptingComponentHelper.class);
     public Map<String, ScriptEngineFactory> scriptEngineFactoryMap;
     private String scriptEngineName;
     private String scriptPath;
@@ -157,7 +159,7 @@ public class ScriptingComponentHelper {
 
             }
         } catch (Exception e) {
-        //    logger.error("getDescriptorsByShip", e);
+            //    logger.error("getDescriptorsByShip", e);
         }
         return descriptors;
     }
@@ -336,28 +338,23 @@ public class ScriptingComponentHelper {
     }
 
     public void setupVariables(ProcessContext context) {
-        String ScriptPath = null;
         try {
-            ScriptPath = getScriptByContext(context);
+            Map<String, String> scriptMap = getScriptByContext(context);
+            setupVariablesByUtils(context.getProperty(SCRIPT_ENGINE).getValue(), scriptMap.get(mapPath), scriptMap.get(mapBody),
+                    context.getProperty(ScriptingComponentUtils.MODULES).evaluateAttributeExpressions().getValue());
         } catch (Exception e) {
-      //      logger.error("setupVariables ProcessContext date[{}] e", Instant.now(), e);
+            logger.error("setupVariables ProcessContext", e);
         }
-        setupVariablesByUtils(context.getProperty(SCRIPT_ENGINE).getValue(), ScriptPath,
-                context.getProperty(ScriptingComponentUtils.SCRIPT_BODY).getValue(),
-                context.getProperty(ScriptingComponentUtils.MODULES).evaluateAttributeExpressions().getValue());
     }
 
     public void setupVariables(ConfigurationContext context) {
-        String ScriptPath = null;
         try {
-            ScriptPath = getScriptByContext(context);
+            Map<String, String> scriptMap = getScriptByContext(context);
+            setupVariablesByUtils(context.getProperty(SCRIPT_ENGINE).getValue(), scriptMap.get(mapPath), scriptMap.get(mapBody),
+                    context.getProperty(ScriptingComponentUtils.MODULES).evaluateAttributeExpressions().getValue());
         } catch (Exception e) {
-       //     logger.error("setupVariables ConfigurationContext date[{}] e", Instant.now(), e);
+            logger.error("setupVariables ConfigurationContext", e);
         }
-        setupVariablesByUtils(context.getProperty(SCRIPT_ENGINE).getValue(), ScriptPath,
-                context.getProperty(ScriptingComponentUtils.SCRIPT_BODY).getValue(),
-                context.getProperty(ScriptingComponentUtils.MODULES).evaluateAttributeExpressions().getValue());
-
     }
 
     /**
@@ -382,8 +379,10 @@ public class ScriptingComponentHelper {
      *
      * @return getScriptPathBySql
      */
-    public String getScriptByContext(ProcessContext context) throws Exception {
-        return getScriptPath(context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
+    public Map<String, String> getScriptByContext(ProcessContext context) throws Exception {
+        return getScript(context.getProperty(ScriptingComponentUtils.SCRIPT_FILE).getValue(),
+                context.getProperty(ScriptingComponentUtils.SCRIPT_BODY).getValue(),
+                context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
                 context.getProperty(ScriptingComponentUtils.QUERY_SCRIPTName_SQL),
                 context.getProperty(ScriptingComponentUtils.SCRIPT_PROCESSOR_ID));
     }
@@ -393,8 +392,10 @@ public class ScriptingComponentHelper {
      *
      * @return getScriptPathBySql
      */
-    public String getScriptByContext(ValidationContext context) throws Exception {
-        return getScriptPath(context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
+    public Map<String, String> getScriptByContext(ValidationContext context) throws Exception {
+        return getScript(context.getProperty(ScriptingComponentUtils.SCRIPT_FILE).getValue(),
+                context.getProperty(ScriptingComponentUtils.SCRIPT_BODY).getValue(),
+                context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
                 context.getProperty(ScriptingComponentUtils.QUERY_SCRIPTName_SQL),
                 context.getProperty(ScriptingComponentUtils.SCRIPT_PROCESSOR_ID));
     }
@@ -404,8 +405,10 @@ public class ScriptingComponentHelper {
      *
      * @return getScriptPathBySql
      */
-    public String getScriptByContext(ConfigurationContext context) throws Exception {
-        return getScriptPath(context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
+    public Map<String, String> getScriptByContext(ConfigurationContext context) throws Exception {
+        return getScript(context.getProperty(ScriptingComponentUtils.SCRIPT_FILE).getValue(),
+                context.getProperty(ScriptingComponentUtils.SCRIPT_BODY).getValue(),
+                context.getProperty(ScriptingComponentUtils.DBCP_SERVICE),
                 context.getProperty(ScriptingComponentUtils.QUERY_SCRIPTName_SQL),
                 context.getProperty(ScriptingComponentUtils.SCRIPT_PROCESSOR_ID));
     }
@@ -415,10 +418,12 @@ public class ScriptingComponentHelper {
      * @param property2 QUERY_SCRIPTName_SQL
      * @param property3 SCRIPT_PROCESSOR_ID
      * @return ScriptPath
-     * @throws Exception Exception
      */
-    private String getScriptPath(PropertyValue property, PropertyValue property2, PropertyValue property3) throws Exception {
-        String ScriptPath = null;
+    private Map<String, String> getScript(String path, String body, PropertyValue property, PropertyValue property2, PropertyValue property3) throws Exception {
+        Map<String, String> ScriptMap = new HashMap<>();
+        String ScriptMapPath = null;
+        String ScriptMapBody = null;
+
         if (null == dbcpService) {
             dbcpService = property.asControllerService(DBCPService.class);
         }
@@ -428,20 +433,36 @@ public class ScriptingComponentHelper {
 
         Statement stmt = con.createStatement();
         String sql_ok = MessageFormat.format(sql, processorId);
-     //   logger.debug("getScriptPath date[{}] Sql[{}] ", Instant.now(), sql_ok);
+        //   logger.debug("getScriptPath date[{}] Sql[{}] ", Instant.now(), sql_ok);
         ResultSet resultSet = stmt.executeQuery(sql_ok);
         while (resultSet.next()) {
             String name = resultSet.getString(1);
-            String path = resultSet.getString(2);
-            if (null != name && !name.isEmpty() && null != path && !path.isEmpty()) {
-                ScriptPath = path.concat(name);
+            String pathSql = resultSet.getString(2);
+            String bodySql = resultSet.getString(3);
+            if (null != name && !name.isEmpty() && null != pathSql && !pathSql.isEmpty()) {
+                ScriptMapPath = pathSql.concat(name);
+            }
+            if (null != bodySql && !bodySql.isEmpty()) {
+                ScriptMapBody = bodySql;
             }
         }
         if (!resultSet.isClosed()) resultSet.close();
         if (!stmt.isClosed()) stmt.close();
         if (!con.isClosed()) con.close();
-     //   logger.debug("getScriptPath date[{}] ScriptPath[{}] ", Instant.now(), ScriptPath);
-        return ScriptPath;
+
+
+        if (null == ScriptMapBody && null == ScriptMapPath) {
+            ScriptMap.put(mapPath, path);
+            ScriptMap.put(mapBody, body);
+        } else {
+            if (ScriptMapBody != null) {
+                ScriptMap.put(mapBody, ScriptMapBody);
+            } else {
+                ScriptMap.put(mapPath, ScriptMapPath);
+            }
+        }
+
+        return ScriptMap;
     }
 
 
