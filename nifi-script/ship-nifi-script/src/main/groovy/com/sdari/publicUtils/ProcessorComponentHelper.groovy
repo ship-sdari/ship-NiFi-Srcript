@@ -34,6 +34,8 @@ class ProcessorComponentHelper {
     public final static String returnAttributes = "attributes"
     //脚本返回的配置
     public final static String returnRules = "rules"
+    //脚本处理器配置
+    public final static String returnParameters = "parameters"
     //相关公共类全路径(服务器路径)
     public final static String managerDtoPath = "/home/sdari/app/nifi/share/groovy/com/sdari/dto/manager/"
     public final static String publicUtilsPath = "/home/sdari/app/nifi/share/groovy/com/sdari/publicUtils/"
@@ -109,6 +111,10 @@ class ProcessorComponentHelper {
 
     static String getReturnRules() {
         return returnRules
+    }
+
+    static String getReturnParameters() {
+        return returnParameters
     }
 
     GroovyObject getProcessor() {
@@ -355,7 +361,7 @@ class ProcessorComponentHelper {
     /**
      * 初始化子脚本并暂存至脚本实例仓库
      */
-    void initScript(final ComponentLog log, def id) throws Exception {
+    void initScript(final ComponentLog log, final String processorName) throws Exception {
         try {
             Map<String, GroovyObject> GroovyObjectMap = new HashMap<>()
             for (classDTOMap in subClasses.values()) {
@@ -373,7 +379,7 @@ class ProcessorComponentHelper {
                             } else {
                                 throw new Exception("无法定位 route_id = ${classDTO.getProperty('route_id')} 的子脚本！")
                             }
-                            GroovyObjectMap.put(classDTO.getProperty('sub_script_name') as String, aClass?.newInstance(log, id) as GroovyObject)
+                            GroovyObjectMap.put(classDTO.getProperty('sub_script_name') as String, aClass?.newInstance(log, processorId, processorName, classDTO.getProperty('route_id')) as GroovyObject)
                         }
                     }
                 }

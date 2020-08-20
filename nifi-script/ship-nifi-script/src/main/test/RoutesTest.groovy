@@ -1,3 +1,5 @@
+import com.alibaba.fastjson.JSONArray
+import com.alibaba.fastjson.JSONObject
 import com.sdari.dto.manager.NifiProcessorSubClassDTO
 import com.sdari.publicUtils.ProcessorComponentHelper
 import groovy.json.JsonBuilder
@@ -9,6 +11,7 @@ import java.sql.ResultSet
 import java.sql.Statement
 import java.sql.*
 import java.sql.Connection
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * @author jinkaisong@sdari.mail.com
@@ -20,6 +23,7 @@ class RoutesTest extends GroovyTestCase {
     private String userName = 'appuser'
     private String password = 'Qgy@815133'
 
+    //测试工具类
     void testRoutes() {
         DriverManager.setLoginTimeout(100)
         con = DriverManager.getConnection(url, userName, password)
@@ -49,8 +53,12 @@ class RoutesTest extends GroovyTestCase {
         println "返回结果" + tStreamRules?.size()
     }
 
-/*    void testClassLoader() {
-        def pp = new ProcessorComponentHelper(1, null)
+    //测试类加载
+    void testClassLoader() {
+        final AtomicReference<JSONArray> dataList = new AtomicReference<>()
+        dataList.set(JSONArray.parseArray('[]'))
+        println dataList.get().getClass().canonicalName
+        /*def pp = new ProcessorComponentHelper(1, null)
         GroovyObject object1 = pp.getClassInstanceByNameAndPath('NifiProcessorSubClassDTO.groovy', 'E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
         object1.setProperty('sub_full_path', '第一次测试')
         println "返回结果 " + object1.getProperty('sub_full_path') as String
@@ -59,6 +67,8 @@ class RoutesTest extends GroovyTestCase {
         GroovyObject object2 = pp.getClassInstanceByNameAndPath('NifiProcessorSubClassDTO.groovy', 'E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
         object2.setProperty('sub_full_path', '第二次测试')
         println "返回结果 " + object2.getProperty('sub_full_path') as String
-        println pp.aClasses.size()
-    }*/
+        println pp.aClasses.size()*/
+    }
+
+
 }

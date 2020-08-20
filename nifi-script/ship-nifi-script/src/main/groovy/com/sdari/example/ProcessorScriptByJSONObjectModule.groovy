@@ -22,8 +22,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 //
 @EventDriven
-@CapabilityDescription
-class scriptByJSONObject implements Processor {
+@CapabilityDescription('')
+class ProcessorScriptByJSONObjectModule implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
