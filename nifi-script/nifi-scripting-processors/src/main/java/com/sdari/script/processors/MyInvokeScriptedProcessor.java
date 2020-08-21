@@ -1,19 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.sdari.script.processors;
 
 import com.sdari.script.utils.ScriptingComponentHelper;
@@ -44,7 +28,6 @@ import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.impl.StaticLoggerBinder;
 
 import javax.script.Invocable;
 import javax.script.ScriptEngine;
@@ -52,7 +35,6 @@ import javax.script.ScriptException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.nio.charset.Charset;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -201,42 +183,31 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
     @OnScheduled
     public void setup(final ProcessContext context) throws Exception {
         scriptingComponentHelper.setupVariables(context);
-        String path = getScriptPathBySql(context);
-        setUpByContext(path);
+        setup();
         invokeScriptedProcessorMethod("onScheduled", context);
     }
 
-    public void setup(ValidationContext context) throws Exception {
-        String path = getScriptPathBySql(context);
-        setUpByContext(path);
-    }
-
-    /**
-     * setUpByContext 更新
-     *
-     * @param path scriptPath
-     */
-    public void setUpByContext(String path) {
-        logger.debug("setUpByContext date[{}] getScriptPathBySql[{}]", Instant.now(), path);
+    public void setup() {
         // Create a single script engine, the Processor object is reused by each task
         if (scriptEngine == null) {
             scriptingComponentHelper.setup(1, getLogger());
             scriptEngine = scriptingComponentHelper.engineQ.poll();
         }
-
         if (scriptEngine == null) {
             throw new ProcessException("No script engine available!");
         }
 
         if (scriptNeedsReload.get() || processor.get() == null) {
-            if (!ScriptingComponentHelper.isFile(scriptingComponentHelper.getScriptPath())) {
-                scriptingComponentHelper.setScriptPath(path);
+            if (null != scriptingComponentHelper.getScriptBody() && !scriptingComponentHelper.getScriptBody().isEmpty()) {
+                reloadScriptBody(scriptingComponentHelper.getScriptBody());
+            } else {
+                if (ScriptingComponentHelper.isFile(scriptingComponentHelper.getScriptPath())) {
+                    reloadScriptFile(scriptingComponentHelper.getScriptPath());
+                }
             }
-            reloadScriptFile(scriptingComponentHelper.getScriptPath());
             scriptNeedsReload.set(false);
         }
     }
-
 
     /**
      * Handles changes to this processor's properties. If changes are made to
@@ -277,6 +248,36 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
     }
 
     /**
+     * Reloads the script defined by the given string
+     *
+     * @param scriptBody the contents of the script to be loaded
+     */
+    private void reloadScriptBody(final String scriptBody) {
+        final Collection<ValidationResult> results = new HashSet<>();
+        try {
+            reloadScript(scriptBody);
+            return;
+
+        } catch (final Exception e) {
+            final ComponentLog logger = getLogger();
+            final String message = "Unable to load script: " + e;
+
+            logger.error(message, e);
+            results.add(new ValidationResult.Builder()
+                    .subject("ScriptValidation")
+                    .valid(false)
+                    .explanation("Unable to load script due to " + e)
+                    .input(scriptingComponentHelper.getScriptPath())
+                    .build());
+        }
+
+        // store the updated validation results
+        validationResults.set(results);
+
+        // return whether there was any issues loading the configured script
+    }
+
+    /**
      * Reloads the script located at the given path
      *
      * @param scriptPath the path to the script file to be loaded
@@ -311,9 +312,8 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
      * Reloads the script Processor. This must be called within the lock.
      *
      * @param scriptBody An input stream associated with the script content
-     * @return Whether the script was successfully reloaded
      */
-    private boolean reloadScript(final String scriptBody) {
+    private void reloadScript(final String scriptBody) {
         // note we are starting here with a fresh listing of validation
         // results since we are (re)loading a new/updated script. any
         // existing validation results are not relevant
@@ -431,7 +431,6 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
         validationResults.set(results);
 
         // return whether there was any issues loading the configured script
-        return results.isEmpty();
     }
 
     /**
@@ -459,19 +458,15 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
             return validationResults.get();
         }
         scriptingComponentHelper.setScriptEngineName(context.getProperty(scriptingComponentHelper.SCRIPT_ENGINE).getValue());
-        String s = null;
+        Map<String, String> scriptMap = new HashMap<>();
         try {
-            s = getScriptPathBySql(context);
+            scriptMap = getScriptBySql(context);
         } catch (Exception e) {
             final String message = "Unable to getScriptPathBySql the script Processor: " + e;
             logger.error(message, e);
         }
-        if (null != s) {
-            scriptingComponentHelper.setScriptPath(s);
-        } else {
-            scriptingComponentHelper.setScriptPath(context.getProperty(ScriptingComponentUtils.SCRIPT_FILE).evaluateAttributeExpressions().getValue());
-        }
-        scriptingComponentHelper.setScriptBody(context.getProperty(ScriptingComponentUtils.SCRIPT_BODY).getValue());
+        scriptingComponentHelper.setScriptBody(scriptMap.get(scriptingComponentHelper.mapBody));
+        scriptingComponentHelper.setScriptPath(scriptMap.get(scriptingComponentHelper.mapPath));
         String modulePath = context.getProperty(ScriptingComponentUtils.MODULES).evaluateAttributeExpressions().getValue();
         if (!StringUtils.isEmpty(modulePath)) {
             scriptingComponentHelper.setModules(modulePath.split(","));
@@ -479,7 +474,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
             scriptingComponentHelper.setModules(new String[0]);
         }
         try {
-            setup(context);
+            setup();
         } catch (Exception e) {
             final String message = "Unable to setup the script Processor: " + e;
             logger.error(message, e);
@@ -528,19 +523,10 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
      *
      * @return getScriptPathBySql
      */
-    public String getScriptPathBySql(ValidationContext context) throws Exception {
+    public Map<String, String> getScriptBySql(ValidationContext context) throws Exception {
         return scriptingComponentHelper.getScriptByContext(context);
     }
 
-
-    /**
-     * getScriptPathBySql
-     *
-     * @return getScriptPathBySql
-     */
-    public String getScriptPathBySql(ProcessContext context) throws Exception {
-        return scriptingComponentHelper.getScriptByContext(context);
-    }
 
     /**
      * Invokes the onTrigger() method of the scripted processor. If the script
