@@ -1,6 +1,7 @@
 package com.sdari.publicUtils
 
 import org.apache.nifi.components.PropertyDescriptor
+import org.apache.nifi.dbcp.DBCPService
 import org.apache.nifi.processor.Relationship
 import java.sql.Connection
 import java.sql.ResultSet
@@ -23,7 +24,8 @@ class ProcessorComponentHelper {
     private Map<String, Map<String, List<GroovyObject>>> subClasses
     private Map<String, GroovyObject> scriptMap
     private Map<String, Map<String, GroovyObject>> tStreamRules
-    private Connection con
+//    private Connection con
+    private DBCPService dbcpService
     private final GroovyClassLoader classLoader
     private Map<String, Class> aClasses
     //脚本的方法名
@@ -56,29 +58,22 @@ class ProcessorComponentHelper {
     public String AttributesManagerUtils = "${publicUtilsPath}AttributesManagerUtils.groovy"
     public String RoutesManagerUtils = "${publicUtilsPath}RoutesManagerUtils.groovy"
 
-    ProcessorComponentHelper(int id, Connection con) {
+    ProcessorComponentHelper(int id, DBCPService dbcpService) {
         classLoader = new GroovyClassLoader()
         aClasses = [:]
         //构造处理器编号
         setProcessorId(id)
-        //构造管理库连接
-        loadConnection(con)
+        //构造管理库连接服务
+//        loadConnection(con)
+        setDbcpService(dbcpService)
     }
 
-    void loadConnection(Connection con) {
-        if ((this.con == null || this.con.isClosed()) && (con != null && !con.isClosed())) {
-//            Class.forName('com.mysql.jdbc.Driver').newInstance()
-//            DriverManager.setLoginTimeout(timeOut)
-//            con = DriverManager.getConnection(url, userName, password)
-            this.con = con
-            con.setReadOnly(true)
-        }
+    DBCPService getDbcpService() {
+        return dbcpService
     }
 
-    void releaseConnection() {
-        if (con != null && !con.isClosed()) {
-            con.close()
-        }
+    void setDbcpService(DBCPService dbcpService) {
+        this.dbcpService = dbcpService
     }
 
     Map<String, GroovyObject> getScriptMap() {
@@ -177,6 +172,27 @@ class ProcessorComponentHelper {
         this.tStreamRules = tStreamRuleDto
     }
 
+    Connection loadConnection() {
+        Connection con = null
+        if (dbcpService != null) {
+            con = dbcpService.getConnection()
+            con?.setReadOnly(true)
+        }
+        con
+    }
+
+    static void releaseConnection(Connection con, Statement stmt, ResultSet res) {
+        if (res != null && !res.isClosed()) {
+            res.close()
+        }
+        if (stmt != null && !stmt.isClosed()) {
+            stmt.close()
+        }
+        if (con != null && !con.isClosed()) {
+            con.close()
+        }
+    }
+
     void createDescriptors() {
         descriptors = [:]
         // descriptors.add(routes_manager_utils.SCRIPT_FILE)
@@ -186,6 +202,7 @@ class ProcessorComponentHelper {
     }
 
     void createRelationships(List<String> names) throws Exception {
+        if (isInitialized.get()) return //路由创建只执行一次，如果创建成功下次的内部调用将不再创建(除非nifi前端更改处理器或者nifi重启)
         relationships = [:]
         def routesManager = getClassInstanceByNameAndPath("", RoutesManagerUtils)
         setRelationships(routesManager.invokeMethod('createRelationshipMap', names) as Map<String, Relationship>)
@@ -215,7 +232,7 @@ class ProcessorComponentHelper {
     }
 
     void initComponent() throws Exception {
-        loadConnection()
+        final Connection con = loadConnection()
         //闭包查询处理器表
         GroovyObject processorDto = null
         def selectProcessorManagers = {
@@ -225,8 +242,7 @@ class ProcessorComponentHelper {
                 ResultSet res = stm.executeQuery(processorsSelect)
                 def processorDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorManagerDTO) as GroovyObject
                 processorDto = processorDtoGroovy.invokeMethod("createDto", res) as GroovyObject
-                if (!res.closed) res.close()
-                if (!stm.isClosed()) stm.close()
+                releaseConnection(null, stm, res)//释放连接
             } catch (Exception e) {
                 throw new Exception("闭包查询处理器表异常", e)
             }
@@ -242,8 +258,7 @@ class ProcessorComponentHelper {
                 ResultSet res = stm.executeQuery(routesSelect)
                 def routesDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorRoutesDTO) as GroovyObject
                 routesDto = routesDtoGroovy.invokeMethod("createDto", res) as List<GroovyObject>
-                if (!res.closed) res.close()
-                if (!stm.isClosed()) stm.close()
+                releaseConnection(null, stm, res)//释放连接
             } catch (Exception e) {
                 throw new Exception("闭包查询路由表异常", e)
             }
@@ -259,8 +274,7 @@ class ProcessorComponentHelper {
 
                 def attributesDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorAttributesDTO)
                 attributesDto = attributesDtoGroovy.invokeMethod("createDto", res) as List<GroovyObject>
-                if (!res.closed) res.close()
-                if (!stm.isClosed()) stm.close()
+                releaseConnection(null, stm, res)//释放连接
             } catch (Exception e) {
                 throw new Exception("闭包查询属性表异常", e)
             }
@@ -275,8 +289,7 @@ class ProcessorComponentHelper {
                 ResultSet res = stm.executeQuery(subClassesSelect)
                 def subClassDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorSubClassDTO)
                 subClassesDto = subClassDtoGroovy.invokeMethod("createDto", res)
-                if (!res.closed) res.close()
-                if (!stm.isClosed()) stm.close()
+                releaseConnection(null, stm, res)//释放连接
             } catch (Exception e) {
                 throw new Exception("闭包查询子脚本表异常", e)
             }
@@ -315,22 +328,15 @@ class ProcessorComponentHelper {
 
                 def ruleDtoGroovy = getClassInstanceByNameAndPath("", TStreamRuleDTO)
                 tStreamRuleDto = ruleDtoGroovy.invokeMethod('createDto', [resBasic, resAlarm, resCalculation, resCollection, resDist, resShoreBased, resThinning, resWarehousing])
-                if (!resBasic.closed) resBasic.close()
-                if (!stmBasic.isClosed()) stmBasic.close()
-                if (!resAlarm.closed) resAlarm.close()
-                if (!stmAlarm.isClosed()) stmAlarm.close()
-                if (!resCalculation.closed) resCalculation.close()
-                if (!stmCalculation.isClosed()) stmCalculation.close()
-                if (!resCollection.closed) resCollection.close()
-                if (!stmCollection.isClosed()) stmCollection.close()
-                if (!resDist.closed) resDist.close()
-                if (!stmDist.isClosed()) stmDist.close()
-                if (!resShoreBased.closed) resShoreBased.close()
-                if (!stmShoreBased.isClosed()) stmShoreBased.close()
-                if (!resThinning.closed) resThinning.close()
-                if (!stmThinning.isClosed()) stmThinning.close()
-                if (!resWarehousing.closed) resWarehousing.close()
-                if (!stmWarehousing.isClosed()) stmWarehousing.close()
+                //释放连接
+                releaseConnection(null, stmBasic, resBasic)
+                releaseConnection(null, stmAlarm, resAlarm)
+                releaseConnection(null, stmCalculation, resCalculation)
+                releaseConnection(null, stmCollection, resCollection)
+                releaseConnection(null, stmDist, resDist)
+                releaseConnection(null, stmShoreBased, resShoreBased)
+                releaseConnection(null, stmThinning, resThinning)
+                releaseConnection(null, stmWarehousing, resWarehousing)
             } catch (Exception e) {
                 throw new Exception("闭包查询流规则配置表异常", e)
             }
@@ -355,8 +361,15 @@ class ProcessorComponentHelper {
         } catch (Exception e) {
             throw new Exception("配置暂存异常", e)
         }
-        releaseConnection()
+        releaseConnection(con, null, null)
         this.isInitialized.set(true)
+    }
+
+    /**
+     * 暂存仓库的资源释放
+     */
+    void releaseComponent() throws Exception {
+
     }
     /**
      * 初始化子脚本并暂存至脚本实例仓库

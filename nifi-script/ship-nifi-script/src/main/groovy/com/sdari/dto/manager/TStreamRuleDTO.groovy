@@ -406,7 +406,7 @@ class TStreamRuleDTO {
             }
             TStreamRules
         } catch (Exception e) {
-            throw new Exception("NifiProcessorSubClassDTO createDto has an error", e)
+            throw new Exception("TStreamRuleDTO createDto has an error", e)
         }
     }
 }

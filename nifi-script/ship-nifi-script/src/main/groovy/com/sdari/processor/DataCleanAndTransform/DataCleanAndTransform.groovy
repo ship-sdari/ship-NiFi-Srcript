@@ -1,6 +1,7 @@
-package com.sdari.processor.analysisDataBySid
+package com.sdari.processor.DataCleanAndTransform
 
 import com.alibaba.fastjson.JSONArray
+import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
@@ -26,10 +27,11 @@ import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
 @CapabilityDescription('岸基-解析数据包路由处理器')
-class analysisDataBySid implements Processor {
+class DataCleanAndTransform implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
+    private String currentClassName = this.class.canonicalName
     private DBCPService dbcpService = null
     private GroovyObject pch
 
@@ -73,10 +75,11 @@ class analysisDataBySid implements Processor {
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
         try {
-            pch.invokeMethod("initScript", [log,id])
-            log.info "[Processor_id = ${id} Processor_name = ${this.class}] 处理器起始运行完毕"
+            pch.invokeMethod("initComponent", null)//相关公共配置实例更新查询
+            pch.invokeMethod("initScript", [log, currentClassName])
+            log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行完毕"
         } catch (Exception e) {
-            log.error "[Processor_id = ${id} Processor_name = ${this.class}] 处理器起始运行异常", e
+            log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行异常", e
         }
     }
 
@@ -96,55 +99,70 @@ class analysisDataBySid implements Processor {
             session.commit()
         }
         /*以下为正常处理数据文件的部分*/
-        final AtomicReference<JSONArray> dataList = new AtomicReference<>()
+        final AtomicReference<JSONArray> datas = new AtomicReference<>()
         session.read(flowFile, { inputStream ->
             try {
-                dataList.set(JSONArray.parseArray(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
+                datas.set(JSONArray.parseArray(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
             } catch (Exception e) {
-                log.error "[Processor_id = ${id} Processor_name = ${this.class}] 读取流文件失败", e
+                log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 读取流文件失败", e
                 onFailure(session, flowFile)
                 session.commit()
             }
         })
         try {
-            if (null == dataList.get() || dataList.get().size() == 0){
-                throw new Exception("[Processor_id = ${id} Processor_name = ${this.class}] 的接收的数据为空!")
+            if (null == datas.get() || datas.get().size() == 0) {
+                throw new Exception("[Processor_id = ${id} Processor_name = ${currentClassName}] 的接收的数据为空!")
             }
             def relationships = pch.invokeMethod("getRelationships", null) as Map<String, Relationship>
             final def attributesMap = pch.invokeMethod("updateAttributes", [flowFile.getAttributes()]) as Map<String, String>
-            //调用脚本需要传的参数[attributesMap-> flowFile属性][dataList -> flowFile数据]
-            final def former = [["rules"     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
-                                "attributes": attributesMap,
-                                "data"      : dataList.get()]]
+            //调用脚本需要传的参数[attributesMap-> flowFile属性][data -> flowFile数据]
+            def attributesList = []
+            def dataList = []
+            switch (datas.get().getClass().canonicalName) {
+                case 'com.alibaba.fastjson.JSONObject':
+                    attributesList.add(attributesMap)
+                    dataList.add(datas.get())
+                    break
+                case 'com.alibaba.fastjson.JSONArray':
+                    datas.get().each { o -> attributesList.add(attributesMap) }
+                    dataList = datas.get()
+                    break
+                default:
+                    throw new Exception("暂不支持处理当前所接收的数据类型：${datas.get().getClass().canonicalName}")
+            }
+            final def former = [(pch.getProperty("returnRules") as String)     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
+                                (pch.getProperty("returnAttributes") as String): attributesList,
+                                (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
+                                (pch.getProperty("returnData") as String)      : dataList]
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             String routeName = ''
             for (routesDTO in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
                 try {
                     routeName = routesDTO.getProperty('route_name') as String
                     if ('A' == routesDTO.getProperty('route_running_way')) {
-                        log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routeName} 的运行方式，暂不支持并行执行方式，请检查路由管理表!"
+                        log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的运行方式，暂不支持并行执行方式，请检查路由管理表!"
                         continue
                     }
                     //用来接收脚本返回的数据
-                    def returnMap = former
+                    Map returnMap = former
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
-                    def routeWay = 'S'
+                    def routeStatus = 'S'
                     //路由关系
                     switch (routesDTO.getProperty('status')) {
                     //路由关系禁用
                         case "S":
-                            routeWay = 'S'
+                            routeStatus = 'S'
                             break
                     //路由关系忽略，应当源文本路由
                         case "I":
-                            routeWay = 'I'
+                            routeStatus = 'I'
                             break
                     //路由关系正常执行
                         default:
                             def subClasses = (pch.getProperty('subClasses') as Map<String, Map<String, List<GroovyObject>>>)
                             //开始循环分脚本
                             if ((subClasses.get(routeName) as Map<String, List<GroovyObject>>).size() > 1) {
-                                log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routeName} 的分脚本运行方式配置异常，请检查子脚本管理表!"
+                                log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的分脚本运行方式配置异常，请检查子脚本管理表!"
                                 break
                             }
                             for (runningWay in subClasses.get(routeName).keySet()) {
@@ -155,37 +173,44 @@ class analysisDataBySid implements Processor {
                                             //根据路由名称 获取脚本实体GroovyObject instance
                                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
                                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                            returnMap = instance.invokeMethod(pch.getProperty("funName") as String, returnMap)
-                                            routeWay = 'A'
+                                            returnMap = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
+                                            routeStatus = 'A'
                                         }
                                     }
                                 } else {
-                                    log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routeName} 的分脚本运行方式，暂不支持并行执行方式，请检查子脚本管理表!"
+                                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的分脚本运行方式，暂不支持并行执行方式，请检查子脚本管理表!"
                                 }
                             }
                     }
                     //如果脚本执行了路由下去
-                    switch (routeWay) {
+                    switch (routeStatus) {
                         case 'A':
                             def flowFiles = []
-                            for (data in (returnMap as List<LinkedHashMap>)) {
+                            final List<JSONObject> returnDataList = (returnMap.get('data') as List<JSONObject>)
+                            final List<JSONObject> returnAttributesList = (returnMap.get('attributes') as List<JSONObject>)
+                            if ((null == returnDataList || null == returnAttributesList) || (returnDataList.size() != returnAttributesList.size())) {
+                                throw new Exception('结果条数与属性条数不一致，请检查子脚本处理逻辑！')
+                            }
+                            for (int i = 0; i < returnDataList.size(); i++) {
                                 FlowFile flowFileNew = session.create()
                                 try {
-                                    session.putAllAttributes(flowFileNew, (data[pch.getProperty("returnAttributes")] as Map<String, String>))
+                                    session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
                                     //FlowFile write 数据
                                     session.write(flowFileNew, { out ->
-                                        out.write(JSONArray.toJSONBytes(data[pch.getProperty("returnData")],
+                                        out.write(JSONObject.toJSONBytes(returnDataList.get(i),
                                                 SerializerFeature.WriteMapNullValue))
                                     } as OutputStreamCallback)
                                     flowFiles.add(flowFileNew)
                                 } catch (Exception e) {
-                                    log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routeName} 创建流文件异常", e
+                                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 创建流文件异常", e
                                     session.remove(flowFileNew)
                                 }
                             }
+                            if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
                             session.transfer(flowFiles, relationships.get(routeName))
                             break
                         case 'I':
+                            if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
                             session.transfer(session.clone(flowFile), relationships.get(routeName))
                             break
                         default:
@@ -193,12 +218,12 @@ class analysisDataBySid implements Processor {
                             break
                     }
                 } catch (Exception e) {
-                    log.error "[Processor_id = ${id} Processor_name = ${this.class}] Route = ${routeName} 的处理过程有异常", e
+                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的处理过程有异常", e
                 }
             }
             session.remove(flowFile)
         } catch (final Throwable t) {
-            log.error "[Processor_id = ${id} Processor_name = ${this.class}] 的处理过程有异常", t
+            log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 的处理过程有异常", t
             onFailure(session, flowFile)
         } finally {
             session.commit()
@@ -244,10 +269,10 @@ class analysisDataBySid implements Processor {
             def fullPath = "/home/sdari/app/nifi/share/groovy/com/sdari/publicUtils/ProcessorComponentHelper.groovy"
             GroovyClassLoader classLoader = new GroovyClassLoader()
             Class aClass = classLoader.parseClass(new File(fullPath))
-            pch = aClass.newInstance(pid as int, service.getConnection()) as GroovyObject//有参构造
+            pch = aClass.newInstance(pid as int, service) as GroovyObject//有参构造
             pch.invokeMethod("initComponent", null)//相关公共配置实例查询
         } catch (Exception e) {
-            log.error "[Processor_id = ${id} Processor_name = ${this.class}] 任务功能处理器最开始的同步和初始化调用方法异常", e
+            log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 任务功能处理器最开始的同步和初始化调用方法异常", e
         }
     }
 
@@ -259,11 +284,11 @@ class analysisDataBySid implements Processor {
     void setLogger(final ComponentLog logger) {
         try {
             log = logger
-            log.info "[Processor_id = ${id} Processor_name = ${this.class}] setLogger 执行成功，日志已设置完毕"
+            log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] setLogger 执行成功，日志已设置完毕"
         } catch (Exception e) {
-            log.error "[Processor_id = ${id} Processor_name = ${this.class}] 设置日志的调用方法异常", e
+            log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 设置日志的调用方法异常", e
         }
     }
 }
 
-
+//processor = new DataCleanAndTransform()

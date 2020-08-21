@@ -1,6 +1,5 @@
 package com.sdari.processor.ConvertData2MysqlJson
 
-import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
 import org.apache.commons.io.IOUtils
@@ -71,6 +70,7 @@ class ConvertData2MysqlJson implements Processor {
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
         try {
+            pch.invokeMethod("initComponent", null)//相关公共配置实例更新查询
             pch.invokeMethod("initScript", [log, currentClassName])
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行完毕"
         } catch (Exception e) {
@@ -125,10 +125,10 @@ class ConvertData2MysqlJson implements Processor {
                 default:
                     throw new Exception("暂不支持处理当前所接收的数据类型：${datas.get().getClass().canonicalName}")
             }
-            final def former = [pch.getProperty("returnRules")     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
-                                pch.getProperty("returnAttributes"): attributesList,
-                                pch.getProperty("returnParameters"): pch.getProperty('parameters') as Map,
-                                pch.getProperty("returnData")      : dataList]
+            final def former = [(pch.getProperty("returnRules") as String)     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
+                                (pch.getProperty("returnAttributes") as String): attributesList,
+                                (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
+                                (pch.getProperty("returnData") as String)      : dataList]
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             String routeName = ''
             for (routesDTO in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
@@ -141,16 +141,16 @@ class ConvertData2MysqlJson implements Processor {
                     //用来接收脚本返回的数据
                     Map returnMap = former
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
-                    def routeWay = 'S'
+                    def routeStatus = 'S'
                     //路由关系
                     switch (routesDTO.getProperty('status')) {
                     //路由关系禁用
                         case "S":
-                            routeWay = 'S'
+                            routeStatus = 'S'
                             break
                     //路由关系忽略，应当源文本路由
                         case "I":
-                            routeWay = 'I'
+                            routeStatus = 'I'
                             break
                     //路由关系正常执行
                         default:
@@ -169,7 +169,7 @@ class ConvertData2MysqlJson implements Processor {
                                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
                                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
                                             returnMap = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
-                                            routeWay = 'A'
+                                            routeStatus = 'A'
                                         }
                                     }
                                 } else {
@@ -178,7 +178,7 @@ class ConvertData2MysqlJson implements Processor {
                             }
                     }
                     //如果脚本执行了路由下去
-                    switch (routeWay) {
+                    switch (routeStatus) {
                         case 'A':
                             def flowFiles = []
                             final List<JSONObject> returnDataList = (returnMap.get('data') as List<JSONObject>)
@@ -201,9 +201,11 @@ class ConvertData2MysqlJson implements Processor {
                                     session.remove(flowFileNew)
                                 }
                             }
+                            if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
                             session.transfer(flowFiles, relationships.get(routeName))
                             break
                         case 'I':
+                            if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
                             session.transfer(session.clone(flowFile), relationships.get(routeName))
                             break
                         default:
@@ -262,7 +264,7 @@ class ConvertData2MysqlJson implements Processor {
             def fullPath = "/home/sdari/app/nifi/share/groovy/com/sdari/publicUtils/ProcessorComponentHelper.groovy"
             GroovyClassLoader classLoader = new GroovyClassLoader()
             Class aClass = classLoader.parseClass(new File(fullPath))
-            pch = aClass.newInstance(pid as int, service.getConnection()) as GroovyObject//有参构造
+            pch = aClass.newInstance(pid as int, service) as GroovyObject//有参构造
             pch.invokeMethod("initComponent", null)//相关公共配置实例查询
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 任务功能处理器最开始的同步和初始化调用方法异常", e
@@ -284,4 +286,4 @@ class ConvertData2MysqlJson implements Processor {
     }
 }
 
-
+//processor = new ConvertData2MysqlJson()

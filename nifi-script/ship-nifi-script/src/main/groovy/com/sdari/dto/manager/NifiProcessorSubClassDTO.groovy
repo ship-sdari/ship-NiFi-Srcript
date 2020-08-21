@@ -16,6 +16,7 @@ class NifiProcessorSubClassDTO {
     private String sub_full_path
     private String sub_script_name
     private String sub_script_text
+    private String sub_script_desc
     private String sub_running_way
     private Integer running_order
     private String status
@@ -38,6 +39,7 @@ class NifiProcessorSubClassDTO {
                 dto.sub_full_path = res.getString('sub_full_path')
                 dto.sub_script_name = res.getString('sub_script_name')
                 dto.sub_script_text = res.getString('sub_script_text')
+                dto.sub_script_desc = res.getString('sub_script_desc')
                 dto.sub_running_way = res.getString('sub_running_way')
                 dto.running_order = res.getInt('running_order')
                 dto.status = res.getString('status')
@@ -45,7 +47,7 @@ class NifiProcessorSubClassDTO {
             }
             NifiProcessorSubClasses
         } catch (Exception e) {
-            throw new Exception("com.sdari.processor.testOn1.NifiProcessorSubClassDTO createDto has an error", e)
+            throw new Exception("NifiProcessorSubClassDTO createDto has an error", e)
         }
     }
 

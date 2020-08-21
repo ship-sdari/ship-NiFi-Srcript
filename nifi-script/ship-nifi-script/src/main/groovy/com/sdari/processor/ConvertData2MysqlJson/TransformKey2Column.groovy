@@ -15,7 +15,7 @@ class TransformKey2Column {
     private static routeId
     private static currentClassName
 
-    TransformKey2Column(final ComponentLog logger, final String pid, final String pName, final String rid) {
+    TransformKey2Column(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
