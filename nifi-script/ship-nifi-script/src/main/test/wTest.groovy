@@ -1,37 +1,24 @@
+import org.apache.commons.lang3.ArrayUtils
 import org.apache.commons.lang3.StringUtils
 import org.codehaus.groovy.runtime.InvokerHelper
 
 class wTest {
 
 
-    private final GroovyClassLoader classLoader = new GroovyClassLoader();
-
-    public GroovyObject getClassByNameAndPath(String name, String path) {
-        return classLoader.parseClass(new File(path + name)).newInstance() as GroovyObject
-    }
-
-    /**
-     * 根据路径名称 加载class
-     */
-    private Script loadScript(String rule) {
-        return loadScript(rule, new Binding())
-    }
-
-    private Script loadScript(String rule, Binding binding) throws Exception {
-        Script script = null
-        if (StringUtils.isEmpty(rule)) {
-            return null;
+    public static void main(String[] args) {
+        final String[] filterTables = ['t_alarm_history', 't_calculation'];
+        String srcTableName = "t_alarm_history";
+        println "srcTableName.toLowerCase() :"+srcTableName.toLowerCase()
+        if (!ArrayUtils.contains((filterTables ), srcTableName.toLowerCase())) {
+            System.out.println("mysql");
+        }else {
+            System.out.println("es");
         }
-        try {
-            Class ruleClazz = classLoader.parseClass(rule);
-            if (ruleClazz != null) {
-                return InvokerHelper.createScript(ruleClazz, binding)
-            }
-        } catch (Exception e) {
-            throw new Exception("loadScript:", e)
-        } finally {
-            classLoader.clearCache()
+        String srcTableName2 = "t_history";
+        if (!ArrayUtils.contains(filterTables, srcTableName2.toLowerCase())) {
+            System.out.println("mysql");
+        }else {
+            System.out.println("es");
         }
-        return script
     }
 }

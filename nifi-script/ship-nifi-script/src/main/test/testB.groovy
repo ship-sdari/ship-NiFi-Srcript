@@ -1,3 +1,5 @@
+/*
+import com.alibaba.fastjson.JSON
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
@@ -48,7 +50,9 @@ class testB implements Processor {
     final String META = 'meta'
     //
     final String relationName = 'relationName'
-    final String[] FileTables = { ['t_calculation', 't_alarm_history'] }
+
+    final String[] FileTables = ['t_calculation', 't_alarm_history']
+
     final String optionSTATUS = "optionSTATUS"
     final static Relationship REL_MySql = new Relationship.Builder()
             .name("mysql")
@@ -74,6 +78,7 @@ class testB implements Processor {
 
     Set<Relationship> getRelationships() { [REL_FAILURE, REL_MySql, REL_ES, REL_Hive, REL_HBase] as Set }
 
+    void scriptByInitId(pid, service) throws Exception {}
 
     @Override
     List<PropertyDescriptor> getPropertyDescriptors() {
@@ -82,11 +87,13 @@ class testB implements Processor {
 
     void initialize(ProcessorInitializationContext context) {}
 
-    /**
+    */
+/**
      * A method that executes only once when initialized
      *
      * @param context
-     */
+     *//*
+
     @OnScheduled
     public void onScheduled(final ProcessContext context) {
         try {
@@ -99,9 +106,13 @@ class testB implements Processor {
     void onTrigger(ProcessContext context, ProcessSessionFactory sessionFactory) throws ProcessException {
         final ProcessSession session = sessionFactory.createSession()
         FlowFile flowFile = session.get()
-        if (flowFile == null) session.commit()
-        if (!flowFile) return
-        /*以下为正常处理数据文件的部分*/
+        if (flowFile == null) {
+            session.commit()
+            return
+        }
+        */
+/*以下为正常处理数据文件的部分*//*
+
         final AtomicReference<JSONObject> dataList = new AtomicReference<>()
         session.read(flowFile, { inputStream ->
             try {
@@ -110,6 +121,7 @@ class testB implements Processor {
                 log.error " 读取流文件失败", e
                 onFailure(session, flowFile)
                 session.commit()
+                return
             }
         })
         try {
@@ -123,19 +135,20 @@ class testB implements Processor {
             final String tableName = metaMpa.get(TABLE_NAME)
             final String status = metaMpa.get(STATUS)
             final String option = metaMpa.get(OPTION)
-            JSONArray data = metaMpa.get(DATA) as JSONArray
+            JSONArray data = JsonData.get(DATA) as JSONArray
             Map<String, String> map = new HashMap<>()
             map.put(SID, sid)
             map.put(STATUS, status)
             map.put(OPTION, option)
             map.put(TABLE_NAME, tableName)
-
+            log.info "map :" + JSONObject.toJSONString(map)
             for (json in data) {
-                json as JSONObject
+                json as JSON
+                log.info "json :" + JSONObject.toJSONString(json)
                 FlowFile flowFile1 = session.create()
                 session.putAllAttributes(flowFile1, map)
                 session.write(flowFile1, { out ->
-                    out.write(JSONObject.toJSONBytes(data,
+                    out.write(JSONObject.toJSONBytes(json,
                             SerializerFeature.WriteMapNullValue))
                 } as OutputStreamCallback)
                 if (!ArrayUtils.contains(FileTables, tableName.toLowerCase())) {
@@ -157,15 +170,16 @@ class testB implements Processor {
                             session.putAttribute(flowFile2, optionSTATUS, "null")
                     }
                     session.putAttribute(flowFile2, relationName, "MySql")
-                    session.transfer(flowFile, REL_MySql)
+                    session.transfer(flowFile2, REL_MySql)
                 } else {
                     FlowFile flowFile2 = session.clone(flowFile1)
                     session.putAttribute(flowFile2, relationName, "ES")
-                    session.transfer(flowFile1, REL_ES)
+                    session.transfer(flowFile2, REL_ES)
                 }
                 session.putAttribute(flowFile1, relationName, "HBase")
                 session.transfer(flowFile1, REL_HBase)
             }
+            session.putAllAttributes(flowFile, map)
             session.transfer(flowFile, REL_Hive)
         } catch (final Throwable t) {
             log.error('{} failed to process due to {}', [this, t] as Object[])
@@ -189,19 +203,23 @@ class testB implements Processor {
 
     @Override
     String getIdentifier() { null }
-    /**
+    */
+/**
      * 失败路由处理
      * @param session
      * @param flowFile
-     */
+     *//*
+
     private static void onFailure(final ProcessSession session, final FlowFile flowFile) {
         session.transfer(flowFile, REL_FAILURE)
     }
-    /**
+    */
+/**
      * 设置该处理器的logger
      * @param logger
      * @throws Exception
-     */
+     *//*
+
     void setLogger(final ComponentLog logger) {
         log = logger
     }
@@ -211,3 +229,4 @@ processor = new testB()
 
 
 
+*/
