@@ -1,5 +1,7 @@
 package com.sdari.publicUtils
 
+import lombok.Data
+import org.apache.commons.io.IOUtils
 import org.apache.nifi.components.PropertyDescriptor
 import org.apache.nifi.dbcp.DBCPService
 import org.apache.nifi.processor.Relationship
@@ -28,6 +30,7 @@ class ProcessorComponentHelper {
     private DBCPService dbcpService
     private final GroovyClassLoader classLoader
     private Map<String, Class> aClasses
+    private Map<String, String> publicClassesText
     //脚本的方法名
     public final static String funName = "calculation"
     //脚本返回的数据
@@ -38,25 +41,16 @@ class ProcessorComponentHelper {
     public final static String returnRules = "rules"
     //脚本处理器配置
     public final static String returnParameters = "parameters"
-    //相关公共类全路径(服务器路径)
-    public final static String managerDtoPath = "/home/sdari/app/nifi/share/groovy/com/sdari/dto/manager/"
-    public final static String publicUtilsPath = "/home/sdari/app/nifi/share/groovy/com/sdari/publicUtils/"
-/*
-    //相关公共类全路径(本地绝对路径)
-    public final static String managerDtoPath = "F:\\IDEA\\nifi\\ship-NiFi-Srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\"
-    public final static String publicUtilsPath = "F:\\IDEA\\nifi\\ship-NiFi-Srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\publicUtils\\"
-*/
 
-    //相关实体全路径path(包括脚本名称)
-    public final static String NifiProcessorAttributesDTO = "${managerDtoPath}NifiProcessorAttributesDTO.groovy"
-    public final static String NifiProcessorManagerDTO = "${managerDtoPath}NifiProcessorManagerDTO.groovy"
-    public final static String NifiProcessorRoutesDTO = "${managerDtoPath}NifiProcessorRoutesDTO.groovy"
-    public final static String NifiProcessorSubClassDTO = "${managerDtoPath}NifiProcessorSubClassDTO.groovy"
-    public final static String TStreamRuleDTO = "${managerDtoPath}TStreamRuleDTO.groovy"
-
-    //公共实体工具类path
-    public String AttributesManagerUtils = "${publicUtilsPath}AttributesManagerUtils.groovy"
-    public String RoutesManagerUtils = "${publicUtilsPath}RoutesManagerUtils.groovy"
+    //相关实体脚本名称
+    public final static String NifiProcessorAttributesDTO = "NifiProcessorAttributesDTO.groovy"
+    public final static String NifiProcessorManagerDTO = "NifiProcessorManagerDTO.groovy"
+    public final static String NifiProcessorRoutesDTO = "NifiProcessorRoutesDTO.groovy"
+    public final static String NifiProcessorSubClassDTO = "NifiProcessorSubClassDTO.groovy"
+    public final static String TStreamRuleDTO = "TStreamRuleDTO.groovy"
+    //公共实体工具类脚本名称
+    public String AttributesManagerUtils = "AttributesManagerUtils.groovy"
+    public String RoutesManagerUtils = "RoutesManagerUtils.groovy"
 
     ProcessorComponentHelper(int id, DBCPService dbcpService) {
         classLoader = new GroovyClassLoader()
@@ -74,6 +68,22 @@ class ProcessorComponentHelper {
 
     void setDbcpService(DBCPService dbcpService) {
         this.dbcpService = dbcpService
+    }
+
+    Map<String, Class> getaClasses() {
+        return aClasses
+    }
+
+    void setaClasses(Map<String, Class> aClasses) {
+        this.aClasses = aClasses
+    }
+
+    Map<String, String> getPublicClassesText() {
+        return publicClassesText
+    }
+
+    void setPublicClassesText(Map<String, String> publicClassesText) {
+        this.publicClassesText = publicClassesText
     }
 
     Map<String, GroovyObject> getScriptMap() {
@@ -231,8 +241,44 @@ class ProcessorComponentHelper {
         setTStreamRules(tStreamRuleDto)
     }
 
+    void createPublicClassesText(List<NifiProcessorPublicDTO> publicDTOList) throws Exception {
+        publicClassesText = [:]
+        publicDTOList?.each { publicDto ->
+            try {
+                if (null != publicDto.public_script_text && !(publicDto.public_script_text).isEmpty()) {
+                    publicClassesText.put(publicDto.public_script_name, publicDto.public_script_text)
+                } else if (null != publicDto.public_full_path) {
+                    final InputStream ins = new FileInputStream(new File((publicDto.public_full_path).concat(publicDto.public_script_name)))
+                    final String body = IOUtils.toString(ins, "UTF-8")
+                    ins.close()
+                    publicClassesText.put(publicDto.public_script_name, body)
+                } else {
+                    throw new Exception("公共类管理表module_id = ${publicDto.module_id} 配置有异常,请检查！")
+                }
+            } catch (Exception e) {
+                throw e
+            }
+        }
+    }
+
     void initComponent() throws Exception {
         final Connection con = loadConnection()
+        //闭包查询公共类表
+        List<NifiProcessorPublicDTO> publicDTOList = null
+        def selectPublic = {
+            try {
+                def publicSelect = "SELECT * FROM `nifi_processor_public` WHERE `status` = 'A';"
+                Statement stm = con.createStatement()
+                ResultSet res = stm.executeQuery(publicSelect)
+                NifiProcessorPublicDTO publicDTO = new NifiProcessorPublicDTO()
+                publicDTOList = publicDTO.createDto(res)
+                releaseConnection(null, stm, res)//释放连接
+            } catch (Exception e) {
+                throw new Exception("闭包查询公共类表异常", e)
+            }
+        }
+        selectPublic.call()
+        createPublicClassesText(publicDTOList)
         //闭包查询处理器表
         GroovyObject processorDto = null
         def selectProcessorManagers = {
@@ -432,15 +478,19 @@ class ProcessorComponentHelper {
     /**
      * groovy实例化外部脚本类的获取
      */
-    GroovyObject getClassInstanceByNameAndPath(String name, String path) {
+    GroovyObject getClassInstanceByNameAndPath(String path, String name) {
         def returnInstance = null
         final String fullPath = path + name
         try {
-            final Class aClass
+            Class aClass
             if (aClasses.containsKey(fullPath)) {
                 aClass = aClasses.get(fullPath)
             } else {
-                aClass = classLoader.parseClass(new File(fullPath))
+//                aClass = classLoader.parseClass(new File(fullPath))
+                if (!publicClassesText.containsKey(fullPath)){
+                    throw new Exception("没有该脚本的内容供于创建！")
+                }
+                aClass = classLoader.parseClass(publicClassesText.get(fullPath))
                 aClasses.put(fullPath, aClass)
             }
             returnInstance = aClass.newInstance() as GroovyObject
@@ -448,6 +498,39 @@ class ProcessorComponentHelper {
             throw new Exception("实例化脚本对象 ${fullPath} 出现异常", e)
         } finally {
             returnInstance
+        }
+    }
+}
+
+/**
+ * @author jinkaisong@sdari.mail.com
+ * @date 2020/8/10 17:38
+ */
+@Data
+class NifiProcessorPublicDTO {
+    private Integer module_id
+    private String public_full_path
+    private String public_script_name
+    private String public_script_text
+    private String public_script_desc
+    private String status
+
+    static List<NifiProcessorPublicDTO> createDto(ResultSet res) throws Exception {
+        try {
+            def NifiProcessorPublicDTO = []
+            while (res.next()) {
+                NifiProcessorPublicDTO dto = new NifiProcessorPublicDTO()
+                dto.module_id = res.getInt('module_id')
+                dto.public_full_path = res.getString('public_full_path')
+                dto.public_script_name = res.getString('public_script_name')
+                dto.public_script_text = res.getString('public_script_text')
+                dto.public_script_desc = res.getString('public_script_desc')
+                dto.status = res.getString('status')
+                NifiProcessorPublicDTO.add(dto)
+            }
+            NifiProcessorPublicDTO
+        } catch (Exception e) {
+            throw new Exception("NifiProcessorPublicDTO createDto has an error", e)
         }
     }
 }

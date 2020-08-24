@@ -72,7 +72,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
     private volatile String kerberosServicePrincipal = null;
     private volatile File kerberosConfigFile = null;
     private volatile File kerberosServiceKeytab = null;
-    volatile ScriptingComponentHelper scriptingComponentHelper = new ScriptingComponentHelper();
+    private volatile ScriptingComponentHelper scriptingComponentHelper = new ScriptingComponentHelper();
 
     /*    */
 
@@ -323,7 +323,7 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
             // get the engine and ensure its invocable
             if (scriptEngine instanceof Invocable) {
                 final Invocable invocable = (Invocable) scriptEngine;
-                logger.info("开始日志打印---");
+                logger.info("开始加载脚本实现的处理器，请稍后...");
                 // Find a custom configurator and invoke their eval() method
                 ScriptEngineConfigurator configurator = scriptingComponentHelper.scriptEngineConfiguratorMap.get(scriptingComponentHelper.getScriptEngineName().toLowerCase());
                 if (configurator != null) {
@@ -350,11 +350,12 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
                     try {
                         // set the logger if the processor wants it
 
-                        log.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
+//                        log.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
                         MyInvokeScriptedProcessor.logger.info("MyReloadScript id:" + scriptingComponentHelper.getProcessorId());
                         invocable.invokeMethod(obj, "scriptByInitId",
                                 scriptingComponentHelper.getProcessorId(),
-                                scriptingComponentHelper.getDBCPService());
+                                scriptingComponentHelper.getDBCPService(),
+                                scriptingComponentHelper.getProcessorComponentHelperText());
                     } catch (final Exception nsme) {
                         log.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
                         MyInvokeScriptedProcessor.logger.error("Unable to invokeFunction:" + nsme.getLocalizedMessage(), nsme);
