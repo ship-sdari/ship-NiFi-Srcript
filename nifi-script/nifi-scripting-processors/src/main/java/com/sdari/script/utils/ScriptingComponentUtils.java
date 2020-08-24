@@ -86,7 +86,7 @@ public class ScriptingComponentUtils {
             .name("QUERY_SCRIPT_SQL")
             .required(false)
             .description("获取脚本全路径及脚本名称")
-            .defaultValue("SELECT `script_name`,`full_path` ,`script_text`FROM `nifi_processor_manager` where  `status`=''A'' and`processor_id` = ''{0}'' ;")
+            .defaultValue("SELECT `script_name`,`full_path` ,`script_text` FROM `nifi_processor_manager` where  `status`=''A'' and`processor_id` = ''{0}'' ;")
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
     public static final PropertyDescriptor SCRIPT_PROCESSOR_ID = new PropertyDescriptor.Builder()

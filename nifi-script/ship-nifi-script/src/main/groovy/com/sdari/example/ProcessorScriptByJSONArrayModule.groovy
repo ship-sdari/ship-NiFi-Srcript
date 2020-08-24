@@ -260,16 +260,16 @@ class ProcessorScriptByJSONArrayModule implements Processor {
      * @param service 数据库连接的控制服务对象
      * @throws Exception
      */
-    void scriptByInitId(pid, service) throws Exception {
+    void scriptByInitId(pid, service, processorComponentHelperText) throws Exception {
+        id = pid //同步处理器id
         try {
-            id = pid //同步处理器id
             dbcpService = service
             //工具类实例化
-            def fullPath = "/home/sdari/app/nifi/share/groovy/com/sdari/publicUtils/ProcessorComponentHelper.groovy"
             GroovyClassLoader classLoader = new GroovyClassLoader()
-            Class aClass = classLoader.parseClass(new File(fullPath))
+            Class aClass = classLoader.parseClass(processorComponentHelperText as String)
             pch = aClass.newInstance(pid as int, service) as GroovyObject//有参构造
             pch.invokeMethod("initComponent", null)//相关公共配置实例查询
+            log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 任务功能处理器最开始的同步和初始化调用正常结束！"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 任务功能处理器最开始的同步和初始化调用方法异常", e
         }

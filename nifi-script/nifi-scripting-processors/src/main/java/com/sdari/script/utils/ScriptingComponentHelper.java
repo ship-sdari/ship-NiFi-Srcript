@@ -16,6 +16,7 @@
  */
 package com.sdari.script.utils;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.nifi.components.*;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.dbcp.DBCPService;
@@ -23,6 +24,9 @@ import org.apache.nifi.expression.ExpressionLanguageScope;
 import org.apache.nifi.logging.ComponentLog;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -77,6 +81,7 @@ public class ScriptingComponentHelper {
     private String scriptBody;
     private DBCPService dbcpService;
     private String processorId;
+    private String processorComponentHelperText;
     private String[] modules;
     private List<PropertyDescriptor> descriptors;
     private List<AllowableValue> engineAllowableValues;
@@ -101,6 +106,10 @@ public class ScriptingComponentHelper {
 
     public String getProcessorId() {
         return this.processorId;
+    }
+
+    public String getProcessorComponentHelperText() {
+        return this.processorComponentHelperText;
     }
 
     public void setDBCPService(DBCPService dbcpService) {
@@ -434,22 +443,43 @@ public class ScriptingComponentHelper {
         Statement stmt = con.createStatement();
         String sql_ok = MessageFormat.format(sql, processorId);
         //   logger.debug("getScriptPath date[{}] Sql[{}] ", Instant.now(), sql_ok);
-        ResultSet resultSet = stmt.executeQuery(sql_ok);
-        while (resultSet.next()) {
-            String name = resultSet.getString(1);
-            String pathSql = resultSet.getString(2);
-            String bodySql = resultSet.getString(3);
-            if (null != name && !name.isEmpty() && null != pathSql && !pathSql.isEmpty()) {
-                ScriptMapPath = pathSql.concat(name);
+        try {
+            ResultSet resultSet = stmt.executeQuery(sql_ok);
+            while (resultSet.next()) {
+                String name = resultSet.getString(1);
+                String pathSql = resultSet.getString(2);
+                String bodySql = resultSet.getString(3);
+                if (null != name && !name.isEmpty() && null != pathSql && !pathSql.isEmpty()) {
+                    ScriptMapPath = pathSql.concat(name);
+                }
+                if (null != bodySql && !bodySql.isEmpty()) {
+                    ScriptMapBody = bodySql;
+                }
             }
-            if (null != bodySql && !bodySql.isEmpty()) {
-                ScriptMapBody = bodySql;
+            //查询总管理工具类
+            final String sql_public = "SELECT `public_full_path`,`public_script_text`,`public_script_name` FROM `nifi_processor_public` WHERE `public_script_name` = 'ProcessorComponentHelper.groovy' AND `status` = 'A' LIMIT 1;";
+            ResultSet res = stmt.executeQuery(sql_public);
+            while(res.next()){
+                final String public_full_path = res.getString(1);
+                final String public_script_text = res.getString(2);
+                final String public_script_name = res.getString(3);
+                if (null != public_script_text && !public_script_text.isEmpty()){
+                    processorComponentHelperText = public_script_text;
+                }else if (null != public_full_path){
+                    InputStream text = new FileInputStream(new File(public_full_path.concat(public_script_name)));
+                    processorComponentHelperText = IOUtils.toString(text, "UTF-8");
+                    text.close();
+                }
             }
+            if (!res.isClosed()) res.close();
+            if (!resultSet.isClosed()) resultSet.close();
+            if (!stmt.isClosed()) stmt.close();
+            if (!con.isClosed()) con.close();
+        } catch (SQLException e) {
+            logger.error("查询管理表异常",e);
+        } catch (IOException e) {
+            logger.error("文件读取总管理工具类异常",e);
         }
-        if (!resultSet.isClosed()) resultSet.close();
-        if (!stmt.isClosed()) stmt.close();
-        if (!con.isClosed()) con.close();
-
 
         if (null == ScriptMapBody && null == ScriptMapPath) {
             ScriptMap.put(mapPath, path);

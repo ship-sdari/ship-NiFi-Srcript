@@ -44,7 +44,7 @@ class RoutesTest extends GroovyTestCase {
         println('----------子脚本----------')
         def subClasses = pp.getSubClasses()
         /*    for (subClass in subClasses){
-                def builder = NifiProcessorSubClassDTO.jsonBuilderDto(subClass)
+                def builder = NifiProcessorPublicDTO.jsonBuilderDto(subClass)
                 println "返回结果 " + JsonOutput.toJson(builder.content[0])
                 println "返回类型 " + subClass.class
             }*/
@@ -59,12 +59,12 @@ class RoutesTest extends GroovyTestCase {
         dataList.set(JSONArray.parseArray('[]'))
         println dataList.get().getClass().canonicalName
         /*def pp = new ProcessorComponentHelper(1, null)
-        GroovyObject object1 = pp.getClassInstanceByNameAndPath('NifiProcessorSubClassDTO.groovy', 'E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
+        GroovyObject object1 = pp.getClassInstanceByNameAndPath('NifiProcessorPublicDTO.groovy', 'E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
         object1.setProperty('sub_full_path', '第一次测试')
         println "返回结果 " + object1.getProperty('sub_full_path') as String
         println pp.aClasses.size()
 
-        GroovyObject object2 = pp.getClassInstanceByNameAndPath('NifiProcessorSubClassDTO.groovy', 'E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
+        GroovyObject object2 = pp.getClassInstanceByNameAndPath('NifiProcessorPublicDTO.groovy', 'E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
         object2.setProperty('sub_full_path', '第二次测试')
         println "返回结果 " + object2.getProperty('sub_full_path') as String
         println pp.aClasses.size()*/
