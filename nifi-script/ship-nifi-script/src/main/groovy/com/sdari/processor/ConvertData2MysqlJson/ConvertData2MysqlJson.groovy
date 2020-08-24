@@ -15,7 +15,6 @@ import org.apache.nifi.logging.ComponentLog
 import org.apache.nifi.processor.*
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
-
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -87,11 +86,15 @@ class ConvertData2MysqlJson implements Processor {
     void onTrigger(ProcessContext context, ProcessSessionFactory sessionFactory) throws ProcessException {
         final ProcessSession session = sessionFactory.createSession()
         FlowFile flowFile = session.get()
-        if (flowFile == null) session.commit()
+        if (flowFile == null) {
+            session.commit()
+            return
+        }
         if (!(pch?.getProperty('isInitialized') as AtomicBoolean)?.get() || 'A' != (pch?.getProperty('processor') as GroovyObject)?.getProperty('status')) {
             //工具类初始化有异常或者该处理管理表处于不是开启状态就删除流文件不做任何处理
             session.remove(flowFile)
             session.commit()
+            return
         }
         /*以下为正常处理数据文件的部分*/
         final AtomicReference<JSONObject> datas = new AtomicReference<>()
@@ -286,4 +289,5 @@ class ConvertData2MysqlJson implements Processor {
     }
 }
 
+//脚本部署时需要放开该注释
 //processor = new ConvertData2MysqlJson()
