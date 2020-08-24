@@ -1,4 +1,4 @@
-package com.sdari.processor.DataCleanAndTransform
+package com.sdari.processor.DataAnalysis
 
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
