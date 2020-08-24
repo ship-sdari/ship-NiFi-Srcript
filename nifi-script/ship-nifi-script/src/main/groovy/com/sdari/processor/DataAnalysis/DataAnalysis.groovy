@@ -1,4 +1,4 @@
-package com.sdari.processor.DataAnalysis
+package com.sdari.processor.DataCleanAndTransform
 
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
@@ -13,16 +13,20 @@ import org.apache.nifi.components.ValidationResult
 import org.apache.nifi.dbcp.DBCPService
 import org.apache.nifi.flowfile.FlowFile
 import org.apache.nifi.logging.ComponentLog
-import org.apache.nifi.processor.*
+import org.apache.nifi.processor.ProcessContext
+import org.apache.nifi.processor.ProcessSession
+import org.apache.nifi.processor.ProcessSessionFactory
+import org.apache.nifi.processor.Processor
+import org.apache.nifi.processor.ProcessorInitializationContext
+import org.apache.nifi.processor.Relationship
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
-
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
-@CapabilityDescription('岸基-业务解析路由处理器')
+@CapabilityDescription('岸基-解析数据包路由处理器')
 class DataAnalysis implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
@@ -275,7 +279,6 @@ class DataAnalysis implements Processor {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 任务功能处理器最开始的同步和初始化调用方法异常", e
         }
     }
-
 
     /**
      * 设置该处理器的logger
