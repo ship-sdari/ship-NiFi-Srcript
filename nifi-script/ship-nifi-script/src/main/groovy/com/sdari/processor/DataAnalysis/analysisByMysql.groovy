@@ -112,7 +112,8 @@ class analysisByMysql {
                             jsonAttributesFormers.put(optionSTATUS, DELETE)
                             break
                         default:
-                            jsonAttributesFormers.put(optionSTATUS, "null")
+                            log.error "option error value=>[${option}] data:[${json}]"
+                            continue
                     }
                     attributesListReturn.add(jsonAttributesFormers)
                     //单条数据处理结束，放入返回仓库
