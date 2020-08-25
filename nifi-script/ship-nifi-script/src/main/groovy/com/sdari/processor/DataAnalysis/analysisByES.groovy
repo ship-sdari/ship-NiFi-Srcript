@@ -3,11 +3,13 @@ package com.sdari.processor.DataAnalysis
 
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
+import groovy.json.JsonOutput
 import org.apache.commons.lang3.ArrayUtils
 import org.apache.commons.lang3.StringUtils
 import org.apache.nifi.logging.ComponentLog
 import org.joda.time.Instant
-
+import java.text.SimpleDateFormat
+import java.util.Date
 
 /**
  * @author jinkaisong@sdari.mail.com
@@ -38,7 +40,9 @@ class analysisByES {
 
     final static String table_name_prefix = "XCLOUD_"
 
-    analysisByES(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    final static String time_type = "yyyy-MM-dd HH:mm:ss"
+
+    analysisByES(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -73,16 +77,34 @@ class analysisByES {
             jsonAttributesFormer.put(OPTION, option)
             jsonAttributesFormer.put(TABLE_NAME, tableName)
             for (json in data) {
+                if (null == json) continue
                 json = json as JSONObject
+                log.info"json:"+ JSONObject.toJSONString(json)
                 JSONObject jsonAttributesFormers = jsonAttributesFormer
                 if (ArrayUtils.contains(FileTables, tableName.toLowerCase())) {
+                    String record_time = 'record_time'
+                    if (json.containsKey(record_time) && json.get(record_time) != null) {
+                        long time = Long.parseLong((json.get(record_time) as String))as long
+                        json.put(record_time, DateByFormat(time)as String)
+                    }
+                    String create_time = 'create_time'
+                    if (json.containsKey(create_time) && json.get(create_time) != null) {
+                        long time = Long.parseLong((json.get(create_time) as String))as long
+                        json.put(create_time, DateByFormat(time)as String)
+                    }
+                    String update_time = 'update_time'
+                    if (json.containsKey(update_time) && json.get(update_time) != null) {
+                        long time = Long.parseLong((json.get(update_time) as String))as long
+                        json.put(update_time, DateByFormat(time)as String)
+                    }
+                    log.info"y"
                     json.put("rowkey",
                             StringUtils.leftPad(sid, 4, "0")
                                     .concat(json.get(jsonIsCompress ? "id" : "create_time") as String))
                     json.put("upload_time", String.valueOf(Instant.now())
                             .replace(".", ":")
                             .replace("T", " ")
-                            .replace("Z", ""));
+                            .replace("Z", ""))
                     jsonAttributesFormers.put(tableNamePrefix, (table_name_prefix + tableName).toLowerCase())
                     attributesListReturn.add(jsonAttributesFormers)
                     //单条数据处理结束，放入返回仓库
@@ -98,4 +120,10 @@ class analysisByES {
         return returnMap
     }
 
+    /**
+     * 时间格式转换
+     */
+    static String DateByFormat(long time) {
+        return new SimpleDateFormat(time_type).format(new Date(time))
+    }
 }

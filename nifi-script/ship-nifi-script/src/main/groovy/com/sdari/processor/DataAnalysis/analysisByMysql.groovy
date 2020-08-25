@@ -6,6 +6,8 @@ import com.alibaba.fastjson.JSONObject
 import org.apache.commons.lang3.ArrayUtils
 import org.apache.nifi.logging.ComponentLog
 
+import java.text.SimpleDateFormat
+
 
 /**
  * @author jinkaisong@sdari.mail.com
@@ -41,6 +43,7 @@ class analysisByMysql {
     final static String[] FileTables = ['t_calculation', 't_alarm_history']
 
     final static String optionSTATUS = "optionSTATUS"
+    final static String time_type = "yyyy-MM-dd HH:mm:ss"
 
     analysisByMysql(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
@@ -76,9 +79,25 @@ class analysisByMysql {
             jsonAttributesFormer.put(OPTION, option)
             jsonAttributesFormer.put(TABLE_NAME, tableName)
             for (json in data) {
-                json as JSONObject
+                json = json as JSONObject
+                if (null == json) continue
                 JSONObject jsonAttributesFormers = jsonAttributesFormer
                 if (!ArrayUtils.contains(FileTables, tableName.toLowerCase())) {
+                    String record_time = 'record_time'
+                    if (json.containsKey(record_time) && json.get(record_time) != null) {
+                        long time = Long.parseLong((json.get(record_time) as String)) as long
+                        json.put(record_time, DateByFormat(time) as String)
+                    }
+                    String create_time = 'create_time'
+                    if (json.containsKey(create_time) && json.get(create_time) != null) {
+                        long time = Long.parseLong((json.get(create_time) as String)) as long
+                        json.put(create_time, DateByFormat(time) as String)
+                    }
+                    String update_time = 'update_time'
+                    if (json.containsKey(update_time) && json.get(update_time) != null) {
+                        long time = Long.parseLong((json.get(update_time) as String)) as long
+                        json.put(update_time, DateByFormat(time) as String)
+                    }
                     switch (option) {
                         case ADD:
                             jsonAttributesFormers.put(optionSTATUS, ADD)
@@ -95,12 +114,11 @@ class analysisByMysql {
                         default:
                             jsonAttributesFormers.put(optionSTATUS, "null")
                     }
+                    attributesListReturn.add(jsonAttributesFormers)
+                    //单条数据处理结束，放入返回仓库
+                    dataListReturn.add(json)
                 }
-                attributesListReturn.add(jsonAttributesFormers)
-                //单条数据处理结束，放入返回仓库
-                dataListReturn.add(json)
             }
-
         }
         //全部数据处理完毕，放入返回数据后返回
         returnMap.put('rules', rules)
@@ -109,5 +127,10 @@ class analysisByMysql {
         returnMap.put('data', dataListReturn)
         return returnMap
     }
-
+    /**
+     * 时间格式转换
+     */
+    static String DateByFormat(long time) {
+        return new SimpleDateFormat(time_type).format(new Date(time))
+    }
 }
