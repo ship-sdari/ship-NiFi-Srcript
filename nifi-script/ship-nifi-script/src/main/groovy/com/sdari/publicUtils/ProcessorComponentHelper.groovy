@@ -500,6 +500,43 @@ class ProcessorComponentHelper {
             returnInstance
         }
     }
+
+    /**
+     * 深拷贝工具类
+     */
+    static <T> T deepClone(T src) throws RuntimeException {
+        ByteArrayOutputStream memoryBuffer = new ByteArrayOutputStream()
+        ObjectOutputStream out = null
+        ObjectInputStream inp = null
+        T dist = null
+        try {
+            out = new ObjectOutputStream(memoryBuffer)
+            out.writeObject(src)
+            out.flush()
+            inp = new ObjectInputStream(new ByteArrayInputStream(memoryBuffer.toByteArray()))
+            dist = (T) inp.readObject()
+        } catch (Exception e) {
+            throw new RuntimeException(e)
+        } finally {
+            if (out != null) {
+                try {
+                    out.close()
+                    out = null
+                } catch (IOException e) {
+                    throw new RuntimeException(e)
+                }
+            }
+            if (inp != null) {
+                try {
+                    inp.close()
+                    inp = null
+                } catch (IOException e) {
+                    throw new RuntimeException(e)
+                }
+            }
+        }
+        return dist
+    }
 }
 
 /**
