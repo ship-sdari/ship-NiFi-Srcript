@@ -22,7 +22,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>ship-nifi-srcipt</artifactId>
+    <artifactId>ship-nifi-script</artifactId>
     <version>1.1.0</version>
     <name>ship-nifi-script</name>
 

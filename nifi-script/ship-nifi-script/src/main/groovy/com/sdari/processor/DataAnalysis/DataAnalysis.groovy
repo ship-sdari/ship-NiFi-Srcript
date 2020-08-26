@@ -1,4 +1,4 @@
-package com.sdari.processor.DataCleanAndTransform
+package com.sdari.processor.DataAnalysis
 
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
 @CapabilityDescription('岸基-解析数据包路由处理器')
-class DataCleanAndTransform implements Processor {
+class DataAnalysis implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
@@ -296,4 +296,4 @@ class DataCleanAndTransform implements Processor {
 }
 
 //脚本部署时需要放开该注释
-//processor = new DataCleanAndTransform()
+//processor = new DataAnalysis()
