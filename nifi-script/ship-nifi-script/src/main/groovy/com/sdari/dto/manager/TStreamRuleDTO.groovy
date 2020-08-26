@@ -1,8 +1,6 @@
 package com.sdari.dto.manager
 
 import lombok.Data
-import org.omg.CORBA.INTERNAL
-
 import java.sql.ResultSet
 
 @Data
