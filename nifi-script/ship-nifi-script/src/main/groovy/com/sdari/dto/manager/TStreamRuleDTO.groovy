@@ -1,6 +1,7 @@
 package com.sdari.dto.manager
 
 import lombok.Data
+import org.omg.CORBA.INTERNAL
 
 import java.sql.ResultSet
 
@@ -255,11 +256,11 @@ class TStreamRuleDTO {
     static Map<String, Map<String, TStreamRuleDTO>> createDto(ResultSet resBasic, ResultSet resAlarm, ResultSet resCalculation, ResultSet resCollection, ResultSet resDist, ResultSet resShoreBased, ResultSet resThinning, ResultSet resWarehousing) throws Exception {
         try {
             def createBasicDto = { dto, res ->
-                dto.rule_id = res.getInt('rule_id')
-                dto.sid = res.getInt('sid')
+                dto.rule_id = res.getObject('rule_id') as Integer
+                dto.sid = res.getObject('sid') as Integer
                 dto.ship_id = res.getString('ship_id')
-                dto.sys_id = res.getInt('sys_id')
-                dto.doss_key = res.getInt('doss_key')
+                dto.sys_id = res.getObject('sys_id') as Integer
+                dto.doss_key = res.getObject('doss_key') as Integer
                 dto.protocol = res.getString('protocol')
                 dto.name_chn = res.getString('name_chn')
                 dto.name_eng = res.getString('name_eng')
@@ -275,8 +276,8 @@ class TStreamRuleDTO {
                 dto.inner_key = res.getString('inner_key')
             }
             def createAlarmDto = { dto, res ->
-                dto.sid = res.getInt('sid')
-                dto.doss_key = res.getInt('doss_key')
+                dto.sid = res.getObject('sid') as Integer
+                dto.doss_key = res.getObject('doss_key') as Integer
                 dto.alert_min = res.getBigDecimal('alert_min')
                 dto.alert_max = res.getBigDecimal('alert_max')
                 dto.alert_2nd_min = res.getBigDecimal('alert_2nd_min')
@@ -284,21 +285,21 @@ class TStreamRuleDTO {
                 dto.relate_stop_sig = res.getString('relate_stop_sig')
                 dto.alert_status = res.getString('alert_status')
                 dto.is_popup = res.getString('is_popup')
-                dto.ams_alarm_standard = res.getInt('ams_alarm_standard')
+                dto.ams_alarm_standard = res.getObject('ams_alarm_standard') as Integer
                 dto.alert_way = res.getString('alert_way')
             }
             def createCalculationDto = { dto, res ->
-                dto.sid = res.getInt('sid')
-                dto.doss_key = res.getInt('doss_key')
+                dto.sid = res.getObject('sid') as Integer
+                dto.doss_key = res.getObject('doss_key') as Integer
                 dto.calculation_key = res.getString('calculation_key')
                 dto.formula_flag = res.getString('formula_flag')
             }
             def createCollectionDto = { dto, res ->
-                dto.sid = res.getInt('sid')
-                dto.doss_key = res.getInt('doss_key')
+                dto.sid = res.getObject('sid') as Integer
+                dto.doss_key = res.getObject('doss_key') as Integer
                 dto.colgroup = res.getString('colgroup')
-                dto.modbus_slave_id = res.getInt('modbus_slave_id')
-                dto.modbus_func_id = res.getInt('modbus_func_id')
+                dto.modbus_slave_id = res.getObject('modbus_slave_id') as Integer
+                dto.modbus_func_id = res.getObject('modbus_func_id') as Integer
                 dto.addr = res.getString('addr')
                 dto.ip_addr = res.getString('ip_addr')
                 dto.ip_addr_down = res.getString('ip_addr_down')
@@ -306,46 +307,46 @@ class TStreamRuleDTO {
                 dto.from_table_id = res.getString('from_table_id')
                 dto.from_column_id = res.getString('from_column_id')
                 dto.protocol = res.getString('protocol')
-                dto.col_freq = res.getDouble('col_freq')
+                dto.col_freq = res.getObject('col_freq') as Double
                 dto.topic = res.getString('topic')
                 dto.modbus_sig_tag = res.getString('modbus_sig_tag')
-                dto.col_interval = res.getDouble('col_interval')
-                dto.col_count = res.getInt('col_count')
-                dto.nmea_id = res.getLong('nmea_id')
+                dto.col_interval = res.getObject('col_interval') as Double
+                dto.col_count = res.getObject('col_count') as Integer
+                dto.nmea_id = res.getObject('nmea_id') as Long
             }
             def createDistDto = { dto, res ->
-                dto.sid = res.getInt('sid')
-                dto.doss_key = res.getInt('doss_key')
+                dto.sid = res.getObject('sid') as Integer
+                dto.doss_key = res.getObject('doss_key') as Integer
                 dto.dist_group = res.getString('dist_group')
                 dto.dist_ip = res.getString('dist_ip')
-                dto.dist_port = res.getInt('dist_port')
+                dto.dist_port = res.getObject('dist_port') as Integer
                 dto.dist_ip_addr_down = res.getString('dist_ip_addr_down')
-                dto.dist_freq = res.getDouble('dist_freq')
+                dto.dist_freq = res.getObject('dist_freq') as Double
                 dto.dist_protocol = res.getString('dist_protocol')
                 dto.dis_user_and_password_down = res.getString('dis_user_and_password_down')
                 dto.dis_user_and_password = res.getString('dis_user_and_password')
                 dto.od_status = res.getString('od_status')
             }
             def createShoreBasedDto = { dto, res ->
-                dto.sid = res.getInt('sid')
-                dto.doss_key = res.getInt('doss_key')
+                dto.sid = res.getObject('sid') as Integer
+                dto.doss_key = res.getObject('doss_key') as Integer
                 dto.to_shore_group = res.getString('to_shore_group')
                 dto.to_shore_ip = res.getString('to_shore_ip')
-                dto.to_shore_port = res.getInt('to_shore_port')
-                dto.to_shore_freq = res.getDouble('to_shore_freq')
+                dto.to_shore_port = res.getObject('to_shore_port') as Integer
+                dto.to_shore_freq = res.getObject('to_shore_freq') as Double
                 dto.to_shore_protocol = res.getString('to_shore_protocol')
                 dto.compress_type = res.getString('compress_type')
                 dto.sbd_status= res.getString('sbd_status')
             }
             def createThinningDto = { dto, res ->
-                dto.sid = res.getInt('sid')
-                dto.doss_key = res.getInt('doss_key')
+                dto.sid = res.getObject('sid') as Integer
+                dto.doss_key = res.getObject('doss_key') as Integer
                 dto.sparse_rate = res.getString('sparse_rate')
-                dto.dilution_type = res.getInt('dilution_type')
+                dto.dilution_type = res.getObject('dilution_type') as Integer
             }
             def createWarehousingDto = { dto, res ->
-                dto.sid = res.getInt('sid')
-                dto.doss_key = res.getInt('doss_key')
+                dto.sid = res.getObject('sid') as Integer
+                dto.doss_key = res.getObject('doss_key') as Integer
                 dto.schema = res.getString('schema')
                 dto.table_id = res.getString('table_id')
                 dto.column_id = res.getString('column_id')

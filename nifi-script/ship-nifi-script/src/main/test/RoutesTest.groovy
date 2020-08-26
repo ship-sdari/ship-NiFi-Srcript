@@ -2,10 +2,12 @@ import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
 import com.sdari.dto.manager.NifiProcessorSubClassDTO
+import com.sdari.dto.manager.TStreamRuleDTO
 import com.sdari.publicUtils.ProcessorComponentHelper
 import groovy.json.JsonBuilder
 import groovy.json.JsonOutput
 import org.apache.commons.net.imap.IMAP
+import org.apache.nifi.dbcp.DBCPService
 import sun.nio.ch.ThreadPool
 
 import java.sql.Connection
@@ -32,7 +34,7 @@ class RoutesTest extends GroovyTestCase {
         con = DriverManager.getConnection(url, userName, password)
         def pp = new ProcessorComponentHelper(1, con)
         pp.initComponent()//初始化
-        println('----------路由关系----------')
+        /*println('----------路由关系----------')
         def relationships = pp.getRelationships()
         for (name in relationships.keySet()) {
             println "返回结果 " + name + " : " + relationships.get(name)
@@ -46,11 +48,11 @@ class RoutesTest extends GroovyTestCase {
         }
         println('----------子脚本----------')
         def subClasses = pp.getSubClasses()
-        /*    for (subClass in subClasses){
-                def builder = NifiProcessorPublicDTO.jsonBuilderDto(subClass)
-                println "返回结果 " + JsonOutput.toJson(builder.content[0])
-                println "返回类型 " + subClass.class
-            }*/
+        for (subClass in subClasses) {
+            def builder = NifiProcessorPublicDTO.jsonBuilderDto(subClass)
+            println "返回结果 " + JsonOutput.toJson(builder.content[0])
+            println "返回类型 " + subClass.class
+        }*/
         println('----------流规则配置----------')
         def tStreamRules = pp.getTStreamRules()
         println "返回结果" + tStreamRules?.size()
@@ -61,8 +63,8 @@ class RoutesTest extends GroovyTestCase {
         final AtomicReference<JSONArray> dataList = new AtomicReference<>()
         dataList.set(JSONArray.parseArray('[]'))
         println dataList.get().getClass().canonicalName
-        /*def pp = new ProcessorComponentHelper(1, null)
-        GroovyObject object1 = pp.getClassInstanceByNameAndPath('NifiProcessorPublicDTO.groovy', 'E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
+        def pp = new ProcessorComponentHelper(1, null)
+        /*GroovyObject object1 = pp.getClassInstanceByNameAndPath('NifiProcessorPublicDTO.groovy', 'E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
         object1.setProperty('sub_full_path', '第一次测试')
         println "返回结果 " + object1.getProperty('sub_full_path') as String
         println pp.aClasses.size()
@@ -71,6 +73,7 @@ class RoutesTest extends GroovyTestCase {
         object2.setProperty('sub_full_path', '第二次测试')
         println "返回结果 " + object2.getProperty('sub_full_path') as String
         println pp.aClasses.size()*/
+
     }
 
     //多线程测试
@@ -221,5 +224,12 @@ class RoutesTest extends GroovyTestCase {
             }
         }
         return dist
+    }
+
+    void testSer(){
+        TStreamRuleDTO dto = new TStreamRuleDTO()
+        println(dto)
+        def a = cloneTo(dto)
+        println(a)
     }
 }
