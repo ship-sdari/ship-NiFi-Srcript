@@ -17,6 +17,9 @@ class TStreamRuleDTO {
     //系统ID
     private Integer sys_id
 
+    //信号分组分表编号-新增
+    private Integer cat_id
+
     // DOSS系统key值
     private Integer doss_key
 
@@ -41,8 +44,8 @@ class TStreamRuleDTO {
     //量纲转换因子
     private BigDecimal transfer_factor
 
-    //系数
-    private Double coefficient
+    //系数-修改
+    private BigDecimal coefficient
 
     //启用状态
     // A - 活跃
@@ -128,6 +131,8 @@ class TStreamRuleDTO {
         private String calculation_key
         //指标名称标志位
         private String formula_flag
+        //开启状态-新增
+        private String calculation_status
     }
 
     @Data
@@ -146,10 +151,10 @@ class TStreamRuleDTO {
         private String addr
         //数据来源IP地址
         private String ip_addr
-        //    用于链路中断暂存字段
-        private String ip_addr_down
-        //端口号
-        private String port_addr
+        //    用于链路中断暂存字段-删除
+//        private String ip_addr_down
+        //端口号-修改
+        private Integer port_addr
         //    来源表名
         private String from_table_id
         //   来源列名
@@ -164,10 +169,12 @@ class TStreamRuleDTO {
         private String modbus_sig_tag
         //数据包请求间隔
         private Double col_interval
-        //数据包请求数量
-        private int col_count
+        //数据包请求数量-修改
+        private Integer col_count
         //nema0183_config关联id
         private Long nmea_id
+        //启用状态-新增
+        private String collection_status
     }
 
     @Data
@@ -181,11 +188,11 @@ class TStreamRuleDTO {
         //数据分发目的IP
         private String dist_ip
 
-        //数据分发目的端口
-        private String dist_port
+        //数据分发目的端口-修改
+        private Integer dist_port
 
-        //    链路中断暂存字段
-        private String dist_ip_addr_down
+        //    链路中断暂存字段-删除
+//        private String dist_ip_addr_down
 
         //  数据分发频率
         private Double dist_freq
@@ -193,14 +200,14 @@ class TStreamRuleDTO {
         //数据分发协议
         private String dist_protocol
 
-        //  用于SFTP分发的用户名和密码
-        private String dis_user_and_password_down
+        //    链路中断暂存字段=删除
+//        private String dis_user_and_password_down
 
-        //    链路中断暂存字段
-        private String dis_user_and_password
+        //  用于SFTP分发的用户名和密码-修改
+        private String dist_user_and_password
 
-        //启用状态
-        private String od_status
+        //启用状态-修改
+        private String dist_status
     }
 
     @Data
@@ -221,8 +228,8 @@ class TStreamRuleDTO {
         private String to_shore_protocol
         //岸基压缩方式
         private String compress_type
-        //启用状态
-        private String sbd_status
+        //启用状态-修改
+        private String to_shore_status
     }
 
     @Data
@@ -231,10 +238,12 @@ class TStreamRuleDTO {
         private Integer sid
         // DOSS系统key值
         private Integer doss_key
-        //    抽稀频率
-        private String sparse_rate
+        //    抽稀频率-修改
+        private Integer sparse_rate
         //1.求累计 2.求平均 3.只取点
-        private int dilution_type
+        private Integer dilution_type
+        //开启状态-新增
+        private String dilution_status
     }
 
     @Data
@@ -243,14 +252,16 @@ class TStreamRuleDTO {
         private Integer sid
         // DOSS系统key值
         private Integer doss_key
-        //    入库库名
-        private String schema
+        //    入库库名-修改
+        private String schema_id
         //数据表名
         private String table_id
         //列名
         private String column_id
         //数据类型
         private String data_type
+        //启用状态-新增
+        private String write_status
     }
 
     static Map<String, Map<String, TStreamRuleDTO>> createDto(ResultSet resBasic, ResultSet resAlarm, ResultSet resCalculation, ResultSet resCollection, ResultSet resDist, ResultSet resShoreBased, ResultSet resThinning, ResultSet resWarehousing) throws Exception {
@@ -260,6 +271,7 @@ class TStreamRuleDTO {
                 dto.sid = res.getObject('sid') as Integer
                 dto.ship_id = res.getString('ship_id')
                 dto.sys_id = res.getObject('sys_id') as Integer
+                dto.cat_id = res.getObject('cat_id') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.protocol = res.getString('protocol')
                 dto.name_chn = res.getString('name_chn')
@@ -293,6 +305,7 @@ class TStreamRuleDTO {
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.calculation_key = res.getString('calculation_key')
                 dto.formula_flag = res.getString('formula_flag')
+                dto.calculation_status = res.getString('calculation_status')
             }
             def createCollectionDto = { dto, res ->
                 dto.sid = res.getObject('sid') as Integer
@@ -302,8 +315,8 @@ class TStreamRuleDTO {
                 dto.modbus_func_id = res.getObject('modbus_func_id') as Integer
                 dto.addr = res.getString('addr')
                 dto.ip_addr = res.getString('ip_addr')
-                dto.ip_addr_down = res.getString('ip_addr_down')
-                dto.port_addr = res.getString('port_addr')
+//                dto.ip_addr_down = res.getString('ip_addr_down')
+                dto.port_addr = res.getObject('port_addr') as Integer
                 dto.from_table_id = res.getString('from_table_id')
                 dto.from_column_id = res.getString('from_column_id')
                 dto.protocol = res.getString('protocol')
@@ -313,6 +326,7 @@ class TStreamRuleDTO {
                 dto.col_interval = res.getObject('col_interval') as Double
                 dto.col_count = res.getObject('col_count') as Integer
                 dto.nmea_id = res.getObject('nmea_id') as Long
+                dto.collection_status = res.getString('collection_status')
             }
             def createDistDto = { dto, res ->
                 dto.sid = res.getObject('sid') as Integer
@@ -320,12 +334,12 @@ class TStreamRuleDTO {
                 dto.dist_group = res.getString('dist_group')
                 dto.dist_ip = res.getString('dist_ip')
                 dto.dist_port = res.getObject('dist_port') as Integer
-                dto.dist_ip_addr_down = res.getString('dist_ip_addr_down')
+//                dto.dist_ip_addr_down = res.getString('dist_ip_addr_down')
                 dto.dist_freq = res.getObject('dist_freq') as Double
                 dto.dist_protocol = res.getString('dist_protocol')
-                dto.dis_user_and_password_down = res.getString('dis_user_and_password_down')
-                dto.dis_user_and_password = res.getString('dis_user_and_password')
-                dto.od_status = res.getString('od_status')
+//                dto.dis_user_and_password_down = res.getString('dis_user_and_password_down')
+                dto.dist_user_and_password = res.getString('dist_user_and_password')
+                dto.dist_status = res.getString('dist_status')
             }
             def createShoreBasedDto = { dto, res ->
                 dto.sid = res.getObject('sid') as Integer
@@ -336,21 +350,23 @@ class TStreamRuleDTO {
                 dto.to_shore_freq = res.getObject('to_shore_freq') as Double
                 dto.to_shore_protocol = res.getString('to_shore_protocol')
                 dto.compress_type = res.getString('compress_type')
-                dto.sbd_status= res.getString('sbd_status')
+                dto.to_shore_status= res.getString('to_shore_status')
             }
             def createThinningDto = { dto, res ->
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
-                dto.sparse_rate = res.getString('sparse_rate')
+                dto.sparse_rate = res.getObject('sparse_rate') as Integer
                 dto.dilution_type = res.getObject('dilution_type') as Integer
+                dto.dilution_status = res.getSring('dilution_status')
             }
             def createWarehousingDto = { dto, res ->
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
-                dto.schema = res.getString('schema')
+                dto.schema_id = res.getString('schema_id')
                 dto.table_id = res.getString('table_id')
                 dto.column_id = res.getString('column_id')
                 dto.data_type = res.getString('data_type')
+                dto.write_status = res.getString('write_status')
             }
             Map<String, Map<String, TStreamRuleDTO>> TStreamRules = [:]
             //遍历基础表

@@ -348,7 +348,7 @@ class ProcessorComponentHelper {
             try {
                 if ('A' != processor.getProperty('is_need_rules') || 'A' != processor.getProperty('status')) return
                 final int sid = processor.getProperty('sid') as int
-                def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule` WHERE `sid` = ${sid} AND `status` = 'A';"
                 def tStreamRuleSelectAlarm = "SELECT * FROM `tstream_rule_alarm` WHERE `sid` = ${sid};"
                 def tStreamRuleSelectCalculation = "SELECT * FROM `tstream_rule_calculation` WHERE `sid` = ${sid};"
                 def tStreamRuleSelectCollection = "SELECT * FROM `tstream_rule_collection` WHERE `sid` = ${sid};"
