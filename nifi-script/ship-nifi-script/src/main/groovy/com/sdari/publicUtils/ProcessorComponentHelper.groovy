@@ -1,5 +1,6 @@
 package com.sdari.publicUtils
 
+import com.alibaba.fastjson.JSON
 import lombok.Data
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.components.PropertyDescriptor
@@ -487,7 +488,7 @@ class ProcessorComponentHelper {
                 aClass = aClasses.get(fullPath)
             } else {
 //                aClass = classLoader.parseClass(new File(fullPath))
-                if (!publicClassesText.containsKey(fullPath)){
+                if (!publicClassesText.containsKey(fullPath)) {
                     throw new Exception("没有该脚本的内容供于创建！")
                 }
                 aClass = classLoader.parseClass(publicClassesText.get(fullPath))
@@ -504,39 +505,11 @@ class ProcessorComponentHelper {
     /**
      * 深拷贝工具类
      */
-    static <T> T deepClone(T src) throws RuntimeException {
-        ByteArrayOutputStream memoryBuffer = new ByteArrayOutputStream()
-        ObjectOutputStream out = null
-        ObjectInputStream inp = null
-        T dist = null
-        try {
-            out = new ObjectOutputStream(memoryBuffer)
-            out.writeObject(src)
-            out.flush()
-            inp = new ObjectInputStream(new ByteArrayInputStream(memoryBuffer.toByteArray()))
-            dist = (T) inp.readObject()
-        } catch (Exception e) {
-            throw new RuntimeException(e)
-        } finally {
-            if (out != null) {
-                try {
-                    out.close()
-                    out = null
-                } catch (IOException e) {
-                    throw new RuntimeException(e)
-                }
-            }
-            if (inp != null) {
-                try {
-                    inp.close()
-                    inp = null
-                } catch (IOException e) {
-                    throw new RuntimeException(e)
-                }
-            }
-        }
-        return dist
+    static def deepClone(def map) {
+        String json = JSON.toJSONString(map)
+        return JSON.parseObject(json, map.getClass() as Class<Object>)
     }
+
 }
 
 /**
