@@ -27,7 +27,7 @@ class RoutesTest extends GroovyTestCase {
     private String url = 'jdbc:mysql://10.0.16.19:3306/groovy?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true'
     private String userName = 'appuser'
     private String password = 'Qgy@815133'
-
+    private  String sid = '1' as String
     //测试工具类
     void testRoutes() {
         DriverManager.setLoginTimeout(100)
@@ -75,6 +75,62 @@ class RoutesTest extends GroovyTestCase {
         println pp.aClasses.size()*/
 
     }
+
+
+    void testClassLoader2() {
+        //闭包查询流规则配置表
+        def tStreamRuleDto = null
+
+        def selectConfigs = {
+            try {
+
+                DriverManager.setLoginTimeout(100)
+                con = DriverManager.getConnection(url, userName, password)
+                def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule` WHERE `sid` = ${sid} AND `status` = 'A';"
+                def tStreamRuleSelectAlarm = "SELECT * FROM `tstream_rule_alarm` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectCalculation = "SELECT * FROM `tstream_rule_calculation` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectCollection = "SELECT * FROM `tstream_rule_collection` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectDist = "SELECT * FROM `tstream_rule_other_distributions` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectShoreBased = "SELECT * FROM `tstream_rule_shore_based_distributions` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectThinning = "SELECT * FROM `tstream_rule_thinning` WHERE `sid` = ${sid};"
+                def tStreamRuleSelectWarehousing = "SELECT * FROM `tstream_rule_warehousing` WHERE `sid` = ${sid};"
+                Statement stmBasic = con.createStatement()
+                Statement stmAlarm = con.createStatement()
+                Statement stmCalculation = con.createStatement()
+                Statement stmCollection = con.createStatement()
+                Statement stmDist = con.createStatement()
+                Statement stmShoreBased = con.createStatement()
+                Statement stmThinning = con.createStatement()
+                Statement stmWarehousing = con.createStatement()
+                ResultSet resBasic = stmBasic.executeQuery(tStreamRuleSelectBasic)
+                ResultSet resAlarm = stmAlarm.executeQuery(tStreamRuleSelectAlarm)
+                ResultSet resCalculation = stmCalculation.executeQuery(tStreamRuleSelectCalculation)
+                ResultSet resCollection = stmCollection.executeQuery(tStreamRuleSelectCollection)
+                ResultSet resDist = stmDist.executeQuery(tStreamRuleSelectDist)
+                ResultSet resShoreBased = stmShoreBased.executeQuery(tStreamRuleSelectShoreBased)
+                ResultSet resThinning = stmThinning.executeQuery(tStreamRuleSelectThinning)
+                ResultSet resWarehousing = stmWarehousing.executeQuery(tStreamRuleSelectWarehousing)
+
+                TStreamRuleDTO t = new TStreamRuleDTO()
+                tStreamRuleDto = t.createDto(resBasic, resAlarm, resCalculation, resCollection, resDist, resShoreBased, resThinning, resWarehousing)
+                //释放连接
+                ProcessorComponentHelper.releaseConnection(null, stmBasic, resBasic)
+                ProcessorComponentHelper.releaseConnection(null, stmAlarm, resAlarm)
+                ProcessorComponentHelper.releaseConnection(null, stmCalculation, resCalculation)
+                ProcessorComponentHelper.releaseConnection(null, stmCollection, resCollection)
+                ProcessorComponentHelper.releaseConnection(null, stmDist, resDist)
+                ProcessorComponentHelper.releaseConnection(null, stmShoreBased, resShoreBased)
+                ProcessorComponentHelper.releaseConnection(null, stmThinning, resThinning)
+                ProcessorComponentHelper.releaseConnection(null, stmWarehousing, resWarehousing)
+            } catch (Exception e) {
+                throw new Exception("闭包查询流规则配置表异常", e)
+            }
+        }
+        selectConfigs.call()
+        println tStreamRuleDto
+
+    }
+
 
     //多线程测试
     void testThread() {
@@ -226,7 +282,7 @@ class RoutesTest extends GroovyTestCase {
         return dist
     }
 
-    void testSer(){
+    void testSer() {
         TStreamRuleDTO dto = new TStreamRuleDTO()
         println(dto)
         def a = cloneTo(dto)

@@ -37,13 +37,15 @@ class analysisByMysql {
     final static String TABLE_NAME = 'tableName'
     final static String OPTION = 'option'
     final static String META = 'meta'
-    //
-    final String relationName = 'relationName'
-
-    final static String[] FileTables = ['t_calculation', 't_alarm_history']
-
+    //mysql 处理使用参数
+    final static String tables = 'es_tables'
     final static String optionSTATUS = "optionSTATUS"
+    //时间相关参数
     final static String time_type = "yyyy-MM-dd HH:mm:ss"
+    final static String record_time = "record_time"
+    final static String create_time = "create_time"
+    final static String update_time = "update_time"
+
 
     analysisByMysql(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
@@ -64,6 +66,8 @@ class analysisByMysql {
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
         final Map<String, Map<String, GroovyObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, GroovyObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        //获取入es的表
+        String[] FileTables = (processorConf.get(tables) as String).split(',')
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             final JSONObject JsonData = (dataList.get(i) as JSONObject)
@@ -81,19 +85,16 @@ class analysisByMysql {
             for (json in data) {
                 json = json as JSONObject
                 if (null == json) continue
-                JSONObject jsonAttributesFormers = jsonAttributesFormer
+                JSONObject jsonAttributesFormers = jsonAttributesFormer.clone() as JSONObject
                 if (!ArrayUtils.contains(FileTables, tableName.toLowerCase())) {
-                    String record_time = 'record_time'
                     if (json.containsKey(record_time) && json.get(record_time) != null) {
                         long time = Long.parseLong((json.get(record_time) as String)) as long
                         json.put(record_time, DateByFormat(time) as String)
                     }
-                    String create_time = 'create_time'
                     if (json.containsKey(create_time) && json.get(create_time) != null) {
                         long time = Long.parseLong((json.get(create_time) as String)) as long
                         json.put(create_time, DateByFormat(time) as String)
                     }
-                    String update_time = 'update_time'
                     if (json.containsKey(update_time) && json.get(update_time) != null) {
                         long time = Long.parseLong((json.get(update_time) as String)) as long
                         json.put(update_time, DateByFormat(time) as String)

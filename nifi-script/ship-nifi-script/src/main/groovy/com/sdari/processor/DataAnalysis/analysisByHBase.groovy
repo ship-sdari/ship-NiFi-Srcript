@@ -28,10 +28,17 @@ class analysisByHBase {
     final static String TABLE_NAME = 'tableName'
     final static String OPTION = 'option'
     final static String META = 'meta'
-
-    final static String time_type = "yyyy-MM-dd HH:mm:ss"
-
     final static String isCompress = 'isCompress'
+    //时间相关参数
+    final static String time_type = "yyyy-MM-dd HH:mm:ss"
+    final static String record_time = "record_time"
+    final static String create_time = "create_time"
+    final static String update_time = "update_time"
+    //入HBase使用参数
+    final static String table_name_prefix = "XCLOUD_"
+    final static String rowKey = "rowkey"
+
+
 
     analysisByHBase(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
@@ -72,28 +79,25 @@ class analysisByHBase {
                 json = json as JSONObject
                 if (null == json) continue
                 JSONObject jsonAttributesFormers = jsonAttributesFormer
-                String record_time = 'record_time'
                 if (json.containsKey(record_time) && json.get(record_time) != null) {
                     long time = Long.parseLong((json.get(record_time) as String)) as long
                     json.put(record_time, DateByFormat(time) as String)
                 }
-                String create_time = 'create_time'
                 if (json.containsKey(create_time) && json.get(create_time) != null) {
                     long time = Long.parseLong((json.get(create_time) as String)) as long
                     json.put(create_time, DateByFormat(time) as String)
                 }
-                String update_time = 'update_time'
                 if (json.containsKey(update_time) && json.get(update_time) != null) {
                     long time = Long.parseLong((json.get(update_time) as String)) as long
                     json.put(update_time, DateByFormat(time) as String)
                 }
                 JSONObject jsonData = new JSONObject()
-                jsonData.put("tableName", 'XCLOUD_'.concat(tableName))
+                jsonData.put(TABLE_NAME, table_name_prefix.concat(tableName))
                 jsonData.put("familyName", "INFO")
                 jsonData.put("qualifierValueMap", json)
-                jsonData.put("rowkey",
+                jsonData.put(rowKey,
                         StringUtils.leftPad(sid, 4, "0")
-                                .concat(json.get(jsonIsCompress ? "id" : "create_time") as String))
+                                .concat(json.get(jsonIsCompress ? "id" : create_time) as String))
 
                 attributesListReturn.add(jsonAttributesFormers)
                 //单条数据处理结束，放入返回仓库
