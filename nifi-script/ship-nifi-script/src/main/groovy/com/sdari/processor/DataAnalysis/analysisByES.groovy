@@ -28,16 +28,21 @@ class analysisByES {
     final static String TABLE_NAME = 'tableName'
     final static String OPTION = 'option'
     final static String META = 'meta'
-    //
-    final static String tableNamePrefix = 'table_name_prefix'
-
+    //入ES使用参数
     final static String isCompress = 'isCompress'
-
-    final static String[] FileTables = ['t_calculation', 't_alarm_history']
-
-    final static String table_name_prefix = "XCLOUD_"
-
+    final static String ROWTableName = "row_tableName"
+    final static String rowKey = "rowkey"
+    //组件属性key
+    final static String esType = "row_type"
+    final static String esOperation = 'row_operation'
+    final static String tableNamePrefix = 'table_name_prefix'
+    final static String tables = 'es_tables'
+    //时间相关参数
     final static String time_type = "yyyy-MM-dd HH:mm:ss"
+    final static String record_time = "record_time"
+    final static String create_time = "create_time"
+    final static String update_time = "update_time"
+    final static String upload_time = "upload_time"
 
     analysisByES(final def logger, final int pid, final String pName, final int rid) {
         log = logger
@@ -58,6 +63,15 @@ class analysisByES {
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
         final Map<String, Map<String, GroovyObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, GroovyObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        //获取入es的表
+        String[] FileTables = (processorConf.get(tables) as String).split(',')
+        //获取入ES的类型
+        String rowType = (processorConf.get(esType) as String)
+        //获取ES 表名前缀
+        String tableNamePrefix = (processorConf.get(tableNamePrefix) as String)
+        //ES的操作的类型
+        String Operation = (processorConf.get(esOperation) as String)
+
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             final JSONObject JsonData = (dataList.get(i) as JSONObject)
@@ -73,35 +87,30 @@ class analysisByES {
             jsonAttributesFormer.put(STATUS, status)
             jsonAttributesFormer.put(OPTION, option)
             jsonAttributesFormer.put(TABLE_NAME, tableName)
+            jsonAttributesFormer.put(esType, rowType)
+            jsonAttributesFormer.put(esOperation, Operation)
             for (json in data) {
                 if (null == json) continue
                 json = json as JSONObject
-                log.info"json:"+ JSONObject.toJSONString(json)
-                JSONObject jsonAttributesFormers = jsonAttributesFormer
+                JSONObject jsonAttributesFormers = jsonAttributesFormer.clone() as JSONObject
                 if (ArrayUtils.contains(FileTables, tableName.toLowerCase())) {
-                    String record_time = 'record_time'
                     if (json.containsKey(record_time) && json.get(record_time) != null) {
-                        long time = Long.parseLong((json.get(record_time) as String))as long
-                        json.put(record_time, DateByFormat(time)as String)
+                        long time = Long.parseLong((json.get(record_time) as String)) as long
+                        json.put(record_time, DateByFormat(time) as String)
                     }
-                    String create_time = 'create_time'
                     if (json.containsKey(create_time) && json.get(create_time) != null) {
-                        long time = Long.parseLong((json.get(create_time) as String))as long
-                        json.put(create_time, DateByFormat(time)as String)
+                        long time = Long.parseLong((json.get(create_time) as String)) as long
+                        json.put(create_time, DateByFormat(time) as String)
                     }
-                    String update_time = 'update_time'
                     if (json.containsKey(update_time) && json.get(update_time) != null) {
-                        long time = Long.parseLong((json.get(update_time) as String))as long
-                        json.put(update_time, DateByFormat(time)as String)
+                        long time = Long.parseLong((json.get(update_time) as String)) as long
+                        json.put(update_time, DateByFormat(time) as String)
                     }
-                    json.put("rowkey",
-                            StringUtils.leftPad(sid, 4, "0")
-                                    .concat(json.get(jsonIsCompress ? "id" : "create_time") as String))
-                    json.put("upload_time", String.valueOf(Instant.now())
-                            .replace(".", ":")
-                            .replace("T", " ")
-                            .replace("Z", ""))
-                    jsonAttributesFormers.put(tableNamePrefix, (table_name_prefix + tableName).toLowerCase())
+                    String rowId = StringUtils.leftPad(sid, 4, "0").concat(json.get(jsonIsCompress ? "id" : create_time) as String)
+                    json.put(rowKey, rowId)
+                    json.put(upload_time, upDate(String.valueOf(Instant.now())))
+                    jsonAttributesFormers.put(ROWTableName, (tableNamePrefix + tableName).toLowerCase())
+                    jsonAttributesFormers.put(rowKey, rowId)
                     attributesListReturn.add(jsonAttributesFormers)
                     //单条数据处理结束，放入返回仓库
                     dataListReturn.add(json)
@@ -121,5 +130,12 @@ class analysisByES {
      */
     static String DateByFormat(long time) {
         return new SimpleDateFormat(time_type).format(new Date(time))
+    }
+    /**
+     * String
+     * 时间格式转换
+     */
+    static String upDate(String time) {
+        return time.replace(".", ":").replace("T", " ").replace("Z", "")
     }
 }

@@ -232,6 +232,8 @@ class TStreamRuleDTO {
 
     @Data
     static class ThinningDTO {
+
+        private Integer id
         // 船id
         private Integer sid
         // DOSS系统key值
@@ -351,11 +353,12 @@ class TStreamRuleDTO {
                 dto.to_shore_status= res.getString('to_shore_status')
             }
             def createThinningDto = { dto, res ->
+                dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.sparse_rate = res.getObject('sparse_rate') as Integer
                 dto.dilution_type = res.getObject('dilution_type') as Integer
-                dto.dilution_status = res.getSring('dilution_status')
+                dto.dilution_status = res.getObject('dilution_status')as String
             }
             def createWarehousingDto = { dto, res ->
                 dto.sid = res.getObject('sid') as Integer
