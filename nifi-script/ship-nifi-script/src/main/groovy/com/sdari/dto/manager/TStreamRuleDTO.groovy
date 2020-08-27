@@ -152,7 +152,7 @@ class TStreamRuleDTO {
         //    用于链路中断暂存字段-删除
 //        private String ip_addr_down
         //端口号-修改
-        private Integer port_addr
+        private String port_addr
         //    来源表名
         private String from_table_id
         //   来源列名
@@ -314,7 +314,7 @@ class TStreamRuleDTO {
                 dto.addr = res.getString('addr')
                 dto.ip_addr = res.getString('ip_addr')
 //                dto.ip_addr_down = res.getString('ip_addr_down')
-                dto.port_addr = res.getObject('port_addr') as Integer
+                dto.port_addr = res.getString('port_addr')
                 dto.from_table_id = res.getString('from_table_id')
                 dto.from_column_id = res.getString('from_column_id')
                 dto.protocol = res.getString('protocol')
