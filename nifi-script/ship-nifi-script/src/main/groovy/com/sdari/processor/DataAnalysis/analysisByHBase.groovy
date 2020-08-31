@@ -35,10 +35,10 @@ class analysisByHBase {
     final static String create_time = "create_time"
     final static String update_time = "update_time"
     //入HBase使用参数
+    final static String id = "id"
     final static String table_name_prefix = "XCLOUD_"
     final static String rowKey = "rowkey"
-
-
+    final static String familyName = "familyName"
 
     analysisByHBase(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
@@ -59,6 +59,7 @@ class analysisByHBase {
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
         final Map<String, Map<String, GroovyObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, GroovyObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        String familyNameValue = processorConf.get(familyName)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             final JSONObject JsonData = (dataList.get(i) as JSONObject)
@@ -91,17 +92,16 @@ class analysisByHBase {
                     long time = Long.parseLong((json.get(update_time) as String)) as long
                     json.put(update_time, DateByFormat(time) as String)
                 }
-                JSONObject jsonData = new JSONObject()
-                jsonData.put(TABLE_NAME, table_name_prefix.concat(tableName))
-                jsonData.put("familyName", "INFO")
-                jsonData.put("qualifierValueMap", json)
-                jsonData.put(rowKey,
+
+                jsonAttributesFormers.put(TABLE_NAME, table_name_prefix.concat(tableName).toUpperCase())
+                jsonAttributesFormers.put(familyName, familyNameValue)
+                jsonAttributesFormers.put(rowKey,
                         StringUtils.leftPad(sid, 4, "0")
-                                .concat(json.get(jsonIsCompress ? "id" : create_time) as String))
+                                .concat(json.get(jsonIsCompress ? id : create_time) as String))
 
                 attributesListReturn.add(jsonAttributesFormers)
                 //单条数据处理结束，放入返回仓库
-                dataListReturn.add(jsonData)
+                dataListReturn.add(json)
             }
         }
         //全部数据处理完毕，放入返回数据后返回
