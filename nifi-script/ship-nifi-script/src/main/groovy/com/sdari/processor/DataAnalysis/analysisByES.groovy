@@ -106,7 +106,7 @@ class analysisByES {
                         long time = Long.parseLong((json.get(update_time) as String)) as long
                         json.put(update_time, DateByFormat(time) as String)
                     }
-                    String rowId = StringUtils.leftPad(sid, 4, "0").concat(json.get(jsonIsCompress ? "id" : create_time) as String)
+                    String rowId = StringUtils.leftPad(sid, 4, "0").concat(json.get("id") as String)
                     json.put(rowKey, rowId)
                     json.put(upload_time, upDate(String.valueOf(Instant.now())))
                     jsonAttributesFormers.put(ROWTableName, (tableNamePrefix + tableName).toLowerCase())
@@ -129,7 +129,9 @@ class analysisByES {
      * 时间格式转换
      */
     static String DateByFormat(long time) {
-        return new SimpleDateFormat(time_type).format(new Date(time))
+        SimpleDateFormat t= new SimpleDateFormat(time_type);
+        t.setTimeZone(TimeZone.getTimeZone("UTC"))
+        return t.format(new Date(time))
     }
     /**
      * String

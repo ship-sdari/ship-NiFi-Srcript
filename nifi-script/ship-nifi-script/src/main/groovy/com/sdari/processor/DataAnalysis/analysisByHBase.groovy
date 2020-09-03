@@ -97,7 +97,7 @@ class analysisByHBase {
                 jsonAttributesFormers.put(familyName, familyNameValue)
                 jsonAttributesFormers.put(rowKey,
                         StringUtils.leftPad(sid, 4, "0")
-                                .concat(json.get(jsonIsCompress ? id : create_time) as String))
+                                .concat(json.get( id ) as String))
 
                 attributesListReturn.add(jsonAttributesFormers)
                 //单条数据处理结束，放入返回仓库

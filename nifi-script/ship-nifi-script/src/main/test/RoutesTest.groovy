@@ -6,6 +6,7 @@ import com.sdari.dto.manager.TStreamRuleDTO
 import com.sdari.publicUtils.ProcessorComponentHelper
 import groovy.json.JsonBuilder
 import groovy.json.JsonOutput
+import lombok.Data
 import org.apache.commons.net.imap.IMAP
 import org.apache.nifi.dbcp.DBCPService
 import sun.nio.ch.ThreadPool
@@ -24,10 +25,92 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class RoutesTest extends GroovyTestCase {
     private Connection con
-    private String url = 'jdbc:mysql://10.0.16.19:3306/groovy?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true'
+    private String url = 'jdbc:mysql://10.0.16.20:3306/doss_e?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true'
     private String userName = 'appuser'
     private String password = 'Qgy@815133'
-    private  String sid = '1' as String
+    private String sid = '1' as String
+    @Data
+    class WarehousingDTO {
+        // 船id
+        private Integer sid
+        // DOSS系统key值
+        private Integer doss_key
+        //    入库库名-修改
+        private String schema_id
+        //数据表名
+        private String table_id
+        //列名
+        private String column_id
+        //数据类型
+        private String data_type
+        //启用状态-新增
+        private String write_status
+    }
+
+    void testEs() {
+        DriverManager.setLoginTimeout(10);//10s连接超时
+        con = DriverManager.getConnection(url, userName, password);
+        Statement t = con.createStatement()
+        ResultSet resWarehousing = t.executeQuery("select  * from tstream_rule_warehousing")
+        def createWarehousingDto = { dto, res ->
+            dto.sid = res.getObject('sid') as Integer
+            dto.doss_key = res.getObject('doss_key') as Integer
+            dto.schema_id = res.getString('schema_id')
+            dto.table_id = res.getString('table_id')
+            dto.column_id = res.getString('column_id')
+            dto.data_type = res.getString('data_type')
+            dto.write_status = res.getString('write_status')
+        }
+        List<WarehousingDTO> warehousing = new ArrayList<>();
+        //遍历入库表
+        Map<String, String> a = new HashMap<>()
+        while (resWarehousing.next()) {
+            WarehousingDTO warehousingDto = new WarehousingDTO()
+            createWarehousingDto.call(warehousingDto, resWarehousing)
+            a.put(warehousingDto.table_id, "")
+//            println("表名：" + warehousingDto.table_id +
+//                    " 列名:" + warehousingDto.column_id +
+//                    "数据类型:" + warehousingDto.data_type)
+            warehousing.add(warehousingDto)
+        }
+        final String ld = '"'
+        final String k = "\n{\n" +
+                "\t\"mappings\": {\n" +
+                "\t\t\"_doc\": {\n" +
+                "\t\t\t\"properties\": {\"upload_time\": {\n" +
+                "\t\t\t\t\t\"format\": \"yyyy-MM-dd HH:mm:ss:SSS\",\n" +
+                "\t\t\t\t\t\"type\": \"date\"\n" +
+                "\t\t\t\t},\"createTime\": {\n" +
+                "\t\t\t\t\t\"format\": \"yyyyMMddHHmmssSSS\",\n" +
+                "\t\t\t\t\t\"type\": \"date\"\n" +
+                "\t\t\t\t}"
+        final to = ","
+        final n = "\n"
+        final pu = "PUT "
+        List<String> list = new ArrayList<>()
+        for (String tableName : a.keySet()) {
+            String json = pu + tableName + k
+            for (WarehousingDTO dto : warehousing) {
+                if (tableName == dto.table_id) {
+
+                    String dou = "double"
+                    String a1 = to + ld
+                    a1 = a1 + dto.column_id + ld + ": {" + n + "\t\t\t\t\t" + ld
+                    a1 = a1 + "type" + ld + ":" + ld
+                    a1 = a1 + (dto.data_type == "decimal(20,10)" ? dou : dto.data_type) + "\"\n\t\t\t\t}"
+                    json = json.concat(a1)
+                }
+            }
+            json = json.concat("}\n}\n}\n}\n")
+            list.add(json)
+            println(json)
+        }
+
+        resWarehousing.close()
+        t.close()
+        con.close()
+    }
+
     //测试工具类
     void testRoutes() {
         DriverManager.setLoginTimeout(100)
