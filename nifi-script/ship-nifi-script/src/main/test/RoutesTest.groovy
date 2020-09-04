@@ -2,21 +2,13 @@ import com.alibaba.fastjson.JSON
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
-import com.sdari.dto.manager.NifiProcessorSubClassDTO
-import com.sdari.dto.manager.TStreamRuleDTO
-import com.sdari.publicUtils.ProcessorComponentHelper
-import groovy.json.JsonBuilder
+
+//import com.sdari.publicUtils.ProcessorComponentHelper
+
 import groovy.json.JsonOutput
 import org.apache.commons.io.IOUtils
-import org.apache.commons.net.imap.IMAP
-import org.apache.nifi.dbcp.DBCPService
-import sun.nio.ch.ThreadPool
 
-import java.sql.Connection
-import java.sql.ResultSet
-import java.sql.Statement
 import java.sql.*
-import java.sql.Connection
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
@@ -33,10 +25,10 @@ class RoutesTest extends GroovyTestCase {
     private String sid = '1' as String
     //测试工具类
     void testRoutes() {
-        DriverManager.setLoginTimeout(100)
-        con = DriverManager.getConnection(url, userName, password)
-        def pp = new ProcessorComponentHelper(1, con)
-        pp.initComponent(con)//初始化
+//        DriverManager.setLoginTimeout(100)
+//        con = DriverManager.getConnection(url, userName, password)
+//        def pp = new ProcessorComponentHelper(1, con)
+//        pp.initComponent(con)//初始化
         /*println('----------路由关系----------')
         def relationships = pp.getRelationships()
         for (name in relationships.keySet()) {
@@ -66,7 +58,7 @@ class RoutesTest extends GroovyTestCase {
         final AtomicReference<JSONArray> dataList = new AtomicReference<>()
         dataList.set(JSONArray.parseArray('[]'))
         println dataList.get().getClass().canonicalName
-        def pp = new ProcessorComponentHelper(1, null)
+//        def pp = new ProcessorComponentHelper(1, null)
         /*GroovyObject object1 = pp.getClassInstanceByNameAndPath('NifiProcessorPublicDTO.groovy', 'E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
         object1.setProperty('sub_full_path', '第一次测试')
         println "返回结果 " + object1.getProperty('sub_full_path') as String
@@ -82,7 +74,7 @@ class RoutesTest extends GroovyTestCase {
 
     void testClassLoader2() {
         InputStream inputStream = new FileInputStream(new File("E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-script\\src\\main\\groovy\\com\\sdari\\publicUtils\\ProcessorComponentHelper.groovy"))
-        def processorComponentHelperText = IOUtils.toString(inputStream,'UTF-8')
+        def processorComponentHelperText = IOUtils.toString(inputStream, 'UTF-8')
         GroovyObject pch
         //工具类实例化
         GroovyClassLoader classLoader = new GroovyClassLoader()
@@ -95,9 +87,22 @@ class RoutesTest extends GroovyTestCase {
                             (pch.getProperty("returnAttributes") as String): [],
                             (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
                             (pch.getProperty("returnData") as String)      : []]
+        /*final def former = [(pch.getProperty("returnRules") as String)     : ['1':['56890':['sid':1]]],
+                            (pch.getProperty("returnAttributes") as String): [],
+                            (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
+                            (pch.getProperty("returnData") as String)      : []]*/
         //用来接收脚本返回的数据
-        Map returnMap = pch.invokeMethod("deepClone",former) as Map
-        println(((returnMap as HashMap).get('rules') as Map<String, Map<String, GroovyObject>>).get('1').get('56890').getProperty('sid'))
+//        def deep = (former.get('rules')  as Map<String, Map<String, GroovyObject>>).get('1')
+//        println(JsonOutput.toJson((deep as Map<String, GroovyObject>).get('56890')))
+//        println(JsonOutput.toJson(former))
+        /*TestDTO ts = new TestDTO(sid: 1)
+        def jsonOutput = new JsonOutput()
+        def result = jsonOutput.toJson(ts)
+        println(result)*/
+//        Map returnMap = pch.invokeMethod("deepClone",JSONObject.parse(JsonOutput.toJson(former))) as Map
+        Map returnMap = pch.invokeMethod("Clone",former) as Map
+//        println(returnMap.get('rules'))
+        println((returnMap.get('rules') as Map<String,Map<String, GroovyObject>>).get('1').get('56890'))
     }
 
     static def deepClone(def map) {
@@ -272,9 +277,9 @@ class RoutesTest extends GroovyTestCase {
     }
 
     void testSer() {
-        TStreamRuleDTO dto = new TStreamRuleDTO()
-        println(dto)
-        def a = cloneTo(dto)
-        println(a)
+//        TStreamRuleDTO dto = new TStreamRuleDTO()
+//        println(dto)
+//        def a = cloneTo(dto)
+//        println(a)
     }
 }

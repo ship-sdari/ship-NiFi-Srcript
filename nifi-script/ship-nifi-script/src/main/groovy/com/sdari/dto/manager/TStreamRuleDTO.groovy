@@ -1,267 +1,268 @@
 package com.sdari.dto.manager
 
 import lombok.Data
+
 import java.sql.ResultSet
 
 @Data
 class TStreamRuleDTO implements Serializable {
     //  配置规则号
-    private Integer rule_id
+    Integer rule_id
     // 船id
-    private Integer sid
+    Integer sid
     //船舶ID
-    private String ship_id
+    String ship_id
 
     //系统ID
-    private Integer sys_id
+    Integer sys_id
 
     //信号分组分表编号-新增
-    private Integer cat_id
+    Integer cat_id
 
     // DOSS系统key值
-    private Integer doss_key
+    Integer doss_key
 
     //通讯协议
-    private String protocol
+    String protocol
 
     // 信号中文名
-    private String name_chn
+    String name_chn
 
     //信号英文名
-    private String name_eng
+    String name_eng
 
     // 原始key值
-    private String orig_key
+    String orig_key
 
     //     数据来源标志位
-    private String data_from
+    String data_from
 
     //单位
-    private String unit
+    String unit
 
     //量纲转换因子
-    private BigDecimal transfer_factor
+    BigDecimal transfer_factor
 
     //系数-修改
-    private BigDecimal coefficient
+    BigDecimal coefficient
 
     //启用状态
     // A - 活跃
     // S - 暂时禁用
     // D - 删除"
-    private String status
+    String status
 
     //开关量/模拟量
-    private String value_type
+    String value_type
 
     //量程最小值
-    private BigDecimal value_min
+    BigDecimal value_min
 
     //量程最小值
-    private BigDecimal value_max
+    BigDecimal value_max
 
     // 应用名称
-    private String inner_key
+    String inner_key
 
     //输入时间
-    private String input_time
+    String input_time
 
     //输入用户
-    private String input_user
+    String input_user
 
     //最后更新时间
-    private String last_modify_time
+    String last_modify_time
 
     //最后更新用户
-    private String last_modify_user
+    String last_modify_user
 
     //报警分表
-    private List<AlarmDTO> alarm = []
+    List<AlarmDTO> alarm = []
 
     //计算分表
-    private List<CalculationDTO> calculation = []
+    List<CalculationDTO> calculation = []
 
     //采集分表
-    private List<CollectionDTO> collection = []
+    List<CollectionDTO> collection = []
 
     //第三方分发分表
-    private List<DistDTO> other_distributions = []
+    List<DistDTO> other_distributions = []
 
     //岸基分发分表
-    private List<ShoreBasedDTO> shore_based_distributions = []
+    List<ShoreBasedDTO> shore_based_distributions = []
 
     //抽稀分表
-    private List<ThinningDTO> thinning = []
+    List<ThinningDTO> thinning = []
 
     //入库分表
-    private List<WarehousingDTO> warehousing = []
+    List<WarehousingDTO> warehousing = []
 
     @Data
     static class AlarmDTO implements Serializable {
         // 船id
-        private Integer sid
+        Integer sid
         // DOSS系统key值
-        private Integer doss_key
+        Integer doss_key
         // 报警最大值，最小值范围
-        private BigDecimal alert_min
-        private BigDecimal alert_max
-        private BigDecimal alert_2nd_min
-        private BigDecimal alert_2nd_max
+        BigDecimal alert_min
+        BigDecimal alert_max
+        BigDecimal alert_2nd_min
+        BigDecimal alert_2nd_max
         //关联设备状态标志位
-        private String relate_stop_sig
+        String relate_stop_sig
         //    报警启用状态字段
-        private String alert_status
+        String alert_status
         //    报警是否弹窗
-        private String is_popup
+        String is_popup
         //    AMS报警报警参考
-        private Integer ams_alarm_standard
+        Integer ams_alarm_standard
         //    报警方式
-        private String alert_way
+        String alert_way
     }
 
     @Data
     static class CalculationDTO implements Serializable {
         // 船id
-        private Integer sid
+        Integer sid
         // DOSS系统key值
-        private Integer doss_key
+        Integer doss_key
         //  参与指标计算所转换的key值
-        private String calculation_key
+        String calculation_key
         //指标名称标志位
-        private String formula_flag
+        String formula_flag
         //开启状态-新增
-        private String calculation_status
+        String calculation_status
     }
 
     @Data
     static class CollectionDTO implements Serializable {
         // 船id
-        private Integer sid
+        Integer sid
         // DOSS系统key值
-        private Integer doss_key
+        Integer doss_key
         // 采集组编号
-        private String colgroup
+        String colgroup
         //SlaveID从站编号
-        private Integer modbus_slave_id
+        Integer modbus_slave_id
         //modbus操作功能
-        private Integer modbus_func_id
+        Integer modbus_func_id
         //modbus寄存器地址
-        private String addr
+        String addr
         //数据来源IP地址
-        private String ip_addr
+        String ip_addr
         //    用于链路中断暂存字段-删除
-//        private String ip_addr_down
+//        String ip_addr_down
         //端口号-修改
-        private String port_addr
+        String port_addr
         //    来源表名
-        private String from_table_id
+        String from_table_id
         //   来源列名
-        private String from_column_id
+        String from_column_id
         //通讯协议
-        private String protocol
+        String protocol
         //采样频率
-        private Double col_freq
+        Double col_freq
         // 主题
-        private String topic
+        String topic
         // modbus信号标签
-        private String modbus_sig_tag
+        String modbus_sig_tag
         //数据包请求间隔
-        private Double col_interval
+        Double col_interval
         //数据包请求数量-修改
-        private Integer col_count
+        Integer col_count
         //nema0183_config关联id
-        private Long nmea_id
+        Long nmea_id
         //启用状态-新增
-        private String collection_status
+        String collection_status
     }
 
     @Data
     static class DistDTO implements Serializable {
         // 船id
-        private Integer sid
+        Integer sid
         // DOSS系统key值
-        private Integer doss_key
+        Integer doss_key
         //数据分发分组
-        private String dist_group
+        String dist_group
         //数据分发目的IP
-        private String dist_ip
+        String dist_ip
 
         //数据分发目的端口-修改
-        private Integer dist_port
+        Integer dist_port
 
         //    链路中断暂存字段-删除
-//        private String dist_ip_addr_down
+//        String dist_ip_addr_down
 
         //  数据分发频率
-        private Double dist_freq
+        Double dist_freq
 
         //数据分发协议
-        private String dist_protocol
+        String dist_protocol
 
         //    链路中断暂存字段=删除
-//        private String dis_user_and_password_down
+//        String dis_user_and_password_down
 
         //  用于SFTP分发的用户名和密码-修改
-        private String dist_user_and_password
+        String dist_user_and_password
 
         //启用状态-修改
-        private String dist_status
+        String dist_status
     }
 
     @Data
     static class ShoreBasedDTO implements Serializable {
         // 船id
-        private Integer sid
+        Integer sid
         // DOSS系统key值
-        private Integer doss_key
+        Integer doss_key
         //船岸传输组
-        private String to_shore_group
+        String to_shore_group
         //船岸传输目的IP
-        private String to_shore_ip
+        String to_shore_ip
         //船岸传输目的port
-        private Integer to_shore_port
+        Integer to_shore_port
         //船岸传输频率
-        private Double to_shore_freq
+        Double to_shore_freq
         //船岸传输协议
-        private String to_shore_protocol
+        String to_shore_protocol
         //岸基压缩方式
-        private String compress_type
+        String compress_type
         //启用状态-修改
-        private String to_shore_status
+        String to_shore_status
     }
 
     @Data
     static class ThinningDTO implements Serializable {
 
-        private Integer id
+        Integer id
         // 船id
-        private Integer sid
+        Integer sid
         // DOSS系统key值
-        private Integer doss_key
+        Integer doss_key
         //    抽稀频率-修改
-        private Integer sparse_rate
+        Integer sparse_rate
         //1.求累计 2.求平均 3.只取点
-        private Integer dilution_type
+        Integer dilution_type
         //开启状态-新增
-        private String dilution_status
+        String dilution_status
     }
 
     @Data
     static class WarehousingDTO implements Serializable {
         // 船id
-        private Integer sid
+        Integer sid
         // DOSS系统key值
-        private Integer doss_key
+        Integer doss_key
         //    入库库名-修改
-        private String schema_id
+        String schema_id
         //数据表名
-        private String table_id
+        String table_id
         //列名
-        private String column_id
+        String column_id
         //数据类型
-        private String data_type
+        String data_type
         //启用状态-新增
-        private String write_status
+        String write_status
     }
 
     static Map<String, Map<String, TStreamRuleDTO>> createDto(ResultSet resBasic, ResultSet resAlarm, ResultSet resCalculation, ResultSet resCollection, ResultSet resDist, ResultSet resShoreBased, ResultSet resThinning, ResultSet resWarehousing) throws Exception {

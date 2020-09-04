@@ -1,5 +1,6 @@
 package com.sdari.publicUtils
 
+import com.alibaba.fastjson.JSON
 import lombok.Data
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.components.PropertyDescriptor
@@ -504,15 +505,15 @@ class ProcessorComponentHelper {
     /**
      * 深拷贝工具类(舍弃)
      */
-    /*static def deepClone(def map) {
+    static def deepClone(def map) {
         String json = JSON.toJSONString(map)
         return JSON.parseObject(json, map.getClass() as Class<Object>)
-    }*/
+    }
 
     /**
      * 深拷贝工具类
      */
-    static <T> T deepClone(T src) throws RuntimeException {
+    /*static <T> T deepClone(T src) throws RuntimeException {
         ByteArrayOutputStream memoryBuffer = new ByteArrayOutputStream()
         ObjectOutputStream out = null
         ObjectInputStream inp = null
@@ -544,8 +545,7 @@ class ProcessorComponentHelper {
             }
         }
         return dist
-    }
-
+    }*/
 }
 
 /**
