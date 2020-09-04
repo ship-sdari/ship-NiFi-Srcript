@@ -4,7 +4,7 @@ import lombok.Data
 import java.sql.ResultSet
 
 @Data
-class TStreamRuleDTO {
+class TStreamRuleDTO implements Serializable {
     //  配置规则号
     private Integer rule_id
     // 船id
@@ -97,7 +97,7 @@ class TStreamRuleDTO {
     private List<WarehousingDTO> warehousing = []
 
     @Data
-    static class AlarmDTO {
+    static class AlarmDTO implements Serializable {
         // 船id
         private Integer sid
         // DOSS系统key值
@@ -120,7 +120,7 @@ class TStreamRuleDTO {
     }
 
     @Data
-    static class CalculationDTO {
+    static class CalculationDTO implements Serializable {
         // 船id
         private Integer sid
         // DOSS系统key值
@@ -134,7 +134,7 @@ class TStreamRuleDTO {
     }
 
     @Data
-    static class CollectionDTO {
+    static class CollectionDTO implements Serializable {
         // 船id
         private Integer sid
         // DOSS系统key值
@@ -176,7 +176,7 @@ class TStreamRuleDTO {
     }
 
     @Data
-    static class DistDTO {
+    static class DistDTO implements Serializable {
         // 船id
         private Integer sid
         // DOSS系统key值
@@ -209,7 +209,7 @@ class TStreamRuleDTO {
     }
 
     @Data
-    static class ShoreBasedDTO {
+    static class ShoreBasedDTO implements Serializable {
         // 船id
         private Integer sid
         // DOSS系统key值
@@ -231,7 +231,7 @@ class TStreamRuleDTO {
     }
 
     @Data
-    static class ThinningDTO {
+    static class ThinningDTO implements Serializable {
 
         private Integer id
         // 船id
@@ -247,7 +247,7 @@ class TStreamRuleDTO {
     }
 
     @Data
-    static class WarehousingDTO {
+    static class WarehousingDTO implements Serializable {
         // 船id
         private Integer sid
         // DOSS系统key值
@@ -266,7 +266,7 @@ class TStreamRuleDTO {
 
     static Map<String, Map<String, TStreamRuleDTO>> createDto(ResultSet resBasic, ResultSet resAlarm, ResultSet resCalculation, ResultSet resCollection, ResultSet resDist, ResultSet resShoreBased, ResultSet resThinning, ResultSet resWarehousing) throws Exception {
         try {
-            def createBasicDto = { dto, res ->
+            def createBasicDto = { TStreamRuleDTO dto, res ->
                 dto.rule_id = res.getObject('rule_id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.ship_id = res.getString('ship_id')
@@ -287,7 +287,7 @@ class TStreamRuleDTO {
                 dto.value_max = res.getBigDecimal('value_max')
                 dto.inner_key = res.getString('inner_key')
             }
-            def createAlarmDto = { dto, res ->
+            def createAlarmDto = { AlarmDTO dto, res ->
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.alert_min = res.getBigDecimal('alert_min')
@@ -300,14 +300,14 @@ class TStreamRuleDTO {
                 dto.ams_alarm_standard = res.getObject('ams_alarm_standard') as Integer
                 dto.alert_way = res.getString('alert_way')
             }
-            def createCalculationDto = { dto, res ->
+            def createCalculationDto = { CalculationDTO dto, res ->
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.calculation_key = res.getString('calculation_key')
                 dto.formula_flag = res.getString('formula_flag')
                 dto.calculation_status = res.getString('calculation_status')
             }
-            def createCollectionDto = { dto, res ->
+            def createCollectionDto = { CollectionDTO dto, res ->
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.colgroup = res.getString('colgroup')
@@ -328,7 +328,7 @@ class TStreamRuleDTO {
                 dto.nmea_id = res.getObject('nmea_id') as Long
                 dto.collection_status = res.getString('collection_status')
             }
-            def createDistDto = { dto, res ->
+            def createDistDto = { DistDTO dto, res ->
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.dist_group = res.getString('dist_group')
@@ -341,7 +341,7 @@ class TStreamRuleDTO {
                 dto.dist_user_and_password = res.getString('dist_user_and_password')
                 dto.dist_status = res.getString('dist_status')
             }
-            def createShoreBasedDto = { dto, res ->
+            def createShoreBasedDto = { ShoreBasedDTO dto, res ->
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.to_shore_group = res.getString('to_shore_group')
@@ -352,7 +352,7 @@ class TStreamRuleDTO {
                 dto.compress_type = res.getString('compress_type')
                 dto.to_shore_status= res.getString('to_shore_status')
             }
-            def createThinningDto = { dto, res ->
+            def createThinningDto = { ThinningDTO dto, res ->
                 dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
@@ -360,7 +360,7 @@ class TStreamRuleDTO {
                 dto.dilution_type = res.getObject('dilution_type') as Integer
                 dto.dilution_status = res.getObject('dilution_status')as String
             }
-            def createWarehousingDto = { dto, res ->
+            def createWarehousingDto = { WarehousingDTO dto, res ->
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.schema_id = res.getString('schema_id')
@@ -369,16 +369,16 @@ class TStreamRuleDTO {
                 dto.data_type = res.getString('data_type')
                 dto.write_status = res.getString('write_status')
             }
-            Map<String, Map<String, TStreamRuleDTO>> TStreamRules = [:]
+            Map<String, Map<String, TStreamRuleDTO>> TStreamRules = new HashMap<>()
             //遍历基础表
             while (resBasic.next()) {
                 TStreamRuleDTO basicDto = new TStreamRuleDTO()
                 //基础表闭包调用
                 createBasicDto.call(basicDto, resBasic)
                 if (!TStreamRules.containsKey(basicDto.sid as String)) {
-                    TStreamRules.put(basicDto.sid as String, [:])
+                    TStreamRules.put(basicDto.sid as String, new HashMap<String, TStreamRuleDTO>())
                 }
-                TStreamRules.get(basicDto.sid as String)[basicDto.doss_key as String] = basicDto
+                TStreamRules.get(basicDto.sid as String).put((basicDto.doss_key as String),basicDto)
             }
             //遍历报警表
             while (resAlarm.next()) {

@@ -12,9 +12,9 @@ import java.time.Instant
 class List2Mysql {
     private static log
     private static processorId
-    private static processorName
+    private static String processorName
     private static routeId
-    private static currentClassName
+    private static String currentClassName
 
     List2Mysql(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
@@ -22,7 +22,7 @@ class List2Mysql {
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
-        log.info "[Processor_id = ${processorId} Processor_name = ${currentClassName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
+        log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
     static def calculation(params) {
@@ -46,7 +46,7 @@ class List2Mysql {
                 dataListReturn.add(jsonDataFormer)
                 attributesListReturn.add(jsonAttributesFormer)
             } catch (Exception e) {
-                log.error "[Processor_id = ${processorId} Processor_name = ${currentClassName} Route_id = ${routeId} Sub_class = ${currentClassName}] 处理单条数据时异常", e
+                log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 处理单条数据时异常", e
             }
         }
         //全部数据处理完毕，放入返回数据后返回

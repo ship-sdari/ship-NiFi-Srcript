@@ -11,17 +11,17 @@ import org.apache.nifi.logging.ComponentLog
 class SubClassModule {
     private static log
     private static processorId
-    private static processorName
+    private static String processorName
     private static routeId
-    private static currentClassName
+    private static String currentClassName
 
-    SubClassModule(final ComponentLog logger, final String pid, final String pName, final String rid) {
+    SubClassModule(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
-        log.info "[Processor_id = ${processorId} Processor_name = ${currentClassName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
+        log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
     static def calculation(params) {
@@ -42,7 +42,7 @@ class SubClassModule {
 
                 //单条数据处理结束，放入返回仓库
             } catch (Exception e) {
-                log.error "[Processor_id = ${processorId} Processor_name = ${currentClassName} Route_id = ${routeId} Sub_class = ${currentClassName}] 处理单条数据时异常", e
+                log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 处理单条数据时异常", e
             }
         }
         //全部数据处理完毕，放入返回数据后返回
