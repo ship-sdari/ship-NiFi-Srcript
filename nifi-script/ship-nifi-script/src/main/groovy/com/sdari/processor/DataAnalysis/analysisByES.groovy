@@ -16,9 +16,9 @@ import java.text.SimpleDateFormat
 class analysisByES {
     private static log
     private static processorId
-    private static processorName
+    private static String processorName
     private static routeId
-    private static currentClassName
+    private static String currentClassName
 
 
     //数据处理使用参数
@@ -50,7 +50,7 @@ class analysisByES {
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
-        log.info "[Processor_id = ${processorId} Processor_name = ${currentClassName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
+        log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
     static def calculation(params) {

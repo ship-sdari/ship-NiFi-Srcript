@@ -503,13 +503,49 @@ class ProcessorComponentHelper {
     }
 
     /**
-     * 深拷贝工具类
+     * 深拷贝工具类(舍弃)
      */
     static def deepClone(def map) {
         String json = JSON.toJSONString(map)
         return JSON.parseObject(json, map.getClass() as Class<Object>)
     }
 
+    /**
+     * 深拷贝工具类
+     */
+    /*static <T> T deepClone(T src) throws RuntimeException {
+        ByteArrayOutputStream memoryBuffer = new ByteArrayOutputStream()
+        ObjectOutputStream out = null
+        ObjectInputStream inp = null
+        T dist = null
+        try {
+            out = new ObjectOutputStream(memoryBuffer)
+            out.writeObject(src)
+            out.flush()
+            inp = new ObjectInputStream(new ByteArrayInputStream(memoryBuffer.toByteArray()))
+            dist = (T) inp.readObject()
+        } catch (Exception e) {
+            throw new RuntimeException("反序列化深拷贝失败", e)
+        } finally {
+            if (out != null) {
+                try {
+                    out.close()
+                    out = null
+                } catch (IOException e) {
+                    throw new RuntimeException(e)
+                }
+            }
+            if (inp != null) {
+                try {
+                    inp.close()
+                    inp = null
+                } catch (IOException e) {
+                    throw new RuntimeException(e)
+                }
+            }
+        }
+        return dist
+    }*/
 }
 
 /**

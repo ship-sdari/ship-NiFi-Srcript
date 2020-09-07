@@ -1,12 +1,15 @@
-package com.sdari.processor.ConvertData2MysqlJson
+package com.sdari.processor.ConvertData2ESJson
 
 import com.alibaba.fastjson.JSONObject
 import org.apache.nifi.logging.ComponentLog
 
+import java.text.SimpleDateFormat
+import java.time.Instant
+
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 将标准化数据转换为MySQL入库规范的数据格式
+ * 将标准化数据转换为ES入库规范的数据格式
  */
 class TransformKey2Column {
     private static log
@@ -50,11 +53,19 @@ class TransformKey2Column {
                         for (warehousingDto in warehousing) {
                             final String tableName = ((warehousingDto as GroovyObject).getProperty('table_id') as String)
                             if (!tables.containsKey(tableName)) {
-                                tables.put(tableName, new JSONObject())
+                                //添加rowkey、upload_time、coltime
+                                JSONObject tableJson = new JSONObject()
+                                final String createTime = dateFormat(Instant.parse(jsonAttributesFormer.get('coltime') as String).toEpochMilli(), 'yyyyMMddHHmmssSSS', 'UTC')
+                                tableJson.put('coltime', createTime)
+                                tableJson.put('upload_time', dateFormat(Instant.now().toEpochMilli(), 'yyyy-MM-dd HH:mm:ss:SSS', 'UTC'))
+                                tableJson.put('rowkey', (jsonAttributesFormer.get('sid') as String)?.padLeft(4, '0') + createTime)
+                                tables.put(tableName, tableJson)
                                 //属性加入表名（包含后缀）、库名
                                 JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
-                                attribute.put('tableName', tableName.concat(jsonAttributesFormer.getString('table.name.postfix') == null ? '' : jsonAttributesFormer.getString('table.name.postfix')))
+                                attribute.put('tableName', (processorConf.getOrDefault('table.name.prefix', '') as String) + tableName + (jsonAttributesFormer.getOrDefault('table.name.postfix', '') as String))
                                 attribute.put('databaseName', (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid')))
+                                attribute.put('row_type',(processorConf.getOrDefault('row_type', '_doc') as String))
+                                attribute.put('row_operation',(processorConf.getOrDefault('row_operation', 'upsert') as String))
                                 jsonAttributes.put(tableName, attribute)
                             }
                             JSONObject table = (tables.get(tableName) as JSONObject)
@@ -80,5 +91,14 @@ class TransformKey2Column {
         returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
+    }
+
+    /**
+     * 时间格式转换
+     */
+    static String dateFormat(long time, String time_type, String timeZone) {
+        SimpleDateFormat t = new SimpleDateFormat(time_type)
+        t.setTimeZone(TimeZone.getTimeZone(timeZone))
+        return t.format(new Date(time))
     }
 }

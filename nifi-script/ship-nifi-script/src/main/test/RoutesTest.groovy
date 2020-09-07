@@ -1,21 +1,22 @@
+import com.alibaba.fastjson.JSON
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
-import com.sdari.dto.manager.NifiProcessorSubClassDTO
-import com.sdari.dto.manager.TStreamRuleDTO
-import com.sdari.publicUtils.ProcessorComponentHelper
-import groovy.json.JsonBuilder
+
+//import com.sdari.publicUtils.ProcessorComponentHelper
+
 import groovy.json.JsonOutput
+
 import lombok.Data
 import org.apache.commons.net.imap.IMAP
 import org.apache.nifi.dbcp.DBCPService
 import sun.nio.ch.ThreadPool
 
-import java.sql.Connection
-import java.sql.ResultSet
-import java.sql.Statement
+import org.apache.commons.io.IOUtils
+
+
 import java.sql.*
-import java.sql.Connection
+import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 
@@ -29,6 +30,7 @@ class RoutesTest extends GroovyTestCase {
     private String userName = 'appuser'
     private String password = 'Qgy@815133'
     private String sid = '1' as String
+
     @Data
     class WarehousingDTO {
         // 船id
@@ -113,10 +115,10 @@ class RoutesTest extends GroovyTestCase {
 
     //测试工具类
     void testRoutes() {
-        DriverManager.setLoginTimeout(100)
-        con = DriverManager.getConnection(url, userName, password)
-        def pp = new ProcessorComponentHelper(1, con)
-        pp.initComponent()//初始化
+//        DriverManager.setLoginTimeout(100)
+//        con = DriverManager.getConnection(url, userName, password)
+//        def pp = new ProcessorComponentHelper(1, con)
+//        pp.initComponent(con)//初始化
         /*println('----------路由关系----------')
         def relationships = pp.getRelationships()
         for (name in relationships.keySet()) {
@@ -138,7 +140,7 @@ class RoutesTest extends GroovyTestCase {
         }*/
         println('----------流规则配置----------')
         def tStreamRules = pp.getTStreamRules()
-        println "返回结果" + tStreamRules?.size()
+        println "返回结果" + tStreamRules
     }
 
     //测试类加载
@@ -146,7 +148,7 @@ class RoutesTest extends GroovyTestCase {
         final AtomicReference<JSONArray> dataList = new AtomicReference<>()
         dataList.set(JSONArray.parseArray('[]'))
         println dataList.get().getClass().canonicalName
-        def pp = new ProcessorComponentHelper(1, null)
+//        def pp = new ProcessorComponentHelper(1, null)
         /*GroovyObject object1 = pp.getClassInstanceByNameAndPath('NifiProcessorPublicDTO.groovy', 'E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-srcipt\\src\\main\\groovy\\com\\sdari\\dto\\manager\\')
         object1.setProperty('sub_full_path', '第一次测试')
         println "返回结果 " + object1.getProperty('sub_full_path') as String
@@ -161,59 +163,42 @@ class RoutesTest extends GroovyTestCase {
 
 
     void testClassLoader2() {
-        //闭包查询流规则配置表
-        def tStreamRuleDto = null
-
-        def selectConfigs = {
-            try {
-
-                DriverManager.setLoginTimeout(100)
-                con = DriverManager.getConnection(url, userName, password)
-                def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule` WHERE `sid` = ${sid} AND `status` = 'A';"
-                def tStreamRuleSelectAlarm = "SELECT * FROM `tstream_rule_alarm` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectCalculation = "SELECT * FROM `tstream_rule_calculation` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectCollection = "SELECT * FROM `tstream_rule_collection` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectDist = "SELECT * FROM `tstream_rule_other_distributions` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectShoreBased = "SELECT * FROM `tstream_rule_shore_based_distributions` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectThinning = "SELECT * FROM `tstream_rule_thinning` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectWarehousing = "SELECT * FROM `tstream_rule_warehousing` WHERE `sid` = ${sid};"
-                Statement stmBasic = con.createStatement()
-                Statement stmAlarm = con.createStatement()
-                Statement stmCalculation = con.createStatement()
-                Statement stmCollection = con.createStatement()
-                Statement stmDist = con.createStatement()
-                Statement stmShoreBased = con.createStatement()
-                Statement stmThinning = con.createStatement()
-                Statement stmWarehousing = con.createStatement()
-                ResultSet resBasic = stmBasic.executeQuery(tStreamRuleSelectBasic)
-                ResultSet resAlarm = stmAlarm.executeQuery(tStreamRuleSelectAlarm)
-                ResultSet resCalculation = stmCalculation.executeQuery(tStreamRuleSelectCalculation)
-                ResultSet resCollection = stmCollection.executeQuery(tStreamRuleSelectCollection)
-                ResultSet resDist = stmDist.executeQuery(tStreamRuleSelectDist)
-                ResultSet resShoreBased = stmShoreBased.executeQuery(tStreamRuleSelectShoreBased)
-                ResultSet resThinning = stmThinning.executeQuery(tStreamRuleSelectThinning)
-                ResultSet resWarehousing = stmWarehousing.executeQuery(tStreamRuleSelectWarehousing)
-
-                TStreamRuleDTO t = new TStreamRuleDTO()
-                tStreamRuleDto = t.createDto(resBasic, resAlarm, resCalculation, resCollection, resDist, resShoreBased, resThinning, resWarehousing)
-                //释放连接
-                ProcessorComponentHelper.releaseConnection(null, stmBasic, resBasic)
-                ProcessorComponentHelper.releaseConnection(null, stmAlarm, resAlarm)
-                ProcessorComponentHelper.releaseConnection(null, stmCalculation, resCalculation)
-                ProcessorComponentHelper.releaseConnection(null, stmCollection, resCollection)
-                ProcessorComponentHelper.releaseConnection(null, stmDist, resDist)
-                ProcessorComponentHelper.releaseConnection(null, stmShoreBased, resShoreBased)
-                ProcessorComponentHelper.releaseConnection(null, stmThinning, resThinning)
-                ProcessorComponentHelper.releaseConnection(null, stmWarehousing, resWarehousing)
-            } catch (Exception e) {
-                throw new Exception("闭包查询流规则配置表异常", e)
-            }
-        }
-        selectConfigs.call()
-        println tStreamRuleDto
-
+        InputStream inputStream = new FileInputStream(new File("E:\\CodeDevelopment\\ship-NiFi-srcript\\nifi-script\\ship-nifi-script\\src\\main\\groovy\\com\\sdari\\publicUtils\\ProcessorComponentHelper.groovy"))
+        def processorComponentHelperText = IOUtils.toString(inputStream, 'UTF-8')
+        GroovyObject pch
+        //工具类实例化
+        GroovyClassLoader classLoader = new GroovyClassLoader()
+        Class aClass = classLoader.parseClass(processorComponentHelperText as String)
+        pch = aClass.newInstance(2, null) as GroovyObject//有参构造
+        pch.invokeMethod("initComponent", DriverManager.getConnection(url, userName, password))//相关公共配置实例查询
+//        pch.invokeMethod("initScript", [null, null])
+        //
+        final def former = [(pch.getProperty("returnRules") as String)     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
+                            (pch.getProperty("returnAttributes") as String): [],
+                            (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
+                            (pch.getProperty("returnData") as String)      : []]
+        /*final def former = [(pch.getProperty("returnRules") as String)     : ['1':['56890':['sid':1]]],
+                            (pch.getProperty("returnAttributes") as String): [],
+                            (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
+                            (pch.getProperty("returnData") as String)      : []]*/
+        //用来接收脚本返回的数据
+//        def deep = (former.get('rules')  as Map<String, Map<String, GroovyObject>>).get('1')
+//        println(JsonOutput.toJson((deep as Map<String, GroovyObject>).get('56890')))
+//        println(JsonOutput.toJson(former))
+        /*TestDTO ts = new TestDTO(sid: 1)
+        def jsonOutput = new JsonOutput()
+        def result = jsonOutput.toJson(ts)
+        println(result)*/
+//        Map returnMap = pch.invokeMethod("deepClone",JSONObject.parse(JsonOutput.toJson(former))) as Map
+        Map returnMap = pch.invokeMethod("Clone",former) as Map
+//        println(returnMap.get('rules'))
+        println((returnMap.get('rules') as Map<String,Map<String, GroovyObject>>).get('1').get('56890'))
     }
 
+    static def deepClone(def map) {
+        String json = JSON.toJSONString(map)
+        return JSON.parseObject(json, map.getClass() as Class<Object>)
+    }
 
     //多线程测试
     void testThread() {
@@ -299,6 +284,22 @@ class RoutesTest extends GroovyTestCase {
         }
     }
 
+    void testTimeFormat() {
+        Long now = Instant.now().toEpochMilli()
+        println(now)
+        SimpleDateFormat t1 = new SimpleDateFormat('yyyy-MM-dd HH:mm:ss:SSS')
+        t1.setTimeZone(TimeZone.getTimeZone("UTC"))
+        SimpleDateFormat t2 = new SimpleDateFormat('yyyyMMddHHmmssSSS')
+        t2.setTimeZone(TimeZone.getTimeZone("UTC"))
+        println(t1.format(new java.util.Date(now)))
+        println(t2.format(new java.util.Date(now)))
+
+        println(sid.length() as String)
+        println sid.padLeft(4, "0")
+
+        println(this.class.canonicalName)
+    }
+
     static Map commit(params) {
         if (null == params) return null
         def returnMap = [:]
@@ -366,9 +367,9 @@ class RoutesTest extends GroovyTestCase {
     }
 
     void testSer() {
-        TStreamRuleDTO dto = new TStreamRuleDTO()
-        println(dto)
-        def a = cloneTo(dto)
-        println(a)
+//        TStreamRuleDTO dto = new TStreamRuleDTO()
+//        println(dto)
+//        def a = cloneTo(dto)
+//        println(a)
     }
 }

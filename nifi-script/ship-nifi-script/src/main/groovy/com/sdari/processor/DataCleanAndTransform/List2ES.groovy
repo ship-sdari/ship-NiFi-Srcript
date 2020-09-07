@@ -1,21 +1,23 @@
-package com.sdari.example
+package com.sdari.processor.DataCleanAndTransform
 
 import com.alibaba.fastjson.JSONObject
 import org.apache.nifi.logging.ComponentLog
 
+import java.time.Instant
+
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 子脚本模板
+ * 将数据拆分路由到ES路由
  */
-class SubClassModule {
+class List2ES {
     private static log
     private static processorId
     private static String processorName
     private static routeId
     private static String currentClassName
 
-    SubClassModule(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    List2ES(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -35,12 +37,15 @@ class SubClassModule {
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
-            try {
-                //详细处理流程
+            try {//详细处理流程
                 final JSONObject jsonDataFormer = (dataList.get(i) as JSONObject)
                 final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
-
+                final String colTime = (Instant.ofEpochMilli(jsonDataFormer.getLong('time')) as String)
+                jsonAttributesFormer.put('coltime', colTime)
+                jsonDataFormer.remove('time')
                 //单条数据处理结束，放入返回仓库
+                dataListReturn.add(jsonDataFormer)
+                attributesListReturn.add(jsonAttributesFormer)
             } catch (Exception e) {
                 log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 处理单条数据时异常", e
             }
