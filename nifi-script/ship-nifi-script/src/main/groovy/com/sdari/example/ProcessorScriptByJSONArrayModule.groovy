@@ -119,11 +119,11 @@ class ProcessorScriptByJSONArrayModule implements Processor {
             def dataList = []
             switch (datas.get().getClass().canonicalName) {
                 case 'com.alibaba.fastjson.JSONObject':
-                    attributesList.add(attributesMap)
+                    attributesList.add(attributesMap.clone())
                     dataList.add(datas.get())
                     break
                 case 'com.alibaba.fastjson.JSONArray':
-                    datas.get().each { o -> attributesList.add(attributesMap) }
+                    datas.get().each { o -> attributesList.add(attributesMap.clone()) }
                     dataList = datas.get()
                     break
                 default:
