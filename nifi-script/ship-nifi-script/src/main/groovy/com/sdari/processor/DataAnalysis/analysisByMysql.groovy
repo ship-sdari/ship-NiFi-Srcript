@@ -100,23 +100,6 @@ class analysisByMysql {
                         long time = Long.parseLong((json.get(update_time) as String)) as long
                         json.put(update_time, DateByFormat(time) as String)
                     }
-                    switch (option) {
-                        case ADD:
-                            jsonAttributesFormers.put(optionSTATUS, ADD)
-                            break
-                        case DELETE_ADD:
-                            jsonAttributesFormers.put(optionSTATUS, DELETE_ADD)
-                            break
-                        case UPDATE:
-                            jsonAttributesFormers.put(optionSTATUS, UPDATE)
-                            break
-                        case DELETE:
-                            jsonAttributesFormers.put(optionSTATUS, DELETE)
-                            break
-                        default:
-                            log.error "option error value=>[${option}] data:[${json}]"
-                            continue
-                    }
                     attributesListReturn.add(jsonAttributesFormers)
                     //单条数据处理结束，放入返回仓库
                     dataListReturn.add(json)
