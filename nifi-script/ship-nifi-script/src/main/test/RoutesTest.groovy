@@ -90,13 +90,13 @@ class RoutesTest extends GroovyTestCase {
         final to = ","
         final n = "\n"
         final pu = "PUT "
-        final de="DELETE "
-        final name1="xcloud_"
+        final de = "DELETE "
+        final name1 = "xcloud_"
         List<String> list = new ArrayList<>()
         for (String tableName : a.keySet()) {
 //            String tl= de+tableName
 //            println(tl)
-            String json = pu +name1+ tableName + k
+            String json = pu + name1 + tableName + k
             for (WarehousingDTO dto : warehousing) {
                 if (tableName == dto.table_id) {
 
@@ -110,7 +110,7 @@ class RoutesTest extends GroovyTestCase {
             }
             json = json.concat("}\n}\n}\n}\n")
             list.add(json)
-           println(json)
+            println(json)
         }
 
         resWarehousing.close()
@@ -118,6 +118,47 @@ class RoutesTest extends GroovyTestCase {
         con.close()
     }
 
+    void testHBase() {
+        DriverManager.setLoginTimeout(10);//10s连接超时
+        con = DriverManager.getConnection(url, userName, password);
+        Statement t = con.createStatement()
+        ResultSet resWarehousing = t.executeQuery("select  * from tstream_rule_warehousing")
+        def createWarehousingDto = { dto, res ->
+            dto.sid = res.getObject('sid') as Integer
+            dto.doss_key = res.getObject('doss_key') as Integer
+            dto.schema_id = res.getString('schema_id')
+            dto.table_id = res.getString('table_id')
+            dto.column_id = res.getString('column_id')
+            dto.data_type = res.getString('data_type')
+            dto.write_status = res.getString('write_status')
+        }
+        List<WarehousingDTO> warehousing = new ArrayList<>();
+        //遍历入库表
+        Map<String, String> a = new HashMap<>()
+        while (resWarehousing.next()) {
+            WarehousingDTO warehousingDto = new WarehousingDTO()
+            createWarehousingDto.call(warehousingDto, resWarehousing)
+            a.put(warehousingDto.table_id, "")
+//            println("表名：" + warehousingDto.table_id +
+//                    " 列名:" + warehousingDto.column_id +
+//                    "数据类型:" + warehousingDto.data_type)
+            warehousing.add(warehousingDto)
+        }
+        final String ld = "'"
+        final String k = "\ncreate "
+        final to = ","
+        final info = "'INFO';"
+        final name1 = "XCLOUD_"
+
+        for (String tableName : a.keySet()) {
+            String ak = k + ld
+            String json = ak + name1 + tableName + ld + to + info
+            println(json)
+        }
+        resWarehousing.close()
+        t.close()
+        con.close()
+    }
     //测试工具类
     void testRoutes() {
 //        DriverManager.setLoginTimeout(100)
@@ -195,9 +236,9 @@ class RoutesTest extends GroovyTestCase {
         def result = jsonOutput.toJson(ts)
         println(result)*/
 //        Map returnMap = pch.invokeMethod("deepClone",JSONObject.parse(JsonOutput.toJson(former))) as Map
-        Map returnMap = pch.invokeMethod("Clone",former) as Map
+        Map returnMap = pch.invokeMethod("Clone", former) as Map
 //        println(returnMap.get('rules'))
-        println((returnMap.get('rules') as Map<String,Map<String, GroovyObject>>).get('1').get('56890'))
+        println((returnMap.get('rules') as Map<String, Map<String, GroovyObject>>).get('1').get('56890'))
     }
 
     static def deepClone(def map) {
