@@ -1,5 +1,6 @@
 package com.sdari.processor.ConvertData2MysqlJson
 
+import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import org.apache.nifi.logging.ComponentLog
 
@@ -31,7 +32,7 @@ class TransformKey2Column {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, GroovyObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, GroovyObject>>)
+        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
@@ -43,22 +44,22 @@ class TransformKey2Column {
                 //循环每一条数据中的每一个信号点
                 for (dossKey in jsonDataFormer.keySet()) {
                     try {
-                        final List<GroovyObject> warehousing = (rules?.get(jsonAttributesFormer.get('sid'))?.get(dossKey)?.getProperty('warehousing') as ArrayList)
+                        final JSONArray warehousing = (rules?.get(jsonAttributesFormer.get('sid'))?.get(dossKey)?.getJSONArray('warehousing'))
                         if (null == warehousing || warehousing.size() == 0) {
                             throw new Exception('流规则中没有该信号点配置！')
                         }
                         for (warehousingDto in warehousing) {
-                            final String tableName = ((warehousingDto as GroovyObject).getProperty('table_id') as String)
+                            final String tableName = ((warehousingDto as JSONObject).getString('table_id'))
                             if (!tables.containsKey(tableName)) {
                                 tables.put(tableName, new JSONObject())
                                 //属性加入表名（包含后缀）、库名
                                 JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
-                                attribute.put('tableName', tableName.concat(jsonAttributesFormer.getString('table.name.postfix') == null ? '' : jsonAttributesFormer.getString('table.name.postfix')))
-                                attribute.put('databaseName', (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid')))
+                                attribute.put('table.name', tableName.concat(jsonAttributesFormer.getString('table.name.postfix') == null ? '' : jsonAttributesFormer.getString('table.name.postfix')))
+                                attribute.put('database.name', (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid')))
                                 jsonAttributes.put(tableName, attribute)
                             }
                             JSONObject table = (tables.get(tableName) as JSONObject)
-                            table.put((warehousingDto as GroovyObject).getProperty('column_id') as String, jsonDataFormer.get(dossKey))
+                            table.put((warehousingDto as JSONObject).getString('column_id'), jsonDataFormer.get(dossKey))
                         }
                     } catch (Exception e) {
                         log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} 处理异常", e
