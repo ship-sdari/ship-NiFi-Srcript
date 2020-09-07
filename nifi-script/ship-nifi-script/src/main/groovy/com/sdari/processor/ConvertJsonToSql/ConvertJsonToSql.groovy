@@ -186,7 +186,7 @@ class ConvertJsonToSql implements Processor {
                     switch (routeStatus) {
                         case 'A':
                             def flowFiles = []
-                            final List<String> returnDataList = (returnMap.get('data') as List<String>)
+                            final List<JSONArray> returnDataList = (returnMap.get('data') as List<JSONArray>)
                             final List<JSONObject> returnAttributesList = (returnMap.get('attributes') as List<JSONObject>)
                             if ((null == returnDataList || null == returnAttributesList) || (returnDataList.size() != returnAttributesList.size())) {
                                 throw new Exception('结果条数与属性条数不一致，请检查子脚本处理逻辑！')
@@ -197,7 +197,7 @@ class ConvertJsonToSql implements Processor {
                                     session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
                                     //FlowFile write 数据
                                     session.write(flowFileNew, { out ->
-                                        out.write(returnDataList.get(i).getBytes())
+                                        out.write(JSONArray.toJSONBytes(returnDataList.get(i), SerializerFeature.WriteMapNullValue))
                                     } as OutputStreamCallback)
                                     flowFiles.add(flowFileNew)
                                 } catch (Exception e) {

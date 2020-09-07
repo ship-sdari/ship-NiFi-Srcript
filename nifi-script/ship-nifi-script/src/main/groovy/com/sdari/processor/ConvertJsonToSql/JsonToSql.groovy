@@ -50,7 +50,6 @@ class JsonToSql {
     }
 
     static def calculation(params) {
-        log.info "calculation : 进入脚本方法"
         if (null == params) return null
         def returnMap = [:]
         def dataListReturn = []
@@ -59,7 +58,6 @@ class JsonToSql {
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
         final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
-        String formatSqlInsert = formatSqlInsert;
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             final JSONObject JsonData = (dataList.get(i) as JSONObject)
@@ -67,21 +65,21 @@ class JsonToSql {
             final String option = jsonAttributesFormer.get(OPTION)
             final String sid = jsonAttributesFormer.get(SID)
             final String tableName = jsonAttributesFormer.get(TABLE_NAME_OUT)
-            String json = ''
+            def json = []
             JSONObject jsonAttributesFormers = jsonAttributesFormer.clone() as JSONObject
             switch (option) {
                 case ADD:
-                    json = json.concat(dataByInsert(JsonData, tableName))
+                    json.add(dataByInsert(JsonData, tableName))
                     break
                 case DELETE_ADD:
-                    json = json.concat(dataByDelete(JsonData, tableName))
-                    json = json.concat(dataByInsert(JsonData, tableName))
+                    json.add(dataByDelete(JsonData, tableName))
+                    json.add(dataByInsert(JsonData, tableName))
                     break
                 case UPDATE:
-                    json = json.concat(dataByUpdate(JsonData, tableName, sid))
+                    json.add(dataByUpdate(JsonData, tableName, sid))
                     break
                 case DELETE:
-                    json = json.concat(dataByDelete(JsonData, tableName))
+                    json.add(dataByDelete(JsonData, tableName))
                     break
                 default:
                     log.error "option error value=>[${option}] data:[${JsonData}]"
