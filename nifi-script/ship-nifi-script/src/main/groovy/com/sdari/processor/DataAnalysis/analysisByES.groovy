@@ -30,13 +30,13 @@ class analysisByES {
     final static String META = 'meta'
     //入ES使用参数
     final static String isCompress = 'isCompress'
-    final static String ROWTableName = "row_tableName"
+    final static String ROWTableName = "table.name"
     final static String rowKey = "rowkey"
     //组件属性key
-    final static String esType = "row_type"
-    final static String esOperation = 'row_operation'
-    final static String tableNamePrefix = 'table_name_prefix'
-    final static String tables = 'es_tables'
+    final static String esType = "row.type"
+    final static String esOperation = 'row.operation'
+    final static String tableNamePrefix = 'table.name.prefix'
+    final static String tables = 'es.tables'
     //时间相关参数
     final static String time_type = "yyyy-MM-dd HH:mm:ss"
     final static String record_time = "record_time"

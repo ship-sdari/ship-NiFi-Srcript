@@ -38,7 +38,7 @@ class analysisByHBase {
     final static String id = "id"
     final static String table_name_prefix = "XCLOUD_"
     final static String rowKey = "rowkey"
-    final static String familyName = "familyName"
+    final static String familyName = "family.name"
 
     analysisByHBase(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
