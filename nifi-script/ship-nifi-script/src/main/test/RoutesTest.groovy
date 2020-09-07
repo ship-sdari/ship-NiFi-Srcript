@@ -10,6 +10,7 @@ import groovy.json.JsonOutput
 import lombok.Data
 import org.apache.commons.net.imap.IMAP
 import org.apache.nifi.dbcp.DBCPService
+import org.luaj.vm2.ast.Str
 import sun.nio.ch.ThreadPool
 
 import org.apache.commons.io.IOUtils
@@ -89,9 +90,13 @@ class RoutesTest extends GroovyTestCase {
         final to = ","
         final n = "\n"
         final pu = "PUT "
+        final de="DELETE "
+        final name1="xcloud_"
         List<String> list = new ArrayList<>()
         for (String tableName : a.keySet()) {
-            String json = pu + tableName + k
+//            String tl= de+tableName
+//            println(tl)
+            String json = pu +name1+ tableName + k
             for (WarehousingDTO dto : warehousing) {
                 if (tableName == dto.table_id) {
 
@@ -105,7 +110,7 @@ class RoutesTest extends GroovyTestCase {
             }
             json = json.concat("}\n}\n}\n}\n")
             list.add(json)
-            println(json)
+           println(json)
         }
 
         resWarehousing.close()

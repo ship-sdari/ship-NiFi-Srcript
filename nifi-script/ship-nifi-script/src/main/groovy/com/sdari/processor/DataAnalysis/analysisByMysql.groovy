@@ -35,6 +35,7 @@ class analysisByMysql {
     final static String STATUS = 'status'
     final static String DATA = 'data'
     final static String TABLE_NAME = 'tableName'
+    final static String TABLE_NAME_OUT = 'table.name'
     final static String OPTION = 'option'
     final static String META = 'meta'
     //mysql 处理使用参数
@@ -81,7 +82,7 @@ class analysisByMysql {
             jsonAttributesFormer.put(SID, sid)
             jsonAttributesFormer.put(STATUS, status)
             jsonAttributesFormer.put(OPTION, option)
-            jsonAttributesFormer.put(TABLE_NAME, tableName)
+            jsonAttributesFormer.put(TABLE_NAME_OUT, tableName)
             for (json in data) {
                 json = json as JSONObject
                 if (null == json) continue

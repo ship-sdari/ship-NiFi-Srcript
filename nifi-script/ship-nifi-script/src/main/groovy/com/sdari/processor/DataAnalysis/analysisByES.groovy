@@ -26,11 +26,10 @@ class analysisByES {
     final static String STATUS = 'status'
     final static String DATA = 'data'
     final static String TABLE_NAME = 'tableName'
+    final static String TABLE_NAME_OUT = 'table.name'
     final static String OPTION = 'option'
     final static String META = 'meta'
     //入ES使用参数
-    final static String isCompress = 'isCompress'
-    final static String ROWTableName = "table.name"
     final static String rowKey = "rowkey"
     //组件属性key
     final static String esType = "row.type"
@@ -81,12 +80,11 @@ class analysisByES {
             final String tableName = metaMpa.get(TABLE_NAME)
             final String status = metaMpa.get(STATUS)
             final String option = metaMpa.get(OPTION)
-            final boolean jsonIsCompress = jsonAttributesFormer.get(isCompress)
             JSONArray data = JsonData.get(DATA) as JSONArray
             jsonAttributesFormer.put(SID, sid)
             jsonAttributesFormer.put(STATUS, status)
             jsonAttributesFormer.put(OPTION, option)
-            jsonAttributesFormer.put(TABLE_NAME, tableName)
+            jsonAttributesFormer.put(TABLE_NAME_OUT, tableName)
             jsonAttributesFormer.put(esType, rowType)
             jsonAttributesFormer.put(esOperation, Operation)
             for (json in data) {
@@ -109,7 +107,7 @@ class analysisByES {
                     String rowId = StringUtils.leftPad(sid, 4, "0").concat(json.get("id") as String)
                     json.put(rowKey, rowId)
                     json.put(upload_time, upDate(String.valueOf(Instant.now())))
-                    jsonAttributesFormers.put(ROWTableName, (tableNamePrefix + tableName).toLowerCase())
+                    jsonAttributesFormers.put(TABLE_NAME_OUT, (tableNamePrefix + tableName).toLowerCase())
                     jsonAttributesFormers.put(rowKey, rowId)
                     attributesListReturn.add(jsonAttributesFormers)
                     //单条数据处理结束，放入返回仓库

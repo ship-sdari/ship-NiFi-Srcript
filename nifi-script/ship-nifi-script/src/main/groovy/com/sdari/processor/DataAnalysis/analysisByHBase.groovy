@@ -26,9 +26,9 @@ class analysisByHBase {
     final static String STATUS = 'status'
     final static String DATA = 'data'
     final static String TABLE_NAME = 'tableName'
+    final static String TABLE_NAME_OUT = 'table.name'
     final static String OPTION = 'option'
     final static String META = 'meta'
-    final static String isCompress = 'isCompress'
     //时间相关参数
     final static String time_type = "yyyy-MM-dd HH:mm:ss"
     final static String record_time = "record_time"
@@ -69,13 +69,12 @@ class analysisByHBase {
             final String tableName = metaMpa.get(TABLE_NAME)
             final String status = metaMpa.get(STATUS)
             final String option = metaMpa.get(OPTION)
-            final boolean jsonIsCompress = jsonAttributesFormer.get(isCompress)
 
             JSONArray data = JsonData.get(DATA) as JSONArray
             jsonAttributesFormer.put(SID, sid)
             jsonAttributesFormer.put(STATUS, status)
             jsonAttributesFormer.put(OPTION, option)
-            jsonAttributesFormer.put(TABLE_NAME, tableName)
+            jsonAttributesFormer.put(TABLE_NAME_OUT, tableName)
             for (json in data) {
                 json = json as JSONObject
                 if (null == json) continue
@@ -93,7 +92,7 @@ class analysisByHBase {
                     json.put(update_time, DateByFormat(time) as String)
                 }
 
-                jsonAttributesFormers.put(TABLE_NAME, table_name_prefix.concat(tableName).toUpperCase())
+                jsonAttributesFormers.put(TABLE_NAME_OUT, table_name_prefix.concat(tableName).toUpperCase())
                 jsonAttributesFormers.put(familyName, familyNameValue)
                 jsonAttributesFormers.put(rowKey,
                         StringUtils.leftPad(sid, 4, "0")

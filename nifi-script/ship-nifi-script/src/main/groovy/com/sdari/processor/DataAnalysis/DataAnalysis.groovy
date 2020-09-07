@@ -263,6 +263,7 @@ class DataAnalysis implements Processor {
      * 实例化公共工具类
      * @param pid 处理器id
      * @param service 数据库连接的控制服务对象
+     * @param processorComponentHelperText 总管理工具类脚本内容
      * @throws Exception
      */
     void scriptByInitId(pid, service, processorComponentHelperText) throws Exception {
