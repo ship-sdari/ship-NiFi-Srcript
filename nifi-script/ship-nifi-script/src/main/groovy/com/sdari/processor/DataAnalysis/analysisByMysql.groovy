@@ -38,7 +38,7 @@ class analysisByMysql {
     final static String OPTION = 'option'
     final static String META = 'meta'
     //mysql 处理使用参数
-    final static String tables = 'es_tables'
+    final static String tables = 'es.tables'
     final static String optionSTATUS = "optionSTATUS"
     //时间相关参数
     final static String time_type = "yyyy-MM-dd HH:mm:ss"
