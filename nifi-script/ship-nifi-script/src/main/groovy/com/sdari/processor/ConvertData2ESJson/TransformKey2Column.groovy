@@ -57,9 +57,10 @@ class TransformKey2Column {
                                 //添加rowkey、upload_time、coltime
                                 JSONObject tableJson = new JSONObject()
                                 final String createTime = dateFormat(Instant.parse(jsonAttributesFormer.get('coltime') as String).toEpochMilli(), 'yyyyMMddHHmmssSSS', 'UTC')
+                                final String rowkey = (jsonAttributesFormer.get('sid') as String)?.padLeft(4, '0') + createTime
                                 tableJson.put('coltime', createTime)
                                 tableJson.put('upload_time', dateFormat(Instant.now().toEpochMilli(), 'yyyy-MM-dd HH:mm:ss:SSS', 'UTC'))
-                                tableJson.put('rowkey', (jsonAttributesFormer.get('sid') as String)?.padLeft(4, '0') + createTime)
+                                tableJson.put('rowkey', rowkey)
                                 tables.put(tableName, tableJson)
                                 //属性加入表名（包含后缀）、库名
                                 JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
@@ -67,6 +68,7 @@ class TransformKey2Column {
                                 attribute.put('database.name', (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid')))
                                 attribute.put('row.type', (processorConf.getOrDefault('row.type', '_doc') as String))
                                 attribute.put('row.operation', (processorConf.getOrDefault('row.operation', 'upsert') as String))
+                                attribute.put('rowkey', rowkey)
                                 jsonAttributes.put(tableName, attribute)
                             }
                             JSONObject table = (tables.get(tableName) as JSONObject)
