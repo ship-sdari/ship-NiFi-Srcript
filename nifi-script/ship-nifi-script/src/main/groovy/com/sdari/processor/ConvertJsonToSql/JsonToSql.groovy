@@ -36,7 +36,7 @@ class JsonToSql {
     final static String TABLE_NAME_OUT = 'table.name'
     private final static String databasesMain = 'main.name'//主库
     private final static String databasesFrom = 'from.name'//从库
-    private final static String formatSqlInsert = 'INSERT INTO `{0}` (`{1}`) VALUES ({2});'
+    private final static String formatSqlInsert = "INSERT INTO `{0}` (`{1}`) VALUES (''{2}'');"
     private final static String formatSqlUpdate = 'update `{0}` set {1} where sid ={2};'
     private final static String formatSqlDelete = 'delete from `{0}` where id={1};'
 
