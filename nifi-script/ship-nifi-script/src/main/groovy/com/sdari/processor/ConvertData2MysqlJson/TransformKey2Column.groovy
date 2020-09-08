@@ -49,21 +49,24 @@ class TransformKey2Column {
                             throw new Exception('流规则中没有该信号点配置！')
                         }
                         for (warehousingDto in warehousing) {
-                            if ('A' != (warehousingDto as JSONObject).getString('write_status')) continue
-                            //库名如果配置表中为空则组成库名
-                            final String databaseName = ((warehousingDto as JSONObject).getOrDefault('schema_id', (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid'))) as String)
-                            final String tableName = ((warehousingDto as JSONObject).getString('table_id')) + jsonAttributesFormer.getString('table.name.postfix') == null ? '' : jsonAttributesFormer.getString('table.name.postfix')
-                            final String key = databaseName + '.' + tableName//组合key值，考虑进多库的情况
-                            if (!tables.containsKey(key)) {
-                                tables.put(key, new JSONObject())
-                                //属性加入表名（包含后缀）、库名
-                                JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
-                                attribute.put('table.name', tableName)
-                                attribute.put('database.name', databaseName)
-                                jsonAttributes.put(key, attribute)
+                            try {
+                                if ('A' != (warehousingDto as JSONObject).getString('write_status')) continue
+                                //库名如果配置表中为空则组成库名
+                                final String databaseName = ((warehousingDto as JSONObject).getOrDefault('schema_id', (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid'))) as String)
+                                final String tableName = ((warehousingDto as JSONObject).getString('table_id')) + jsonAttributesFormer.getString('table.name.postfix') == null ? '' : jsonAttributesFormer.getString('table.name.postfix')
+                                final String key = databaseName + '.' + tableName//组合key值，考虑进多库的情况
+                                if (!tables.containsKey(key)) {
+                                    tables.put(key, new JSONObject())
+                                    //属性加入表名（包含后缀）、库名
+                                    JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
+                                    attribute.put('table.name', tableName)
+                                    attribute.put('database.name', databaseName)
+                                    jsonAttributes.put(key, attribute)
+                                }
+                                (tables.get(key) as JSONObject).put((warehousingDto as JSONObject).getString('column_id'), jsonDataFormer.get(dossKey))
+                            } catch (Exception e) {
+                                log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} warehousing = ${(warehousingDto as JSONObject).getString('id')} 处理异常", e
                             }
-                            JSONObject table = (tables.get(key) as JSONObject)
-                            table.put((warehousingDto as JSONObject).getString('column_id'), jsonDataFormer.get(dossKey))
                         }
                     } catch (Exception e) {
                         log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} 处理异常", e
