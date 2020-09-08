@@ -159,16 +159,11 @@ class CommitByMySql implements Processor {
                     throw new Exception("暂不支持处理当前所接收的数据类型：${datas.get().getClass().canonicalName}")
             }
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
-            try {
-                final String databaseName = attributesMap.get(databaseName)
-                List<String> data = dataList as List<String>
-                transaction(data, databaseName, log)
-                if (relationships.containsKey('success')) {
-                    session.transfer(flowFile, relationships.get('success'))
-                }
-            } catch (Exception e) {
-                log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 的处理过程有异常", e
-                onFailure(session, flowFile)
+            final String databaseName = attributesMap.get(databaseName)
+            List<String> data = dataList as List<String>
+            boolean status = transaction(data, databaseName, log)
+            if (!status && relationships.containsKey('success')) {
+                session.transfer(flowFile, relationships.get('success'))
             }
             session.remove(flowFile)
         } catch (final Throwable t) {
@@ -281,7 +276,7 @@ class CommitByMySql implements Processor {
      * @param session
      * @throws Exception
      */
-    private synchronized void transaction(List<String> contents, String database, def log) throws Exception {
+    private synchronized boolean transaction(List<String> contents, String database, def log) throws Exception {
         boolean isError = false
         //如果没有库的连,或者连接断开 就新建一个连接
         if (!connections.containsKey(database) || null == connections.get(database)
@@ -308,6 +303,7 @@ class CommitByMySql implements Processor {
         } else {
             connection.commit()//提交
         }
+        return isError
     }
 }
 
