@@ -52,7 +52,8 @@ class TransformKey2Column {
                             throw new Exception('流规则中没有该信号点配置！')
                         }
                         for (warehousingDto in warehousing) {
-                            final String tableName = ((warehousingDto as JSONObject).getString('table_id'))
+                            if ('A' != (warehousingDto as JSONObject).getString('write_status')) continue
+                            final String tableName = (processorConf.getOrDefault('table.name.prefix', '') as String) + ((warehousingDto as JSONObject).getString('table_id')) + (jsonAttributesFormer.getOrDefault('table.name.postfix', '') as String)
                             if (!tables.containsKey(tableName)) {
                                 //添加rowkey、upload_time、coltime
                                 JSONObject tableJson = new JSONObject()
@@ -64,8 +65,7 @@ class TransformKey2Column {
                                 tables.put(tableName, tableJson)
                                 //属性加入表名（包含后缀）、库名
                                 JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
-                                attribute.put('table.name', (processorConf.getOrDefault('table.name.prefix', '') as String) + tableName + (jsonAttributesFormer.getOrDefault('table.name.postfix', '') as String))
-                                attribute.put('database.name', (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid')))
+                                attribute.put('table.name', tableName)
                                 attribute.put('row.type', (processorConf.getOrDefault('row.type', '_doc') as String))
                                 attribute.put('row.operation', (processorConf.getOrDefault('row.operation', 'upsert') as String))
                                 attribute.put('rowkey', rowkey)

@@ -7,6 +7,7 @@ import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
 import org.apache.nifi.annotation.documentation.CapabilityDescription
 import org.apache.nifi.annotation.lifecycle.OnScheduled
+import org.apache.nifi.annotation.lifecycle.OnStopped
 import org.apache.nifi.components.PropertyDescriptor
 import org.apache.nifi.components.ValidationContext
 import org.apache.nifi.components.ValidationResult
@@ -80,6 +81,21 @@ class DataAnalysis implements Processor {
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行异常", e
+        }
+    }
+
+    /**
+     * A method that executes only once when stop
+     *
+     * @param context
+     */
+    @OnStopped
+    public void onStopped(final ProcessContext context) {
+        try {
+            pch.invokeMethod("releaseComponent", null)//相关公共配置实例清空
+            log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器停止运行完毕"
+        } catch (Exception e) {
+            log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器停止运行异常", e
         }
     }
 

@@ -1,6 +1,5 @@
-package com.sdari.example
+package com.sdari.processor.FormatDataByToShoreGroup
 
-import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
 import org.apache.commons.io.IOUtils
@@ -17,13 +16,14 @@ import org.apache.nifi.logging.ComponentLog
 import org.apache.nifi.processor.*
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
+
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
 @CapabilityDescription('')
-class ProcessorScriptByJSONArrayModule implements Processor {
+class ProcessorScriptByJSONObjectModule implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
@@ -94,7 +94,6 @@ class ProcessorScriptByJSONArrayModule implements Processor {
         }
     }
 
-
     /**
      * 详细处理模块
      * @param context
@@ -115,10 +114,10 @@ class ProcessorScriptByJSONArrayModule implements Processor {
             return
         }
         /*以下为正常处理数据文件的部分*/
-        final AtomicReference<JSONArray> datas = new AtomicReference<>()
+        final AtomicReference<JSONObject> datas = new AtomicReference<>()
         session.read(flowFile, { inputStream ->
             try {
-                datas.set(JSONArray.parseArray(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
+                datas.set(JSONObject.parseObject(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
             } catch (Exception e) {
                 log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 读取流文件失败", e
                 onFailure(session, flowFile)
@@ -308,5 +307,4 @@ class ProcessorScriptByJSONArrayModule implements Processor {
 }
 
 //脚本部署时需要放开该注释
-//processor = new ProcessorScriptByJSONArrayModule()
-
+//processor = new ProcessorScriptByJSONObjectModule()

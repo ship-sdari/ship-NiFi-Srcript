@@ -49,16 +49,20 @@ class TransformKey2Column {
                             throw new Exception('流规则中没有该信号点配置！')
                         }
                         for (warehousingDto in warehousing) {
-                            final String tableName = ((warehousingDto as JSONObject).getString('table_id'))
-                            if (!tables.containsKey(tableName)) {
-                                tables.put(tableName, new JSONObject())
+                            if ('A' != (warehousingDto as JSONObject).getString('write_status')) continue
+                            //库名如果配置表中为空则组成库名
+                            final String databaseName = ((warehousingDto as JSONObject).getOrDefault('schema_id', (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid'))) as String)
+                            final String tableName = ((warehousingDto as JSONObject).getString('table_id')) + jsonAttributesFormer.getString('table.name.postfix') == null ? '' : jsonAttributesFormer.getString('table.name.postfix')
+                            final String key = databaseName + '.' + tableName//组合key值，考虑进多库的情况
+                            if (!tables.containsKey(key)) {
+                                tables.put(key, new JSONObject())
                                 //属性加入表名（包含后缀）、库名
                                 JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
-                                attribute.put('table.name', tableName.concat(jsonAttributesFormer.getString('table.name.postfix') == null ? '' : jsonAttributesFormer.getString('table.name.postfix')))
-                                attribute.put('database.name', (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid')))
-                                jsonAttributes.put(tableName, attribute)
+                                attribute.put('table.name', tableName)
+                                attribute.put('database.name', databaseName)
+                                jsonAttributes.put(key, attribute)
                             }
-                            JSONObject table = (tables.get(tableName) as JSONObject)
+                            JSONObject table = (tables.get(key) as JSONObject)
                             table.put((warehousingDto as JSONObject).getString('column_id'), jsonDataFormer.get(dossKey))
                         }
                     } catch (Exception e) {
@@ -66,9 +70,9 @@ class TransformKey2Column {
                     }
                 }
                 //单条数据处理结束，放入返回仓库
-                for (String tableName in tables.keySet()) {
-                    dataListReturn.add(tables.get(tableName))
-                    attributesListReturn.add(jsonAttributes.get(tableName))
+                for (String key in tables.keySet()) {
+                    dataListReturn.add(tables.get(key))
+                    attributesListReturn.add(jsonAttributes.get(key))
                 }
             } catch (Exception e) {
                 log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 处理单条数据时异常", e
