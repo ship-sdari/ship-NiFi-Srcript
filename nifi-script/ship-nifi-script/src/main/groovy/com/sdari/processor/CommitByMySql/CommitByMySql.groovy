@@ -290,12 +290,12 @@ class CommitByMySql implements Processor {
         }
         Connection connection = connections.get(database)
         if (connection.getAutoCommit()) connection.setAutoCommit(false);//关闭自动提交
-        Savepoint savepoint = connection.setSavepoint("current");
+        Savepoint savepoint = connection.setSavepoint("current")
         PreparedStatement stmt1
         for (String content : contents) {
             try {
-                stmt1 = connection.prepareStatement(content);
-                stmt1.executeUpdate();
+                stmt1 = connection.prepareStatement(content)
+                stmt1.executeUpdate()
                 if (!stmt1.isClosed()) stmt1.close()
             } catch (Exception e) {
                 log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 的处理过程有异常,报警事务操作执行异常", e
