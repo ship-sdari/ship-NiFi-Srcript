@@ -1,12 +1,10 @@
 package com.sdari.processor.ConvertJsonToSql
 
-
 import com.alibaba.fastjson.JSONObject
 import org.apache.commons.lang3.StringUtils
 import org.apache.nifi.logging.ComponentLog
 
 import java.text.MessageFormat
-
 
 
 /**
@@ -32,10 +30,12 @@ class JsonToSql {
 
     //数据处理使用参数
     final static String SID = 'sid'
-
-    final static String TABLE_NAME_OUT = 'table.name'
     final static String OPTION = 'option'
-
+    final static String STATUS = 'status'
+    final static String databaseName = 'database.name'
+    final static String TABLE_NAME_OUT = 'table.name'
+    private final static String databasesMain = 'main.name'//主库
+    private final static String databasesFrom = 'from.name'//从库
     private final static String formatSqlInsert = 'INSERT INTO `{0}` (`{1}`) VALUES ({2});'
     private final static String formatSqlUpdate = 'update `{0}` set {1} where sid ={2};'
     private final static String formatSqlDelete = 'delete from `{0}` where id={1};'
@@ -65,8 +65,20 @@ class JsonToSql {
             final String option = jsonAttributesFormer.get(OPTION)
             final String sid = jsonAttributesFormer.get(SID)
             final String tableName = jsonAttributesFormer.get(TABLE_NAME_OUT)
+            final String status = jsonAttributesFormer.get(STATUS)
             def json = []
             JSONObject jsonAttributesFormers = jsonAttributesFormer.clone() as JSONObject
+            switch (status) {
+                case '1':
+                    jsonAttributesFormers.put(databaseName, processorConf.get(databasesMain))
+                    break
+                case '0':
+                    jsonAttributesFormers.put(databaseName, processorConf.get(databasesFrom) + sid)
+                    break
+                default:
+                    log.error "option error status=>[${status}] value=>[${option}] data:[${JsonData}]"
+            }
+
             switch (option) {
                 case ADD:
                     json.add(dataByInsert(JsonData, tableName))

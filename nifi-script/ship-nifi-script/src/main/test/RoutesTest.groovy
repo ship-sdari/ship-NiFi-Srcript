@@ -2,17 +2,7 @@ import com.alibaba.fastjson.JSON
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
-
-//import com.sdari.publicUtils.ProcessorComponentHelper
-
-import groovy.json.JsonOutput
-
 import lombok.Data
-import org.apache.commons.net.imap.IMAP
-import org.apache.nifi.dbcp.DBCPService
-import org.luaj.vm2.ast.Str
-import sun.nio.ch.ThreadPool
-
 import org.apache.commons.io.IOUtils
 
 
@@ -83,19 +73,22 @@ class RoutesTest extends GroovyTestCase {
                 "\t\t\t\"properties\": {\"upload_time\": {\n" +
                 "\t\t\t\t\t\"format\": \"yyyy-MM-dd HH:mm:ss:SSS\",\n" +
                 "\t\t\t\t\t\"type\": \"date\"\n" +
-                "\t\t\t\t},\"createTime\": {\n" +
+                "\t\t\t\t},\"coltime\": {\n" +
                 "\t\t\t\t\t\"format\": \"yyyyMMddHHmmssSSS\",\n" +
                 "\t\t\t\t\t\"type\": \"date\"\n" +
+                "\t\t\t\t},\"rowkey\": {\n" +
+                "\t\t\t\t\t\"type\": \"keyword\"\n" +
                 "\t\t\t\t}"
         final to = ","
         final n = "\n"
         final pu = "PUT "
         final de = "DELETE "
         final name1 = "xcloud_"
+        final delDoc="/_doc"
         List<String> list = new ArrayList<>()
         for (String tableName : a.keySet()) {
-//            String tl= de+tableName
-//            println(tl)
+            String tl= de+name1+tableName
+      //  println(tl)
             String json = pu + name1 + tableName + k
             for (WarehousingDTO dto : warehousing) {
                 if (tableName == dto.table_id) {
