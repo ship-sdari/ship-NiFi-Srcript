@@ -99,6 +99,7 @@ class TStreamRuleDTO implements Serializable {
 
     @Data
     static class AlarmDTO implements Serializable {
+        Integer id
         // 船id
         Integer sid
         // DOSS系统key值
@@ -122,6 +123,7 @@ class TStreamRuleDTO implements Serializable {
 
     @Data
     static class CalculationDTO implements Serializable {
+        Integer id
         // 船id
         Integer sid
         // DOSS系统key值
@@ -136,6 +138,7 @@ class TStreamRuleDTO implements Serializable {
 
     @Data
     static class CollectionDTO implements Serializable {
+        Integer id
         // 船id
         Integer sid
         // DOSS系统key值
@@ -178,6 +181,7 @@ class TStreamRuleDTO implements Serializable {
 
     @Data
     static class DistDTO implements Serializable {
+        Integer id
         // 船id
         Integer sid
         // DOSS系统key值
@@ -211,6 +215,7 @@ class TStreamRuleDTO implements Serializable {
 
     @Data
     static class ShoreBasedDTO implements Serializable {
+        Integer id
         // 船id
         Integer sid
         // DOSS系统key值
@@ -233,7 +238,6 @@ class TStreamRuleDTO implements Serializable {
 
     @Data
     static class ThinningDTO implements Serializable {
-
         Integer id
         // 船id
         Integer sid
@@ -249,6 +253,7 @@ class TStreamRuleDTO implements Serializable {
 
     @Data
     static class WarehousingDTO implements Serializable {
+        Integer id
         // 船id
         Integer sid
         // DOSS系统key值
@@ -289,6 +294,7 @@ class TStreamRuleDTO implements Serializable {
                 dto.inner_key = res.getString('inner_key')
             }
             def createAlarmDto = { AlarmDTO dto, res ->
+                dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.alert_min = res.getBigDecimal('alert_min')
@@ -302,6 +308,7 @@ class TStreamRuleDTO implements Serializable {
                 dto.alert_way = res.getString('alert_way')
             }
             def createCalculationDto = { CalculationDTO dto, res ->
+                dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.calculation_key = res.getString('calculation_key')
@@ -309,6 +316,7 @@ class TStreamRuleDTO implements Serializable {
                 dto.calculation_status = res.getString('calculation_status')
             }
             def createCollectionDto = { CollectionDTO dto, res ->
+                dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.colgroup = res.getString('colgroup')
@@ -330,6 +338,7 @@ class TStreamRuleDTO implements Serializable {
                 dto.collection_status = res.getString('collection_status')
             }
             def createDistDto = { DistDTO dto, res ->
+                dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.dist_group = res.getString('dist_group')
@@ -343,6 +352,7 @@ class TStreamRuleDTO implements Serializable {
                 dto.dist_status = res.getString('dist_status')
             }
             def createShoreBasedDto = { ShoreBasedDTO dto, res ->
+                dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.to_shore_group = res.getString('to_shore_group')
@@ -362,6 +372,7 @@ class TStreamRuleDTO implements Serializable {
                 dto.dilution_status = res.getObject('dilution_status')as String
             }
             def createWarehousingDto = { WarehousingDTO dto, res ->
+                dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.schema_id = res.getString('schema_id')

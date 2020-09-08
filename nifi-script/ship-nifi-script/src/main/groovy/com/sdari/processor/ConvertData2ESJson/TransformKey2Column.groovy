@@ -52,27 +52,30 @@ class TransformKey2Column {
                             throw new Exception('流规则中没有该信号点配置！')
                         }
                         for (warehousingDto in warehousing) {
-                            if ('A' != (warehousingDto as JSONObject).getString('write_status')) continue
-                            final String tableName = (processorConf.getOrDefault('table.name.prefix', '') as String) + ((warehousingDto as JSONObject).getString('table_id')) + (jsonAttributesFormer.getOrDefault('table.name.postfix', '') as String)
-                            if (!tables.containsKey(tableName)) {
-                                //添加rowkey、upload_time、coltime
-                                JSONObject tableJson = new JSONObject()
-                                final String createTime = dateFormat(Instant.parse(jsonAttributesFormer.get('coltime') as String).toEpochMilli(), 'yyyyMMddHHmmssSSS', 'UTC')
-                                final String rowkey = (jsonAttributesFormer.get('sid') as String)?.padLeft(4, '0') + createTime
-                                tableJson.put('coltime', createTime)
-                                tableJson.put('upload_time', dateFormat(Instant.now().toEpochMilli(), 'yyyy-MM-dd HH:mm:ss:SSS', 'UTC'))
-                                tableJson.put('rowkey', rowkey)
-                                tables.put(tableName, tableJson)
-                                //属性加入表名（包含后缀）、库名
-                                JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
-                                attribute.put('table.name', tableName)
-                                attribute.put('row.type', (processorConf.getOrDefault('row.type', '_doc') as String))
-                                attribute.put('row.operation', (processorConf.getOrDefault('row.operation', 'upsert') as String))
-                                attribute.put('rowkey', rowkey)
-                                jsonAttributes.put(tableName, attribute)
+                            try {
+                                if ('A' != (warehousingDto as JSONObject).getString('write_status')) continue
+                                final String tableName = (processorConf.getOrDefault('table.name.prefix', '') as String) + ((warehousingDto as JSONObject).getString('table_id')) + (jsonAttributesFormer.getOrDefault('table.name.postfix', '') as String)
+                                if (!tables.containsKey(tableName)) {
+                                    //添加rowkey、upload_time、coltime
+                                    JSONObject tableJson = new JSONObject()
+                                    final String createTime = dateFormat(Instant.parse(jsonAttributesFormer.get('coltime') as String).toEpochMilli(), 'yyyyMMddHHmmssSSS', 'UTC')
+                                    final String rowkey = (jsonAttributesFormer.get('sid') as String)?.padLeft(4, '0') + createTime
+                                    tableJson.put('coltime', createTime)
+                                    tableJson.put('upload_time', dateFormat(Instant.now().toEpochMilli(), 'yyyy-MM-dd HH:mm:ss:SSS', 'UTC'))
+                                    tableJson.put('rowkey', rowkey)
+                                    tables.put(tableName, tableJson)
+                                    //属性加入表名（包含后缀）、库名
+                                    JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
+                                    attribute.put('table.name', tableName)
+                                    attribute.put('row.type', (processorConf.getOrDefault('row.type', '_doc') as String))
+                                    attribute.put('row.operation', (processorConf.getOrDefault('row.operation', 'upsert') as String))
+                                    attribute.put('rowkey', rowkey)
+                                    jsonAttributes.put(tableName, attribute)
+                                }
+                                (tables.get(tableName) as JSONObject).put((warehousingDto as JSONObject).getString('column_id'), jsonDataFormer.get(dossKey))
+                            } catch (Exception e) {
+                                log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} warehousing = ${(warehousingDto as JSONObject).getString('id')} 处理异常", e
                             }
-                            JSONObject table = (tables.get(tableName) as JSONObject)
-                            table.put((warehousingDto as JSONObject).getString('column_id'), jsonDataFormer.get(dossKey))
                         }
                     } catch (Exception e) {
                         log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} 处理异常", e

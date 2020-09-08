@@ -22,8 +22,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
-@CapabilityDescription('')
-class ProcessorScriptByJSONObjectModule implements Processor {
+@CapabilityDescription('格式化岸基分发的数据格式')
+class FormatDataByToShoreGroup implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
@@ -159,7 +159,7 @@ class ProcessorScriptByJSONObjectModule implements Processor {
                         continue
                     }
                     //用来接收脚本返回的数据
-                    Map returnMap = pch.invokeMethod("deepClone",[former]) as Map
+                    Map returnMap = pch.invokeMethod("deepClone",former) as Map
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeStatus = 'S'
                     //路由关系
@@ -307,4 +307,4 @@ class ProcessorScriptByJSONObjectModule implements Processor {
 }
 
 //脚本部署时需要放开该注释
-//processor = new ProcessorScriptByJSONObjectModule()
+//processor = new FormatDataByToShoreGroup()
