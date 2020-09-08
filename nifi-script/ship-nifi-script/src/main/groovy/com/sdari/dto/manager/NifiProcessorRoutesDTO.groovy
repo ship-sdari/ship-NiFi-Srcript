@@ -10,6 +10,7 @@ import java.sql.ResultSet
  */
 @Data
 class NifiProcessorRoutesDTO {
+    private Integer id
     private Integer processor_id
     private Integer route_id
     private String route_name
@@ -22,6 +23,7 @@ class NifiProcessorRoutesDTO {
             def nifiProcessorRoutes = []
             while (res.next()) {
                 NifiProcessorRoutesDTO dto = new NifiProcessorRoutesDTO()
+                dto.setProperty('id', res.getInt('id'))
                 dto.setProperty('processor_id', res.getInt('processor_id'))
                 dto.setProperty('route_id', res.getInt('route_id'))
                 dto.setProperty('route_name', res.getString('route_name'))

@@ -10,6 +10,7 @@ import java.sql.ResultSet
  */
 @Data
 class NifiProcessorAttributesDTO {
+    private Integer id
     private Integer processor_id
     private String attribute_name
     private String attribute_value
@@ -22,6 +23,7 @@ class NifiProcessorAttributesDTO {
             def nifiProcessorAttributes = []
             while (res.next()) {
                 NifiProcessorAttributesDTO dto = new NifiProcessorAttributesDTO()
+                dto.setProperty('id', res.getInt('id'))
                 dto.setProperty('processor_id', res.getInt('processor_id'))
                 dto.setProperty('attribute_name', res.getString('attribute_name'))
                 dto.setProperty('attribute_value', res.getString('attribute_value'))

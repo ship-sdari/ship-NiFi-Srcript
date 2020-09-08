@@ -11,6 +11,7 @@ import java.sql.ResultSet
  */
 @Data
 class NifiProcessorSubClassDTO {
+    private Integer id
     private Integer processor_id
     private Integer route_id
     private String sub_full_path
@@ -34,6 +35,7 @@ class NifiProcessorSubClassDTO {
                 dto.setProperty('running_order', res.getInt('running_order'))
                 dto.setProperty('status', res.getString('status'))*/
 
+                dto.id = res.getInt('id')
                 dto.processor_id = res.getInt('processor_id')
                 dto.route_id = res.getInt('route_id')
                 dto.sub_full_path = res.getString('sub_full_path')
@@ -55,6 +57,7 @@ class NifiProcessorSubClassDTO {
         try {
             def builder = new JsonBuilder()
             builder dto.collect(), { NifiProcessorSubClassDTO d ->
+                id d.id
                 processor_id d.processor_id
                 route_id d.route_id
                 sub_full_path d.sub_full_path
