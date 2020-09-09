@@ -166,15 +166,13 @@ class CommitByMySql implements Processor {
             def logs = log
             boolean status = transaction(data, databaseName, logs)
             try {
-                FlowFile flowFile2=session.clone(flowFile)
-                if (status) onFailure(session,flowFile2)
+                if (status) onFailure(session,flowFile)
                 if (!status && relationships.containsKey('success')) {
-                    session.transfer(flowFile2, relationships.get('success'))
+                    session.transfer(flowFile, relationships.get('success'))
                 }
             } catch (Exception e) {
                 log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 数据路由异常", e
             }
-            session.remove(flowFile)
         } catch (final Throwable t) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 的处理过程有异常", t
             onFailure(session, flowFile)
