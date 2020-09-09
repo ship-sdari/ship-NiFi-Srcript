@@ -1,7 +1,7 @@
 package com.sdari.processor.CommitByMySql
 
 import com.alibaba.fastjson.JSONArray
-
+import com.alibaba.fastjson.JSONObject
 import org.apache.commons.io.IOUtils
 import org.apache.commons.lang3.StringUtils
 import org.apache.nifi.annotation.behavior.EventDriven
@@ -99,8 +99,9 @@ class CommitByMySql implements Processor {
 
     @OnStopped
     public void OnStopped(final ProcessContext context) {
-        log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器关闭"
         try {
+            pch.invokeMethod("releaseComponent", null)//相关公共配置实例清空
+            log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器停止运行完毕"
             for (String name : connections.keySet()) {
                 if (null != connections.get(name) && connections.get(name).isClosed()) {
                     connections.get(name).isClosed().clone()
@@ -110,6 +111,7 @@ class CommitByMySql implements Processor {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器关闭异常", e
         }
     }
+
     /**
      * 详细处理模块
      * @param context
@@ -161,9 +163,16 @@ class CommitByMySql implements Processor {
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             final String databaseName = attributesMap.get(databaseName)
             List<String> data = dataList as List<String>
-            boolean status = transaction(data, databaseName, log)
-            if (!status && relationships.containsKey('success')) {
-                session.transfer(flowFile, relationships.get('success'))
+            def logs = log
+            boolean status = transaction(data, databaseName, logs)
+            try {
+                FlowFile flowFile2=session.clone(flowFile)
+                if (status) onFailure(session,flowFile2)
+                if (!status && relationships.containsKey('success')) {
+                    session.transfer(flowFile2, relationships.get('success'))
+                }
+            } catch (Exception e) {
+                log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 数据路由异常", e
             }
             session.remove(flowFile)
         } catch (final Throwable t) {
