@@ -416,13 +416,13 @@ class ProcessorComponentHelper {
      * 暂存仓库的资源释放
      */
     void releaseComponent() throws Exception {
-        parameters.clear()
-        routeConf.clear()
-        subClasses.clear()
-        scriptMap.clear()
-        tStreamRules.clear()
-        aClasses.clear()
-        publicClassesText.clear()
+        parameters?.clear()
+        routeConf?.clear()
+        subClasses?.clear()
+        scriptMap?.clear()
+        tStreamRules?.clear()
+        aClasses?.clear()
+        publicClassesText?.clear()
     }
     /**
      * 初始化子脚本并暂存至脚本实例仓库
