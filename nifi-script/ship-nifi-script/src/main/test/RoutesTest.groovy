@@ -4,7 +4,7 @@ import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
 import lombok.Data
 import org.apache.commons.io.IOUtils
-
+import org.apache.commons.lang3.ArrayUtils
 
 import java.sql.*
 import java.text.SimpleDateFormat
@@ -406,9 +406,11 @@ class RoutesTest extends GroovyTestCase {
     }
 
     void testSer() {
-//        TStreamRuleDTO dto = new TStreamRuleDTO()
-//        println(dto)
-//        def a = cloneTo(dto)
-//        println(a)
+        String a=" t_calculation  , t_alarm_history "
+        String [] t=a.replace(" ","").split(",")
+        String tableName="t_alarm_history"
+        if (ArrayUtils.contains(t, tableName.toLowerCase())) {
+            println(tableName)
+        }
     }
 }
