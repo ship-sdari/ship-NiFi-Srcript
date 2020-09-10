@@ -3,7 +3,6 @@ package com.sdari.processor.CommitByMySql
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import org.apache.commons.io.IOUtils
-import org.apache.commons.lang3.StringUtils
 import org.apache.nifi.annotation.behavior.EventDriven
 import org.apache.nifi.annotation.documentation.CapabilityDescription
 import org.apache.nifi.annotation.lifecycle.OnScheduled
@@ -90,7 +89,6 @@ class CommitByMySql implements Processor {
             pch.invokeMethod("initScript", [log, currentClassName])
             Map confMap = pch.getProperty('parameters') as Map
             initConf(confMap)//初始化连接配置
-            initConnections()//初始化 数据库连接
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行异常", e
@@ -249,22 +247,6 @@ class CommitByMySql implements Processor {
         port = confMap.get("port")
         userName = confMap.get("user.name")
         password = confMap.get("password")
-        String database = confMap.get(databaseName)
-        for (String name : database.split(";")) {
-            String u = url
-            if (StringUtils.isNotBlank(name)) {
-                databases.put(name, MessageFormat.format(u, ip, port, name))
-            }
-        }
-    }
-    /**
-     * 初始化所有连接
-     */
-    void initConnections() throws Exception {
-        DriverManager.setLoginTimeout(10);//10s连接超时
-        for (String key : databases.keySet()) {
-            connections.put(key, DriverManager.getConnection(databases.get(key), userName, password))
-        }
     }
     /**
      * 根据数据库名 创建连接
