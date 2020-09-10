@@ -1,6 +1,7 @@
 package com.sdari.publicUtils
 
 import com.alibaba.fastjson.JSON
+import com.alibaba.fastjson.serializer.SerializerFeature
 import lombok.Data
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.components.PropertyDescriptor
@@ -512,7 +513,7 @@ class ProcessorComponentHelper {
      * 深拷贝工具类(舍弃)
      */
     static def deepClone(def map) {
-        String json = JSON.toJSONString(map)
+        String json = JSON.toJSONString(map, SerializerFeature.WriteMapNullValue)
         return JSON.parseObject(json, map.getClass() as Class<Object>)
     }
 
