@@ -35,7 +35,7 @@ class analysisByES {
     final static String esType = "row.type"
     final static String esOperation = 'row.operation'
     final static String tableNamePrefix = 'table.name.prefix'
-    final static String tables = 'es.tables'
+    final static String tables = 'es.tables.'
     //时间相关参数
     final static String time_type = "yyyy-MM-dd HH:mm:ss"
     final static String record_time = "record_time"
@@ -65,8 +65,12 @@ class analysisByES {
         final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         //获取入es的表
-        String tableNames=processorConf.get(tables) as String
-        String[] FileTables = tableNames.replace(" ","").split(',')
+        List<String> FileTables = []
+        for (String key : processorConf.keySet()) {
+            if (key.contains(tables)) {
+                FileTables.add((processorConf.get(key)) as String)
+            }
+        }
         //获取入ES的类型
         String rowType = (processorConf.get(esType) as String)
         //获取ES 表名前缀
@@ -94,7 +98,7 @@ class analysisByES {
                 if (null == json) continue
                 json = json as JSONObject
                 JSONObject jsonAttributesFormers = jsonAttributesFormer.clone() as JSONObject
-                if (ArrayUtils.contains(FileTables, tableName.toLowerCase())) {
+                if (ArrayUtils.contains(FileTables.toArray(), tableName.toLowerCase())) {
                     if (json.containsKey(record_time) && json.get(record_time) != null) {
                         long time = Long.parseLong((json.get(record_time) as String)) as long
                         json.put(record_time, DateByFormat(time) as String)
@@ -138,7 +142,7 @@ class analysisByES {
      * 时间格式转换
      */
     static String DateByFormat(long time) {
-        SimpleDateFormat t= new SimpleDateFormat(time_type);
+        SimpleDateFormat t = new SimpleDateFormat(time_type);
         t.setTimeZone(TimeZone.getTimeZone("UTC"))
         return t.format(new Date(time))
     }

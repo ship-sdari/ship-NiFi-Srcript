@@ -39,7 +39,7 @@ class analysisByMysql {
     final static String OPTION = 'option'
     final static String META = 'meta'
     //mysql 处理使用参数
-    final static String tables = 'es.tables'
+    final static String tables = 'es.tables.'
     //时间相关参数
     final static String time_type = "yyyy-MM-dd HH:mm:ss"
     final static String record_time = "record_time"
@@ -68,9 +68,12 @@ class analysisByMysql {
         final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         //获取入es的表
-        String tableNames=processorConf.get(tables) as String
-        String[] FileTables = tableNames.replace(" ","").split(',')
-        //循环list中的每一条数据
+        List<String> FileTables = []
+        for (String key : processorConf.keySet()) {
+            if (key.contains(tables)) {
+                FileTables.add((processorConf.get(key)) as String)
+            }
+        }    //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             final JSONObject JsonData = (dataList.get(i) as JSONObject)
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
@@ -88,7 +91,7 @@ class analysisByMysql {
                 json = json as JSONObject
                 if (null == json) continue
                 JSONObject jsonAttributesFormers = jsonAttributesFormer.clone() as JSONObject
-                if (!ArrayUtils.contains(FileTables, tableName.toLowerCase())) {
+                if (ArrayUtils.contains(FileTables.toArray(), tableName.toLowerCase())) {
                     if (json.containsKey(record_time) && json.get(record_time) != null) {
                         long time = Long.parseLong((json.get(record_time) as String)) as long
                         json.put(record_time, DateByFormat(time) as String)
