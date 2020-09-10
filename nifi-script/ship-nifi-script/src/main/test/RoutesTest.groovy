@@ -407,9 +407,11 @@ class RoutesTest extends GroovyTestCase {
 
     void testSer() {
         String a=" t_calculation  , t_alarm_history "
-        String [] t=a.replace(" ","").split(",")
+        List<String> te=[]
+        te.add("t_calculation")
+        te.add("t_alarm_history")
         String tableName="t_alarm_history"
-        if (ArrayUtils.contains(t, tableName.toLowerCase())) {
+        if (ArrayUtils.contains((te.toArray()), tableName.toLowerCase())) {
             println(tableName)
         }
     }

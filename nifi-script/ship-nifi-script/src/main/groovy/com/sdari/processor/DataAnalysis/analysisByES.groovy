@@ -35,7 +35,7 @@ class analysisByES {
     final static String esType = "row.type"
     final static String esOperation = 'row.operation'
     final static String tableNamePrefix = 'table.name.prefix'
-    final static String tables = 'es.tables.'
+    final static String tables = 'es.table.'
     //时间相关参数
     final static String time_type = "yyyy-MM-dd HH:mm:ss"
     final static String record_time = "record_time"

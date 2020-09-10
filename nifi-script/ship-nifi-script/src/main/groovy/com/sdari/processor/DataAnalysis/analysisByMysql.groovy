@@ -39,7 +39,7 @@ class analysisByMysql {
     final static String OPTION = 'option'
     final static String META = 'meta'
     //mysql 处理使用参数
-    final static String tables = 'es.tables.'
+    final static String tables = 'es.table.'
     //时间相关参数
     final static String time_type = "yyyy-MM-dd HH:mm:ss"
     final static String record_time = "record_time"
@@ -91,7 +91,7 @@ class analysisByMysql {
                 json = json as JSONObject
                 if (null == json) continue
                 JSONObject jsonAttributesFormers = jsonAttributesFormer.clone() as JSONObject
-                if (ArrayUtils.contains(FileTables.toArray(), tableName.toLowerCase())) {
+                if (!ArrayUtils.contains(FileTables.toArray(), tableName.toLowerCase())) {
                     if (json.containsKey(record_time) && json.get(record_time) != null) {
                         long time = Long.parseLong((json.get(record_time) as String)) as long
                         json.put(record_time, DateByFormat(time) as String)
