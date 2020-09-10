@@ -34,6 +34,8 @@ class analysisByHBase {
     final static String record_time = "record_time"
     final static String create_time = "create_time"
     final static String update_time = "update_time"
+    final static String start_time = "start_time"
+    final static String end_time = "end_time"
     //入HBase使用参数
     final static String id = "id"
     final static String table_name_prefix = "XCLOUD_"
@@ -91,7 +93,14 @@ class analysisByHBase {
                     long time = Long.parseLong((json.get(update_time) as String)) as long
                     json.put(update_time, DateByFormat(time) as String)
                 }
-
+                if (json.containsKey(start_time) && json.get(start_time) != null) {
+                    long time = Long.parseLong((json.get(start_time) as String)) as long
+                    json.put(start_time, DateByFormat(time) as String)
+                }
+                if (json.containsKey(end_time) && json.get(end_time) != null) {
+                    long time = Long.parseLong((json.get(end_time) as String)) as long
+                    json.put(end_time, DateByFormat(time) as String)
+                }
                 jsonAttributesFormers.put(TABLE_NAME_OUT, table_name_prefix.concat(tableName).toUpperCase())
                 jsonAttributesFormers.put(familyName, familyNameValue)
                 jsonAttributesFormers.put(rowKey,

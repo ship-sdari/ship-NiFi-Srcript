@@ -45,7 +45,8 @@ class analysisByMysql {
     final static String record_time = "record_time"
     final static String create_time = "create_time"
     final static String update_time = "update_time"
-
+    final static String start_time = "start_time"
+    final static String end_time = "end_time"
 
     analysisByMysql(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
@@ -67,7 +68,8 @@ class analysisByMysql {
         final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         //获取入es的表
-        String[] FileTables = (processorConf.get(tables) as String).split(',')
+        String tableNames=processorConf.get(tables) as String
+        String[] FileTables = tableNames.replace(" ","").split(',')
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             final JSONObject JsonData = (dataList.get(i) as JSONObject)
@@ -98,6 +100,14 @@ class analysisByMysql {
                     if (json.containsKey(update_time) && json.get(update_time) != null) {
                         long time = Long.parseLong((json.get(update_time) as String)) as long
                         json.put(update_time, DateByFormat(time) as String)
+                    }
+                    if (json.containsKey(start_time) && json.get(start_time) != null) {
+                        long time = Long.parseLong((json.get(start_time) as String)) as long
+                        json.put(start_time, DateByFormat(time) as String)
+                    }
+                    if (json.containsKey(end_time) && json.get(end_time) != null) {
+                        long time = Long.parseLong((json.get(end_time) as String)) as long
+                        json.put(end_time, DateByFormat(time) as String)
                     }
                     attributesListReturn.add(jsonAttributesFormers)
                     //单条数据处理结束，放入返回仓库

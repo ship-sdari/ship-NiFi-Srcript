@@ -42,6 +42,8 @@ class analysisByES {
     final static String create_time = "create_time"
     final static String update_time = "update_time"
     final static String upload_time = "upload_time"
+    final static String start_time = "start_time"
+    final static String end_time = "end_time"
 
     analysisByES(final def logger, final int pid, final String pName, final int rid) {
         log = logger
@@ -63,7 +65,8 @@ class analysisByES {
         final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         //获取入es的表
-        String[] FileTables = (processorConf.get(tables) as String).split(',')
+        String tableNames=processorConf.get(tables) as String
+        String[] FileTables = tableNames.replace(" ","").split(',')
         //获取入ES的类型
         String rowType = (processorConf.get(esType) as String)
         //获取ES 表名前缀
@@ -103,6 +106,14 @@ class analysisByES {
                     if (json.containsKey(update_time) && json.get(update_time) != null) {
                         long time = Long.parseLong((json.get(update_time) as String)) as long
                         json.put(update_time, DateByFormat(time) as String)
+                    }
+                    if (json.containsKey(start_time) && json.get(start_time) != null) {
+                        long time = Long.parseLong((json.get(start_time) as String)) as long
+                        json.put(start_time, DateByFormat(time) as String)
+                    }
+                    if (json.containsKey(end_time) && json.get(end_time) != null) {
+                        long time = Long.parseLong((json.get(end_time) as String)) as long
+                        json.put(end_time, DateByFormat(time) as String)
                     }
                     String rowId = StringUtils.leftPad(sid, 4, "0").concat(json.get("id") as String)
                     json.put(rowKey, rowId)
