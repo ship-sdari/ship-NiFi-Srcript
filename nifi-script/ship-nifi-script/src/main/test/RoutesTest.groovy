@@ -40,6 +40,12 @@ class RoutesTest extends GroovyTestCase {
         private String write_status
     }
 
+    void test(){
+        final String freq = "10.0"
+        final long a = 100L
+        println(a >= Double.parseDouble(freq))
+    }
+
     void testEs() {
         DriverManager.setLoginTimeout(10);//10s连接超时
         con = DriverManager.getConnection(url, userName, password);

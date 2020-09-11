@@ -53,18 +53,24 @@ class Split2ShoreGroup {
                         }
                         for (shoreBasedDto in shore_based_distributions) {
                             try {
-                                if ('A' != (shoreBasedDto as JSONObject).getString('to_shore_status')) continue
+                                final String shoreStatus = (shoreBasedDto as JSONObject).getString('to_shore_status')
+                                if ('A' != shoreStatus) continue
                                 final String toShoreGroup = ((shoreBasedDto as JSONObject).getString('to_shore_group'))
                                 final String shipCollectProtocol = jsonAttributesFormer.getString('ship.collect.protocol')
                                 final String shipCollectFreq = jsonAttributesFormer.getString('ship.collect.freq')
-                                if (null == toShoreGroup || null == shipCollectProtocol || null == shipCollectFreq){
-                                    throw new Exception('无法组成唯一标志，请检查流文件属性和流规则配置！')
+                                final String shoreIp = (shoreBasedDto as JSONObject).getString('to_shore_ip')
+                                final String shorePort = (shoreBasedDto as JSONObject).getString('to_shore_port')
+                                final String shoreFreq = (shoreBasedDto as JSONObject).getString('to_shore_freq')
+                                final String compressType = (shoreBasedDto as JSONObject).getString('compress_type')
+                                if (null == toShoreGroup || null == shipCollectProtocol || null == shipCollectFreq
+                                        || null == shoreIp || null == shorePort || null == shoreFreq || null == compressType){
+                                    throw new Exception('流规则配置不符合规范，请检查！')
                                 }
                                 //组合key 船基采集协议（来自船基文件属性）/船基采集频率（来自船基文件属性）/岸基分发组编号（来自岸基流规则配置）
                                 final String key = shipCollectProtocol + '/' + shipCollectFreq + '/' + toShoreGroup
                                 if (!shoreGroups.containsKey(key)) {
                                     //添加coltime
-                                    JSONObject groupJson = new JSONObject()
+                                    JSONObject groupJson = new JSONObject(new TreeMap<String, Object>())
                                     final long coltime = Instant.parse(jsonAttributesFormer.get('coltime') as String).toEpochMilli()
                                     groupJson.put('coltime', coltime)
                                     shoreGroups.put(key, groupJson)
@@ -72,10 +78,10 @@ class Split2ShoreGroup {
                                     JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
                                     attribute.put('shore.group', toShoreGroup)
                                     attribute.put('shore.protocol', (shoreBasedDto as JSONObject).getString('to_shore_protocol'))
-                                    attribute.put('shore.ip', (shoreBasedDto as JSONObject).getString('to_shore_ip'))
-                                    attribute.put('shore.port', (shoreBasedDto as JSONObject).getString('to_shore_port'))
-                                    attribute.put('shore.freq', (shoreBasedDto as JSONObject).getString('to_shore_freq'))
-                                    attribute.put('compress.type', (shoreBasedDto as JSONObject).getString('compress_type'))
+                                    attribute.put('shore.ip', shoreIp)
+                                    attribute.put('shore.port', shorePort)
+                                    attribute.put('shore.freq', shoreFreq)
+                                    attribute.put('compress.type', compressType)
                                     jsonAttributes.put(key, attribute)
                                 }
                                 (shoreGroups.get(key) as JSONObject).put(dossKey, jsonDataFormer.get(dossKey))
