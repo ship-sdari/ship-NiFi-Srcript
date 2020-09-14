@@ -16,7 +16,9 @@ class AnalysisByMeteorologicalByES {
 
 
     //数据处理使用参数
+    final static String TIME = 'time'
     final static String TABLE_NAME_OUT = 'table.name'
+    final static String meteorological_time = "meteorological.time"
     //入ES使用参数
     final static String rowKey = "rowkey"
     //组件属性key
@@ -37,7 +39,6 @@ class AnalysisByMeteorologicalByES {
     }
 
     static def calculation(params) {
-        log.info "calculation : 进入脚本方法"
         if (null == params) return null
         def returnMap = [:]
         def dataListReturn = []
@@ -53,7 +54,6 @@ class AnalysisByMeteorologicalByES {
         //ES的操作的类型
         String Operation = (processorConf.get(esOperation) as String)
         //循环list中的每一条数据
-        log.info "循环list : 进入脚本方法"
         for (int i = 0; i < dataList.size(); i++) {
             final JSONObject JsonData = (dataList.get(i) as JSONObject)
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
@@ -62,6 +62,10 @@ class AnalysisByMeteorologicalByES {
             jsonAttributesFormer.put(esOperation, Operation)
 
             JSONObject json = JsonData
+            long time = Long.valueOf(jsonAttributesFormer.get(meteorological_time) as String)
+            String rowTime = ((json.get(TIME) as long) * 3600 + time)
+            json.put(TIME, rowTime)
+            json.put(rowKey, rowTime + json.get(rowKey))
             json.put(upload_time, upDate(String.valueOf(Instant.now())))
             jsonAttributesFormer.put(rowKey, json.get(rowKey))
 

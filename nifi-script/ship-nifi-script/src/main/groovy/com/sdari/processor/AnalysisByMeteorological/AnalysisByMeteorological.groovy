@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
-@CapabilityDescription('岸基-MySql业务提交处理器处理器')
+@CapabilityDescription('岸基-气象文件解析处理器')
 class AnalysisByMeteorological implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
@@ -33,17 +33,19 @@ class AnalysisByMeteorological implements Processor {
     private String currentClassName = this.class.canonicalName
     private DBCPService dbcpService = null
     private GroovyObject pch
+
+    //时间相关参数
+    final static String start_time_type = "yyyyMMddHHmm"
+    final static String meteorological_time = "meteorological.time"
+
     public static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
             .description("FlowFiles that were successfully processed")
-            .build();
+            .build()
     public static final Relationship REL_FAILURE = new Relationship.Builder()
             .name("failure")
             .description("FlowFiles that failed to be processed")
-            .build();
-    //时间相关参数
-    final static String time_type = "yyyy-MM-dd HH:mm:ss"
-    final static String start_time_type = "yyyyMMddHHmm"
+            .build()
 
     @Override
     Set<Relationship> getRelationships() {
@@ -126,19 +128,30 @@ class AnalysisByMeteorological implements Processor {
             }
         })
         try {
-            final def attributesMap =  flowFile.getAttributes()
+            final def attributesMap = flowFile.getAttributes()
             final String path = attributesMap.get('absolute.path')
             final String filename = attributesMap.get('filename')
+            def attributesMaps=new HashMap()
+            String fileName = filename
+            String[] split = fileName.substring(22, 35).split("_")
+            String s = split[0] + split[1]
+            Date createTime = DateByParse(s)
+            long time = (long) ((createTime.getTime()) / 1000)
+
+            attributesMaps.put('absolute.path',path)
+            attributesMaps.put('filename',filename)
+            attributesMaps.put(meteorological_time, String.valueOf(time))
+
             List<JSONObject> lists = readGzFile(path + filename)
             if (lists.size() > 0) {
-                session.putAllAttributes(flowFile, attributesMap)
+                session.putAllAttributes(flowFile, attributesMaps)
                 //FlowFile write 数据
                 session.write(flowFile, { out ->
                     out.write(JSONArray.toJSONBytes(lists,
                             SerializerFeature.WriteMapNullValue))
                 } as OutputStreamCallback)
                 session.transfer(flowFile, REL_SUCCESS)
-            }else {
+            } else {
                 session.transfer(flowFile, REL_FAILURE)
             }
 
@@ -217,19 +230,11 @@ class AnalysisByMeteorological implements Processor {
      */
     private static List<JSONObject> readGzFile(String FilePath) throws Exception {
         List<JSONObject> jsonObjects = new ArrayList<>(2000)
-        // 获取指定路径下的压缩文件的文件名
-        File file = new File(FilePath)
         Set<String> keySet = new HashSet<>()
         // 循环读取nc文件中的数据
         NetcdfFile ncFiles = null
         try {
             ncFiles = NetcdfFile.open(FilePath)
-
-            String fileName = file.getName()
-            String[] split = fileName.substring(22, 35).split("_")
-            String s = split[0] + split[1]
-            Date createTime = DateByParse(s)
-            long time = (long) ((createTime.getTime()) / 1000)
             // 读取时间的值
             double[] timeArray = (double[]) ncFiles.findVariable("time").read().copyTo1DJavaArray()
             // 读取经度的值
@@ -348,15 +353,6 @@ class AnalysisByMeteorological implements Processor {
             }
         }
         return jsonObjects
-    }
-
-    /**
-     * 时间格式转换
-     */
-    static String DateByFormat(long time) {
-        SimpleDateFormat t = new SimpleDateFormat(time_type)
-        t.setTimeZone(TimeZone.getTimeZone("UTC"))
-        return t.format(new Date(time))
     }
 
     /**
