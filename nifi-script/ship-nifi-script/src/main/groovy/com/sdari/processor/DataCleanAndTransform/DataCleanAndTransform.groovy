@@ -164,7 +164,7 @@ class DataCleanAndTransform implements Processor {
                         continue
                     }
                     //用来接收脚本返回的数据
-                    Map returnMap = pch.invokeMethod("deepClone",former) as Map
+                    Map returnMap = pch.invokeMethod("deepClone", former) as Map
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeStatus = 'S'
                     //路由关系

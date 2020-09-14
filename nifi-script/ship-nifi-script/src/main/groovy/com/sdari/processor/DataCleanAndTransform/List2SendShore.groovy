@@ -32,6 +32,7 @@ class List2SendShore {
         def dataListReturn = []
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
+        dataList.sort(Comparator.comparing({ obj -> ((JSONObject) obj).getLong("time") }))
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
         final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
