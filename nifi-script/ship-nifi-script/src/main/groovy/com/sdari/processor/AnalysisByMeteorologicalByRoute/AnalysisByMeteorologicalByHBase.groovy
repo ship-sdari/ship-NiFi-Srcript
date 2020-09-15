@@ -1,13 +1,12 @@
 package com.sdari.processor.AnalysisByMeteorologicalByRoute
 
 import com.alibaba.fastjson.JSONObject
-import org.joda.time.Instant
 
 
 /**
  * 气象文件处理脚本
  */
-class AnalysisByMeteorologicalByES {
+class AnalysisByMeteorologicalByHBase {
     private static log
     private static processorId
     private static String processorName
@@ -22,14 +21,11 @@ class AnalysisByMeteorologicalByES {
     //入ES使用参数
     final static String rowKey = "rowkey"
     //组件属性key
-    final static String esType = "row.type"
-    final static String esOperation = 'row.operation'
-    final static String tables = 'es.table'
-    //时间相关参数
-    final static String upload_time = "upload_time"
+    final static String tables = 'hbase.table'
+    final static String familyName = 'family.name'
 
 
-    AnalysisByMeteorologicalByES(final def logger, final int pid, final String pName, final int rid) {
+    AnalysisByMeteorologicalByHBase(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -47,22 +43,24 @@ class AnalysisByMeteorologicalByES {
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
         final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
-        //获取入es的表
+        //获取入HBase的表
         String table = processorConf.get(tables)
-        //获取入ES的类型
-        String rowType = (processorConf.get(esType) as String)
-        //ES的操作的类型
-        String Operation = (processorConf.get(esOperation) as String)
+        //获取入HBase的类型
+        String rowType = (processorConf.get(familyName) as String)
+
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             final JSONObject JsonData = (dataList.get(i) as JSONObject)
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
             jsonAttributesFormer.put(TABLE_NAME_OUT, table)
-            jsonAttributesFormer.put(esType, rowType)
-            jsonAttributesFormer.put(esOperation, Operation)
+            jsonAttributesFormer.put(familyName, rowType)
 
             JSONObject json = JsonData
-            json.put(upload_time, upDate(String.valueOf(Instant.now())))
+            Double time = Double.valueOf(jsonAttributesFormer.get(meteorological_time) as String)
+
+            Double jsonTime = (((json.get(TIME) as Double) - time) / 3600)
+            json.put(TIME, jsonTime.longValue())
+
             jsonAttributesFormer.put(rowKey, json.get(rowKey))
 
             //单条数据处理结束，放入返回

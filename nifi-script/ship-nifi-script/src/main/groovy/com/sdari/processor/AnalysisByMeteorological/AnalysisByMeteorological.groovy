@@ -131,18 +131,18 @@ class AnalysisByMeteorological implements Processor {
             final def attributesMap = flowFile.getAttributes()
             final String path = attributesMap.get('absolute.path')
             final String filename = attributesMap.get('filename')
-            def attributesMaps=new HashMap()
+            def attributesMaps = new HashMap()
             String fileName = filename
             String[] split = fileName.substring(22, 35).split("_")
             String s = split[0] + split[1]
             Date createTime = DateByParse(s)
             long time = (long) ((createTime.getTime()) / 1000)
 
-            attributesMaps.put('absolute.path',path)
-            attributesMaps.put('filename',filename)
+            attributesMaps.put('absolute.path', path)
+            attributesMaps.put('filename', filename)
             attributesMaps.put(meteorological_time, String.valueOf(time))
 
-            List<JSONObject> lists = readGzFile(path + filename)
+            List<JSONObject> lists = readGzFile(path + filename, time)
             if (lists.size() > 0) {
                 session.putAllAttributes(flowFile, attributesMaps)
                 //FlowFile write 数据
@@ -228,7 +228,7 @@ class AnalysisByMeteorological implements Processor {
      *  从指定路劲中获取nc文件，并进行清洗
      * @param FilePath nc文件地址
      */
-    private static List<JSONObject> readGzFile(String FilePath) throws Exception {
+    private static List<JSONObject> readGzFile(String FilePath,final long time) throws Exception {
         List<JSONObject> jsonObjects = new ArrayList<>(2000)
         Set<String> keySet = new HashSet<>()
         // 循环读取nc文件中的数据
@@ -271,8 +271,8 @@ class AnalysisByMeteorological implements Processor {
                 for (int m = 0; m < latitudeArray.length; m++) {
                     for (int n = 0; n < longitudeArray.length; n++) {
                         JSONObject jsonObject = new JSONObject()
-                        //   Long weatherTime = new Double(timeArray[p] * 3600).longValue() + time
-                        jsonObject.put('time', Long.valueOf((long) timeArray[p]))
+                        Long weatherTime = new Double(timeArray[p] * 3600).longValue() + time
+                        jsonObject.put('time', weatherTime)
                         if (longitudeArray[n] < (-180)) {
                             longitudeArray[n] = longitudeArray[n] + 360
                         }
