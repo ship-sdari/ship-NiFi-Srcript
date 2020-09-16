@@ -8,9 +8,9 @@ import java.time.Instant
 /**
  *
  * @type: （单桨单桨）
- * @kpiName: 计算工况判定情况
+ * @kpiName: 表象滑式率
  */
-class WorkConditionIndexDto {
+class SlipSogIndexDto {
     private static log
     private static processorId
     private static String processorName
@@ -18,12 +18,14 @@ class WorkConditionIndexDto {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'work_condition'
+    private static kpiName = 'slip_sog'
     //计算相关参数
     final static String SID = 'sid'
     final static String COLTIME = 'coltime'
 
-    WorkConditionIndexDto(final def logger, final int pid, final String pName, final int rid) {
+    final static BigDecimal slipperyValue = BigDecimal.valueOf(0.514 * 60)
+
+    SlipSogIndexDto(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -66,36 +68,34 @@ class WorkConditionIndexDto {
         returnMap.put('attributes', attributesListReturn)
         return returnMap
     }
+
     /**
-     * 计算工况判定情况
-     * 计算公式 吃水 = 0.5 * (艉吃水 + 艏吃水)
+     * 表象滑失率率的计算公式
+     * 计算公式为 1- 对地航速*0.514/ (np/60)
+     * n 为 转速 mon_navstate NMS_1
+     * p VLOC  = 8.51794m VLCC = 7.5730m
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
     static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
-
         try {
             BigDecimal result
-            // 获取艏吃水
-            BigDecimal dfWater = data.get('df')
-            // 获取艉吃水
-            BigDecimal daWater = data.get('da')
-            BigDecimal DRAFT_X = BigDecimal.valueOf(configMap.get('DRAFT_X') as Double)
-            if (daWater == null || dfWater == null || DRAFT_X == null) {
-                log.debug("[${sid}] [${kpiName}] [${time}] df[${dfWater}] da[${daWater}] num[${null}] DRAFT_X{${DRAFT_X}} result[${null}] ")
+            // 获取对地航速
+            BigDecimal vg = data.get('vg')
+            // 获取转速
+            BigDecimal speed = data.get('me_ecs_speed')
+            //螺距
+            BigDecimal pitch = BigDecimal.valueOf(configMap.get('PITCH') as Double)
+            if (vg == null || speed == null || speed == BigDecimal.ZERO || pitch == null) {
+                log.debug("[${sid}] [${kpiName}] [${time}] 对地航速[${vg}] 转速[${speed}] 螺距[${pitch}] result[${null}] ")
                 return null
             }
-
-            BigDecimal num = BigDecimal.valueOf(0.5) * dfWater.add(daWater)
-            if (num > DRAFT_X) {
-                result = BigDecimal.valueOf(1)//满载
-            } else if (num <= DRAFT_X) {
-                result = BigDecimal.valueOf(0)//压载
-            } else {//中载，暂时没有中载的情况
-                result = BigDecimal.valueOf(2)
+            result = slipperyDouble(vg, speed, pitch, BigDecimal.ONE, time, sid)
+            if (Objects.requireNonNull(result) > BigDecimal.ONE) {
+                result = BigDecimal.ZERO
             }
-            log.debug("[${sid}] [${kpiName}] [${time}] df[${dfWater}] da[${daWater}] num[${num}] DRAFT_X{${DRAFT_X}} result[${result}] ")
+            log.debug("[${sid}] [${kpiName}] [${time}] vg[${vg}] me_ecs_speed[${speed}] PITCH{${pitch}} result[${result}] ")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
@@ -103,5 +103,27 @@ class WorkConditionIndexDto {
         }
     }
 
-
+    /**
+     * 滑失率计算
+     * @Title: slipperyDouble*
+     *
+     * @param vg 对地航速
+     * @param speed 主机转速
+     * @param pitch 螺旋桨
+     * @return defaultValue
+     */
+    static BigDecimal slipperyDouble(BigDecimal vg, BigDecimal speed, BigDecimal pitch, BigDecimal defaultValue, final String time, final String sid) {
+        try {
+            if (vg == BigDecimal.ZERO || speed == BigDecimal.ZERO) {
+                return defaultValue
+            }
+            BigDecimal bi1 = vg * slipperyValue
+            BigDecimal bi2 = speed * pitch
+            // 四舍五入
+            return BigDecimal.ONE.subtract(bi1.divide(bi2, 2, BigDecimal.ROUND_HALF_UP))
+        } catch (Exception e) {
+            log.error("指标名 [${kpiName}][${sid}][${time}] slipperyDouble 计算 异常为:${e} ")
+            return null
+        }
+    }
 }

@@ -1,6 +1,5 @@
 package com.sdari.processor.CalculationKPI
 
-import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
 import org.apache.commons.io.IOUtils
@@ -31,6 +30,9 @@ class CalculationKPI implements Processor {
     private String currentClassName = this.class.canonicalName
     private DBCPService dbcpService = null
     private GroovyObject pch
+
+    //船舶配置 sdi-><key->value>
+    private static Map<String, Map> shipConf = new HashMap<>()
 
     @Override
     Set<Relationship> getRelationships() {
@@ -115,10 +117,10 @@ class CalculationKPI implements Processor {
             return
         }
         /*以下为正常处理数据文件的部分*/
-        final AtomicReference<JSONArray> datas = new AtomicReference<>()
+        final AtomicReference<JSONObject> datas = new AtomicReference<>()
         session.read(flowFile, { inputStream ->
             try {
-                datas.set(JSONArray.parseArray(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
+                datas.set(JSONObject.parseObject(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
             } catch (Exception e) {
                 log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 读取流文件失败", e
                 onFailure(session, flowFile)
@@ -149,7 +151,9 @@ class CalculationKPI implements Processor {
             final def former = [(pch.getProperty("returnRules") as String)     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
                                 (pch.getProperty("returnAttributes") as String): attributesList,
                                 (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
-                                (pch.getProperty("returnData") as String)      : dataList]
+                                (pch.getProperty("returnData") as String)      : dataList,
+                                'shipConf'                                     : shipConf]
+
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             String routeName = ''
             for (routesDTO in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
@@ -160,7 +164,7 @@ class CalculationKPI implements Processor {
                         continue
                     }
                     //用来接收脚本返回的数据
-                    Map returnMap = pch.invokeMethod("deepClone",former) as Map
+                    Map returnMap = pch.invokeMethod("deepClone", former) as Map
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeStatus = 'S'
                     //路由关系
@@ -309,4 +313,4 @@ class CalculationKPI implements Processor {
 }
 
 //脚本部署时需要放开该注释
-//processor = new AnalysisByMeteorologicalByRoute()
+//processor = new CalculationKPI()
