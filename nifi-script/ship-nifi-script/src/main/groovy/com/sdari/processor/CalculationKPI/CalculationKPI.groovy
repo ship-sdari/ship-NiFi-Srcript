@@ -1,5 +1,6 @@
 package com.sdari.processor.CalculationKPI
 
+import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
 import org.apache.commons.io.IOUtils
@@ -153,93 +154,80 @@ class CalculationKPI implements Processor {
                                 (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
                                 (pch.getProperty("returnData") as String)      : dataList,
                                 'shipConf'                                     : shipConf]
+            final Map routeConf = pch.getProperty('routeConf') as Map<String, GroovyObject>
+            //根据路由名称 获取路由运行方式
+            def routesDTO = routeConf.get('success')
+            String routeName = routesDTO.getProperty('route_name') as String
+            if ('A' == routesDTO.getProperty('route_running_way')) {
+                log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的运行方式，暂不支持并行执行方式，请检查路由管理表!"
+            }
 
-            //循环路由名称 根据路由状态处理 [路由名称->路由实体]
-            String routeName = ''
-            for (routesDTO in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
-                try {
-                    routeName = routesDTO.getProperty('route_name') as String
-                    if ('A' == routesDTO.getProperty('route_running_way')) {
-                        log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的运行方式，暂不支持并行执行方式，请检查路由管理表!"
-                        continue
+            //用来接收脚本返回的数据
+            Map returnMap = pch.invokeMethod("deepClone", former) as Map
+            //路由方式 A-正常路由 I-源文本路由 S-不路由
+            def routeStatus = 'S'
+            //路由关系
+            def subClasses = (pch.getProperty('subClasses') as Map<String, Map<String, List<GroovyObject>>>)
+            //用来接收计算指标 返回的数据
+            List<JSONArray> lists = new ArrayList<>()
+            //开始循环分脚本
+            for (runningWay in subClasses.get(routeName).keySet()) {
+                //执行方式 A-并行 S-串行
+                if ("S" == runningWay) {
+                    for (subClassDTO in subClasses.get(routeName).get(runningWay)) {
+                        if ('A' == subClassDTO.getProperty('status')) {
+                            //根据路由名称 获取脚本实体GroovyObject instance
+                            final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
+                            //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
+                            Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
+                            lists.add(returnMat.get('data') as JSONArray)
+                            routeStatus = 'A'
+                        }
                     }
-                    //用来接收脚本返回的数据
-                    Map returnMap = pch.invokeMethod("deepClone", former) as Map
-                    //路由方式 A-正常路由 I-源文本路由 S-不路由
-                    def routeStatus = 'S'
-                    //路由关系
-                    switch (routesDTO.getProperty('status')) {
-                    //路由关系禁用
-                        case "S":
-                            routeStatus = 'S'
-                            break
-                    //路由关系忽略，应当源文本路由
-                        case "I":
-                            routeStatus = 'I'
-                            break
-                    //路由关系正常执行
-                        default:
-                            def subClasses = (pch.getProperty('subClasses') as Map<String, Map<String, List<GroovyObject>>>)
-                            //开始循环分脚本
-                            if ((subClasses.get(routeName) as Map<String, List<GroovyObject>>).size() > 1) {
-                                log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的分脚本运行方式配置异常，请检查子脚本管理表!"
-                                break
-                            }
-                            for (runningWay in subClasses.get(routeName).keySet()) {
-                                //执行方式 A-并行 S-串行
-                                if ("S" == runningWay) {
-                                    for (subClassDTO in subClasses.get(routeName).get(runningWay)) {
-                                        if ('A' == subClassDTO.getProperty('status')) {
-                                            //根据路由名称 获取脚本实体GroovyObject instance
-                                            final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
-                                            //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                            returnMap = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
-                                            routeStatus = 'A'
-                                        }
-                                    }
-                                } else {
-                                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的分脚本运行方式，暂不支持并行执行方式，请检查子脚本管理表!"
-                                }
-                            }
-                    }
-                    //如果脚本执行了路由下去
-                    switch (routeStatus) {
-                        case 'A':
-                            def flowFiles = []
-                            final List<JSONObject> returnDataList = (returnMap.get('data') as List<JSONObject>)
-                            final List<JSONObject> returnAttributesList = (returnMap.get('attributes') as List<JSONObject>)
-                            if ((null == returnDataList || null == returnAttributesList) || (returnDataList.size() != returnAttributesList.size())) {
-                                throw new Exception('结果条数与属性条数不一致，请检查子脚本处理逻辑！')
-                            }
-                            for (int i = 0; i < returnDataList.size(); i++) {
-                                FlowFile flowFileNew = session.create()
-                                try {
-                                    session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
-                                    //FlowFile write 数据
-                                    session.write(flowFileNew, { out ->
-                                        out.write(JSONObject.toJSONBytes(returnDataList.get(i),
-                                                SerializerFeature.WriteMapNullValue))
-                                    } as OutputStreamCallback)
-                                    flowFiles.add(flowFileNew)
-                                } catch (Exception e) {
-                                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 创建流文件异常", e
-                                    session.remove(flowFileNew)
-                                }
-                            }
-                            if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
-                            session.transfer(flowFiles, relationships.get(routeName))
-                            break
-                        case 'I':
-                            if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
-                            session.transfer(session.clone(flowFile), relationships.get(routeName))
-                            break
-                        default:
-                            //不路由
-                            break
-                    }
-                } catch (Exception e) {
-                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的处理过程有异常", e
+                } else {
+                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的分脚本运行方式，暂不支持并行执行方式，请检查子脚本管理表!"
                 }
+            }
+
+            //如果脚本执行了路由下去
+            switch (routeStatus) {
+                case 'A':
+                    def flowFiles = []
+                    final List<JSONObject> returnAttributesList = former.get('attributes') as List<JSONObject>
+                    for (int i = 0; i < returnAttributesList.size(); i++) {
+                        FlowFile flowFileNew = session.create()
+                        try {
+                            session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
+                            //返回的指标
+                            JSONObject ruData = new JSONObject()
+                            //循环 返回指标的计算结果
+                            for (data in lists) {
+                                //根据下标 获取对应的 计算指标数据
+                                JSONObject mas = data.get(i) as JSONObject
+                                for (String key : mas.keySet()) {
+                                    ruData.put(key, mas.get(key))
+                                }
+                            }
+                            //FlowFile write 数据
+                            session.write(flowFileNew, { out ->
+                                out.write(JSONObject.toJSONBytes(ruData, SerializerFeature.WriteMapNullValue))
+                            } as OutputStreamCallback)
+                            flowFiles.add(flowFileNew)
+                        } catch (Exception e) {
+                            log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 创建流文件异常", e
+                            session.remove(flowFileNew)
+                        }
+                    }
+                    if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
+                    session.transfer(flowFiles, relationships.get(routeName))
+                    break
+                case 'I':
+                    if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
+                    session.transfer(session.clone(flowFile), relationships.get(routeName))
+                    break
+                default:
+                    //不路由
+                    break
             }
             session.remove(flowFile)
         } catch (final Throwable t) {

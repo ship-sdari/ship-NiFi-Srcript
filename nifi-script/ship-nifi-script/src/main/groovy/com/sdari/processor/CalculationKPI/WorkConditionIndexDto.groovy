@@ -49,7 +49,7 @@ class WorkConditionIndexDto {
             String sid = jsonAttributesFormer.get(SID)
             //  String coltime = jsonAttributesFormer.get(COLTIME)
             String coltime = String.valueOf(Instant.now())
-            JSONObject json = JsonData
+            JSONObject json = new JSONObject()
 
             BigDecimal result = calculationKpi((shipConf.get(sid) as Map<String, String>), JsonData as Map<String, BigDecimal>, coltime, sid)
             json.put(kpiName, result)
