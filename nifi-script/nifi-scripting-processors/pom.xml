@@ -30,6 +30,12 @@
     </properties>
 
     <dependencies>
+        <!-- 文件解压-->
+        <dependency>
+            <groupId>edu.ucar</groupId>
+            <artifactId>netcdf</artifactId>
+            <version>4.2-min</version>
+        </dependency>
         <!-- mysql-->
         <dependency>
             <groupId>mysql</groupId>
