@@ -186,11 +186,8 @@ class CalculationKPI implements Processor {
             if ('A' == routesDTO.getProperty('route_running_way')) {
                 log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的运行方式，暂不支持并行执行方式，请检查路由管理表!"
             }
-
             //用来接收脚本返回的数据
             Map returnMap = pch.invokeMethod("deepClone", former) as Map
-            //路由方式 A-正常路由 I-源文本路由 S-不路由
-            def routeStatus = 'S'
             //路由关系
             def subClasses = (pch.getProperty('subClasses') as Map<String, Map<String, List<GroovyObject>>>)
             //用来接收计算指标 返回的数据
@@ -206,7 +203,6 @@ class CalculationKPI implements Processor {
                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
                             Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
                             lists.add(returnMat.get('data') as JSONArray)
-                            routeStatus = 'A'
                         }
                     }
                 } else {
@@ -214,43 +210,57 @@ class CalculationKPI implements Processor {
                 }
             }
 
+            def flowFiles = []
             //如果脚本执行了路由下去
-            switch (routeStatus) {
-                case 'A':
-                    def flowFiles = []
-                    final List<JSONObject> returnAttributesList = former.get('attributes') as List<JSONObject>
-                    for (int i = 0; i < returnAttributesList.size(); i++) {
-                        FlowFile flowFileNew = session.create()
-                        try {
-                            session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
-                            //返回的指标
-                            JSONObject ruData = new JSONObject()
-                            //循环 返回指标的计算结果
-                            for (data in lists) {
-                                //根据下标 获取对应的 计算指标数据
-                                JSONObject mas = data.get(i) as JSONObject
-                                ruData.putAll(mas)
-                            }
-                            //FlowFile write 数据
-                            session.write(flowFileNew, { out ->
-                                out.write(JSONObject.toJSONBytes(ruData, SerializerFeature.WriteMapNullValue))
-                            } as OutputStreamCallback)
-                            flowFiles.add(flowFileNew)
-                        } catch (Exception e) {
-                            log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 创建流文件异常", e
-                            session.remove(flowFileNew)
+            if (lists.size() > 0) {
+                final List<JSONObject> returnAttributesList = former.get('attributes') as List<JSONObject>
+                for (int i = 0; i < returnAttributesList.size(); i++) {
+                    FlowFile flowFileNew = session.create()
+                    try {
+                        session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
+                        //返回的指标
+                        JSONObject ruData = new JSONObject()
+                        //循环 返回指标的计算结果
+                        for (data in lists) {
+                            //根据下标 获取对应的 计算指标数据
+                            JSONObject mas = data.get(i) as JSONObject
+                            ruData.putAll(mas)
                         }
+                        //FlowFile write 数据
+                        session.write(flowFileNew, { out ->
+                            out.write(JSONObject.toJSONBytes(ruData, SerializerFeature.WriteMapNullValue))
+                        } as OutputStreamCallback)
+                        flowFiles.add(flowFileNew)
+                    } catch (Exception e) {
+                        log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 创建流文件异常", e
+                        session.remove(flowFileNew)
                     }
-                    if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
-                    session.transfer(flowFiles, relationships.get(routeName))
-                    break
-                case 'I':
-                    if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
-                    session.transfer(session.clone(flowFile), relationships.get(routeName))
-                    break
-                default:
-                    //不路由
-                    break
+                }
+            }
+            //循环路由
+            for (routes in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
+                String rouName = routes.getProperty('route_name')
+                try {
+                    //路由关系
+                    switch (routes.getProperty('status')) {
+                    //路由关系禁用
+                        case "S":
+                            break
+                    //路由关系忽略，应当源文本路由
+                        case "I":
+                            if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
+                            session.transfer(session.clone(flowFile), relationships.get(routeName))
+                            break
+                    //路由关系正常执行
+                        default:
+                            if (null == relationships.get(rouName)) throw new Exception('没有该创建路由关系，请核对管理表！')
+                            if (flowFiles.size() > 0) {
+                                session.transfer(flowFiles, relationships.get(rouName))
+                            }
+                    }
+                } catch (Exception e) {
+                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${rouName} 的路由程有异常", e
+                }
             }
             session.remove(flowFile)
         } catch (final Throwable t) {
@@ -382,7 +392,7 @@ class CalculationKPI implements Processor {
         } finally {
             shipConf = configMap
             String t = JSONObject.toJSONString(configMap)
-            logs.info "conf:[${t}]"
+            logs.debug "[Processor_id = ${id} Processor_name = ${currentClassName}] conf:[${t}]"
         }
     }
 
