@@ -46,7 +46,7 @@ class CalculationKPI implements Processor {
     private String sql
 
     //船舶配置 sdi-><key->value>
-    private Map<String, Map<String, String>> shipConf = new HashMap<>()
+    private Map<String, Map<String, String>> shipConf = null
     private static final String url = "jdbc:mysql://{0}:{1}/{2}?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true"
 
     @Override
@@ -149,6 +149,11 @@ class CalculationKPI implements Processor {
         })
         final boolean isMinute = Instant.now().getEpochSecond() % 60 == 0
         try {
+            //配置第一次初始化
+            if (null == shipConf) {
+                def logs = log
+                transaction(logs)
+            }
             if (null == datas.get() || datas.get().size() == 0) {
                 throw new Exception("[Processor_id = ${id} Processor_name = ${currentClassName}] 的接收的数据为空!")
             }
@@ -360,12 +365,14 @@ class CalculationKPI implements Processor {
                 int sid = res.getInt(1)
                 final String key = res.getString(2)
                 final String value = res.getString(3)
-                if (configMap.containsKey(sid)) {
-                    configMap.get(sid).put(key, value)
+                final String id = String.valueOf(sid)
+                if (configMap.containsKey(id)) {
+                    Map<String, String> map = configMap.get(id)
+                    map.put(key, value)
                 } else {
                     Map<String, String> map = new HashMap<>()
                     map.put(key, value)
-                    configMap.put(String.valueOf(sid), map)
+                    configMap.put(id, map)
                 }
             }
             if (!res.isClosed()) res.close()
@@ -374,6 +381,8 @@ class CalculationKPI implements Processor {
             logs.error "[Processor_id = ${id} Processor_name = ${currentClassName}] error [${e}]"
         } finally {
             shipConf = configMap
+            String t = JSONObject.toJSONString(configMap)
+            logs.info "conf:[${t}]"
         }
     }
 
