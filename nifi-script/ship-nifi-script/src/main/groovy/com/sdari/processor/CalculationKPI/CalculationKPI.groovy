@@ -19,6 +19,12 @@ import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
 
 import java.nio.charset.StandardCharsets
+import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.ResultSet
+import java.sql.Statement
+import java.text.MessageFormat
+import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -32,8 +38,16 @@ class CalculationKPI implements Processor {
     private DBCPService dbcpService = null
     private GroovyObject pch
 
+    //处理器数据库连接 相关参数
+    private Connection con
+    private String urls
+    private String userName
+    private String password
+    private String sql
+
     //船舶配置 sdi-><key->value>
-    private static Map<String, Map> shipConf = new HashMap<>()
+    private Map<String, Map<String, String>> shipConf = new HashMap<>()
+    private static final String url = "jdbc:mysql://{0}:{1}/{2}?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true"
 
     @Override
     Set<Relationship> getRelationships() {
@@ -77,6 +91,8 @@ class CalculationKPI implements Processor {
         try {
             pch.invokeMethod("initComponent", null)//相关公共配置实例更新查询
             pch.invokeMethod("initScript", [log, currentClassName])
+            Map confMap = pch.getProperty('parameters') as Map
+            initConf(confMap)//初始化连接配置
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行异常", e
@@ -92,6 +108,9 @@ class CalculationKPI implements Processor {
     public void onStopped(final ProcessContext context) {
         try {
             pch.invokeMethod("releaseComponent", null)//相关公共配置实例清空
+            if (null != con && con.isClosed()) {
+                con.isClosed().clone()
+            }
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器停止运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器停止运行异常", e
@@ -128,6 +147,7 @@ class CalculationKPI implements Processor {
                 session.commit()
             }
         })
+        final boolean isMinute = Instant.now().getEpochSecond() % 60 == 0
         try {
             if (null == datas.get() || datas.get().size() == 0) {
                 throw new Exception("[Processor_id = ${id} Processor_name = ${currentClassName}] 的接收的数据为空!")
@@ -204,9 +224,7 @@ class CalculationKPI implements Processor {
                             for (data in lists) {
                                 //根据下标 获取对应的 计算指标数据
                                 JSONObject mas = data.get(i) as JSONObject
-                                for (String key : mas.keySet()) {
-                                    ruData.put(key, mas.get(key))
-                                }
+                                ruData.putAll(mas)
                             }
                             //FlowFile write 数据
                             session.write(flowFileNew, { out ->
@@ -234,6 +252,11 @@ class CalculationKPI implements Processor {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 的处理过程有异常", t
             onFailure(session, flowFile)
         } finally {
+            //整分钟更新配置
+            if (isMinute) {
+                def logs = log
+                transaction(logs)
+            }
             session.commit()
         }
     }
@@ -298,6 +321,62 @@ class CalculationKPI implements Processor {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 设置日志的调用方法异常", e
         }
     }
+    /**
+     * 初始化所有连接配置
+     */
+    void initConf(Map<String, String> confMap) throws Exception {
+        String ip = confMap.get("ip")
+        String port = confMap.get("port")
+        userName = confMap.get("user.name")
+        password = confMap.get("password")
+        sql = confMap.get("sql.conf")
+        String database = confMap.get("database.name")
+        String u = url
+        urls = MessageFormat.format(u, ip, port, database)
+    }
+
+    /**
+     * 创建连接
+     */
+    void ConnectionsInIt() throws Exception {
+        con = DriverManager.getConnection(urls, userName, password)
+    }
+
+    /**
+     * 查询船配置
+     */
+    synchronized void transaction(def logs) {
+        //如果没有库的连,或者连接断开 就新建一个连接
+        if (null == con || con.isClosed()) {
+            ConnectionsInIt()
+        }
+        Map<String, Map<String, String>> configMap = new HashMap<>()
+        try {
+            Statement stm = con.createStatement()
+            //查询指标配置
+            ResultSet res = stm.executeQuery(sql)
+            //获取所有配置
+            while (res.next()) {
+                int sid = res.getInt(1)
+                final String key = res.getString(2)
+                final String value = res.getString(3)
+                if (configMap.containsKey(sid)) {
+                    configMap.get(sid).put(key, value)
+                } else {
+                    Map<String, String> map = new HashMap<>()
+                    map.put(key, value)
+                    configMap.put(String.valueOf(sid), map)
+                }
+            }
+            if (!res.isClosed()) res.close()
+            if (!stm.isClosed()) stm.close()
+        } catch (Exception e) {
+            logs.error "[Processor_id = ${id} Processor_name = ${currentClassName}] error [${e}]"
+        } finally {
+            shipConf = configMap
+        }
+    }
+
 }
 
 //脚本部署时需要放开该注释
