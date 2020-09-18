@@ -210,34 +210,9 @@ class CalculationKPI implements Processor {
                 }
             }
 
-            def flowFiles = []
-            //如果脚本执行了路由下去
-            if (lists.size() > 0) {
-                final List<JSONObject> returnAttributesList = former.get('attributes') as List<JSONObject>
-                for (int i = 0; i < returnAttributesList.size(); i++) {
-                    FlowFile flowFileNew = session.create()
-                    try {
-                        session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
-                        //返回的指标
-                        JSONObject ruData = new JSONObject()
-                        //循环 返回指标的计算结果
-                        for (data in lists) {
-                            //根据下标 获取对应的 计算指标数据
-                            JSONObject mas = data.get(i) as JSONObject
-                            ruData.putAll(mas)
-                        }
-                        //FlowFile write 数据
-                        session.write(flowFileNew, { out ->
-                            out.write(JSONObject.toJSONBytes(ruData, SerializerFeature.WriteMapNullValue))
-                        } as OutputStreamCallback)
-                        flowFiles.add(flowFileNew)
-                    } catch (Exception e) {
-                        log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 创建流文件异常", e
-                        session.remove(flowFileNew)
-                    }
-                }
-            }
+
             //循环路由
+            final List<JSONObject> returnAttributesList = former.get('attributes') as List<JSONObject>
             for (routes in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
                 String rouName = routes.getProperty('route_name')
                 try {
@@ -248,12 +223,38 @@ class CalculationKPI implements Processor {
                             break
                     //路由关系忽略，应当源文本路由
                         case "I":
-                            if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
-                            session.transfer(session.clone(flowFile), relationships.get(routeName))
+                            if (null == relationships.get(rouName)) throw new Exception('没有该创建路由关系，请核对管理表！')
+                            session.transfer(session.clone(flowFile), relationships.get(rouName))
                             break
                     //路由关系正常执行
                         default:
                             if (null == relationships.get(rouName)) throw new Exception('没有该创建路由关系，请核对管理表！')
+                            //如果有数据 路由下去
+                            def flowFiles = []
+                            if (lists.size() > 0) {
+                                for (int i = 0; i < returnAttributesList.size(); i++) {
+                                    FlowFile flowFileNew = session.create()
+                                    try {
+                                        session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
+                                        //返回的指标
+                                        JSONObject ruData = new JSONObject()
+                                        //循环 返回指标的计算结果
+                                        for (data in lists) {
+                                            //根据下标 获取对应的 计算指标数据
+                                            JSONObject mas = data.get(i) as JSONObject
+                                            ruData.putAll(mas)
+                                        }
+                                        //FlowFile write 数据
+                                        session.write(flowFileNew, { out ->
+                                            out.write(JSONObject.toJSONBytes(ruData, SerializerFeature.WriteMapNullValue))
+                                        } as OutputStreamCallback)
+                                        flowFiles.add(flowFileNew)
+                                    } catch (Exception e) {
+                                        log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${rouName} 创建流文件异常", e
+                                        session.remove(flowFileNew)
+                                    }
+                                }
+                            }
                             if (flowFiles.size() > 0) {
                                 session.transfer(flowFiles, relationships.get(rouName))
                             }
