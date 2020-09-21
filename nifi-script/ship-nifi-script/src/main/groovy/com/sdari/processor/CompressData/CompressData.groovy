@@ -115,7 +115,10 @@ class CompressData implements Processor {
         final AtomicReference<InputStream> datas = new AtomicReference<>()
         session.read(flowFile, { inputStream ->
             try {
-                datas.set(inputStream)
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream()
+                IOUtils.copy(inputStream, outputStream)
+                InputStream input = new ByteArrayInputStream(outputStream.toByteArray())
+                datas.set(input)
             } catch (Exception e) {
                 log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 读取流文件失败", e
                 onFailure(session, flowFile)
@@ -133,7 +136,7 @@ class CompressData implements Processor {
             def dataList = []
             switch (datas.get().getClass().canonicalName) {
                 case 'com.alibaba.fastjson.JSONObject':
-                case 'java.io.InputStream':
+                case 'java.io.ByteArrayInputStream':
                     attributesList.add(attributesMap.clone())
                     dataList.add(datas.get())
                     break

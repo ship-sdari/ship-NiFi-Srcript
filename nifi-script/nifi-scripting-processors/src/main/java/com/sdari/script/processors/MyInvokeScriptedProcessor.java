@@ -203,6 +203,8 @@ public class MyInvokeScriptedProcessor extends AbstractSessionFactoryProcessor {
             } else {
                 if (ScriptingComponentHelper.isFile(scriptingComponentHelper.getScriptPath())) {
                     reloadScriptFile(scriptingComponentHelper.getScriptPath());
+                }else {
+                    throw new ProcessException("The full path script file is not available : "+ scriptingComponentHelper.getScriptPath());
                 }
             }
             scriptNeedsReload.set(false);
