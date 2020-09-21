@@ -242,7 +242,7 @@
         <dependency>
             <groupId>com.infiniteautomation</groupId>
             <artifactId>modbus4j</artifactId>
-            <version>3.0.3</version>
+            <version>3.0.5</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -285,10 +285,10 @@
             <version>1.3.1</version>
         </dependency>
         <!--    引用dds依赖jar包    -->
-        <!--<dependency>
+        <dependency>
             <groupId>com.sdari</groupId>
             <artifactId>HldDDSLib4j</artifactId>
             <version>1.323.7.3</version>
-        </dependency>-->
+        </dependency>
     </dependencies>
 </project>
