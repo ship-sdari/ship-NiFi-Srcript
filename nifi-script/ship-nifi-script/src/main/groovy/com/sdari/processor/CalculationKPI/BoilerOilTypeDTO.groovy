@@ -10,7 +10,7 @@ import java.time.Instant
  * @type: （单机单桨）
  * @kpiName: 锅炉用油类型
  * @author Liumouren
- * @date 2020-09-21 14:32:00
+ * @date 2020-09-21 17:01:00
  */
 class BoilerOilTypeDTO {
     private static log
@@ -20,7 +20,7 @@ class BoilerOilTypeDTO {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'aux_oil'
+    private static kpiName = 'boiler_oil_type'
     //计算相关参数
     final static String SID = 'sid'
 
