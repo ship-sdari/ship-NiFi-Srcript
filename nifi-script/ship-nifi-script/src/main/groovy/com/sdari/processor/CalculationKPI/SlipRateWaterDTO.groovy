@@ -77,8 +77,10 @@ class SlipRateWaterDTO {
     }
 
     /**
-     * 辅机油耗的计算公式
-     * 计算公式为 oil =  入 - 出
+     * 对水滑失率的计算公式
+     * 计算公式为 1- 对地航速*0.514/ (np/60)
+     * n 为 转速 mon_navstate NMS_1
+     * p VLOC  = 8.51794m VLCC = 7.5730m
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>

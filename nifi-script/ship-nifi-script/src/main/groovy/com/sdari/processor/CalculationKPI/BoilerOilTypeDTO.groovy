@@ -75,8 +75,8 @@ class BoilerOilTypeDTO {
     }
 
     /**
-     * 辅机油耗的计算公式
-     * 计算公式为 oil =  入 - 出
+     * 锅炉用油类型的计算公式
+     * 计算公式 ：0:重油；1：轻油'
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>

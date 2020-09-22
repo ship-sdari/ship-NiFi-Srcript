@@ -76,8 +76,8 @@ class UnitDistanceCo2Dto {
     }
 
     /**
-     * 辅机油耗的计算公式
-     * 计算公式为 oil =  入 - 出
+     * 单位距离co2排放的计算公式
+     * 计算公式 暂时为原代码的一致，并没有明确指出
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>

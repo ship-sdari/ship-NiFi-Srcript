@@ -78,8 +78,8 @@ package com.sdari.processor.CalculationKPI
     }
 
     /**
-     * 辅机油耗的计算公式
-     * 计算公式为 oil =  入 - 出
+     * 锅炉油耗的计算公式
+     * 计算公式 入流量 - 出流量
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>

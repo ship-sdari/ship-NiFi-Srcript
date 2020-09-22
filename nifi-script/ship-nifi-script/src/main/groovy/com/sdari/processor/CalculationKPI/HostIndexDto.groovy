@@ -8,7 +8,7 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 辅机油耗
+ * @kpiName: 主机油耗
  * @author Liumouren
  * @date 2020-09-21 17:17:00
  */
