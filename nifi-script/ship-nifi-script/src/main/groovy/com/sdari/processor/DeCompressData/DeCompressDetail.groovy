@@ -1,11 +1,7 @@
-package com.sdari.processor.CompressData
+package com.sdari.processor.DeCompressData
 
 import com.alibaba.fastjson.JSONObject
-import com.fasterxml.jackson.core.JsonEncoding
-import com.fasterxml.jackson.core.JsonFactory
-import com.fasterxml.jackson.core.JsonGenerator
-import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.JsonToken
+import com.fasterxml.jackson.core.*
 import lombok.Data
 import org.apache.commons.compress.compressors.CompressorException
 import org.apache.commons.compress.compressors.CompressorInputStream
@@ -17,16 +13,16 @@ import org.apache.nifi.logging.ComponentLog
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 将分发数据进行检查、压缩、格式化的脚本
+ * 将接收数据进行还原、分解属性、解压缩的脚本
  */
-class CompressDetail {
+class DeCompressDetail {
     private static log
     private static processorId
     private static String processorName
     private static routeId
     private static String currentClassName
 
-    CompressDetail(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    DeCompressDetail(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -49,11 +45,11 @@ class CompressDetail {
             try {//详细处理流程
                 final InputStream jsonDataFormer = (dataList.get(i) as InputStream)
                 final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
-                //开始压缩步骤
+                //开始解压缩步骤
                 OutputStream out = new ByteArrayOutputStream()
-                String compressType = jsonAttributesFormer.getString('compress.type')
+                String deCompressType = jsonAttributesFormer.getString('decompress.type')
                 ColumnStore columnStore
-                switch (compressType) {
+                switch (deCompressType) {
                     case 'delta_rle_lzma':
                         columnStore = new ColumnStore(ColumnStore.DELTA_RLE, CompressorStreamFactory.LZMA)
                         break
@@ -61,19 +57,17 @@ class CompressDetail {
                         columnStore = new ColumnStore(ColumnStore.DELTA, CompressorStreamFactory.LZMA)
                         break
                     default:
-                        throw new Exception("当前不支持该压缩算法：${compressType}")
+                        throw new Exception("当前不支持该解压缩算法：${deCompressType}")
                 }
-                columnStore.compressFile(jsonDataFormer, out)//压缩
+                columnStore.decompressFile(jsonDataFormer, out)//解压缩
                 InputStream returnIn = new ByteArrayInputStream(out.toByteArray())
                 jsonDataFormer.close()//输入流关闭
                 out.close()//中转输出流关闭
-                jsonAttributesFormer.put('size.before', jsonAttributesFormer.getString('File Size'))//加入压缩前文件大小
-
                 //单条数据处理结束，放入返回仓库
                 dataListReturn.add(returnIn)
                 attributesListReturn.add(jsonAttributesFormer)
             } catch (Exception e) {
-                //压缩失败
+                //解压缩失败
                 throw new Exception("[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 处理单条数据时异常", e)
             }
         }
