@@ -67,8 +67,6 @@ class CompressDetail {
                 InputStream returnIn = new ByteArrayInputStream(out.toByteArray())
                 jsonDataFormer.close()//输入流关闭
                 out.close()//中转输出流关闭
-                jsonAttributesFormer.put('size.before', jsonAttributesFormer.getString('File Size'))//加入压缩前文件大小
-
                 //单条数据处理结束，放入返回仓库
                 dataListReturn.add(returnIn)
                 attributesListReturn.add(jsonAttributesFormer)

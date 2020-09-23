@@ -113,7 +113,7 @@ class MergeDataByToShoreGroup implements Processor {
             try {
                 JSONObject json = mergeDto.merge
                 if (json.size() == 0) return
-                final String fileName = String.join('-', [mergeDto.sid, mergeDto.shipCollectProtocol, mergeDto.shipCollectFreq, mergeDto.shoreGroup, mergeDto.shoreIp, mergeDto.shorePort, mergeDto.shoreFreq as String, mergeDto.compressType] as Iterable<? extends CharSequence>) + '.json'
+                final String fileName = String.join('-', [mergeDto.sid, mergeDto.shipCollectProtocol, mergeDto.shipCollectFreq, mergeDto.shoreGroup, mergeDto.shoreIp, mergeDto.shorePort, mergeDto.shoreFreq as String, mergeDto.compressType, mergeDto.shoreProtocol] as Iterable<? extends CharSequence>) + '.json'
                 final String path = (pch.getProperty('parameters') as HashMap)?.getOrDefault('merge.path', "/home/sdari/app/nifi/share/merged/${mergeDto.sid}/") as String
                 File file = new File(path)
                 if (!file.isDirectory()) file.mkdirs()//目录不存在就创建
@@ -139,7 +139,7 @@ class MergeDataByToShoreGroup implements Processor {
             try {
                 if (file.isFile()) {
                     List<String> attrs = file.name?.substring(0, file.name?.length() - 5)?.split('-')?.toList()
-                    if (null == attrs || attrs.size() != 8) throw new Exception('文件名解析异常')
+                    if (null == attrs || attrs.size() != 9) throw new Exception('文件名解析异常')
                     MergeGroupDTO merge = new MergeGroupDTO()
                     merge.sid = attrs.get(0)
                     merge.shipCollectProtocol = attrs.get(1)
@@ -149,6 +149,7 @@ class MergeDataByToShoreGroup implements Processor {
                     merge.shorePort = attrs.get(5)
                     merge.shoreFreq = Double.parseDouble(attrs.get(6))
                     merge.compressType = attrs.get(7)
+                    merge.shoreProtocol = attrs.get(8)
                     InputStream inputStream = file.newInputStream()
                     merge.merge.putAll JSONObject.parseObject(IOUtils.toString(inputStream, 'UTF-8'))
                     history.add merge
@@ -262,11 +263,14 @@ class MergeDataByToShoreGroup implements Processor {
                                         merge.shorePort = jsonAttributesFormer.getString('shore.port')
                                         merge.shoreFreq = Double.parseDouble(jsonAttributesFormer.getString('shore.freq'))
                                         merge.compressType = jsonAttributesFormer.getString('compress.type')
+                                        merge.shoreProtocol = jsonAttributesFormer.getString('shore.protocol')
                                         mergeGroupDTOMap.put(key, merge)
                                     }
                                     merge = mergeGroupDTOMap.get(key)
                                     JSONArray merged = merge.addAndCheckOut(coltime, JSONObject.toJSONString(jsonDataFormer, SerializerFeature.WriteMapNullValue))
                                     if (null != merged) {//达到合并状态
+                                        String filename = String.join('-', [merge.sid, merge.shipCollectProtocol, merge.shipCollectFreq, merge.shoreGroup, merge.shoreIp, merge.shorePort, merge.shoreFreq as String, merge.compressType, merge.shoreProtocol, Instant.now().getEpochSecond() as String] as Iterable<? extends CharSequence>)
+                                        jsonAttributesFormer.put('file.name', filename)
                                         returnDataList.add(merged)
                                         returnAttributesList.add(jsonAttributesFormer)
                                         routeStatus = 'A'
@@ -286,6 +290,9 @@ class MergeDataByToShoreGroup implements Processor {
                                                     newAttributes.put('shore.port', hisMerge.shorePort)
                                                     newAttributes.put('shore.freq', hisMerge.shoreFreq as String)
                                                     newAttributes.put('compress.type', hisMerge.compressType)
+                                                    newAttributes.put('shore.protocol', hisMerge.shoreProtocol)
+                                                    String filename = String.join('-', [hisMerge.sid, hisMerge.shipCollectProtocol, hisMerge.shipCollectFreq, hisMerge.shoreGroup, hisMerge.shoreIp, hisMerge.shorePort, hisMerge.shoreFreq as String, hisMerge.compressType, hisMerge.shoreProtocol, Instant.now().getEpochSecond() as String] as Iterable<? extends CharSequence>)
+                                                    newAttributes.put('file.name', filename)
                                                     returnDataList.add hisMerged
                                                     returnAttributesList.add newAttributes
                                                     its.remove()
@@ -419,6 +426,7 @@ class MergeDataByToShoreGroup implements Processor {
         private String shorePort
         private Double shoreFreq
         private String compressType
+        private String shoreProtocol
         private JSONObject merge = new JSONObject(new TreeMap<String, Object>())
 
         private void push(String time, String data) throws Exception {
