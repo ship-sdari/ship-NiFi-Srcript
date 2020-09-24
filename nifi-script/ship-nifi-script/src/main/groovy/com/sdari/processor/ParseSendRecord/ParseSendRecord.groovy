@@ -1,6 +1,7 @@
-package com.sdari.processor.CompressData
+package com.sdari.processor.ParseSendRecord
 
 import com.alibaba.fastjson.JSONObject
+import com.alibaba.fastjson.serializer.SerializerFeature
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
 import org.apache.nifi.annotation.documentation.CapabilityDescription
@@ -15,12 +16,14 @@ import org.apache.nifi.logging.ComponentLog
 import org.apache.nifi.processor.*
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
+
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
-@CapabilityDescription('数据压缩处理器')
-class CompressData implements Processor {
+@CapabilityDescription('')
+class ParseSendRecord implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
@@ -112,14 +115,10 @@ class CompressData implements Processor {
             return
         }
         /*以下为正常处理数据文件的部分*/
-        final AtomicReference<InputStream> datas = new AtomicReference<>()
+        final AtomicReference<JSONObject> datas = new AtomicReference<>()
         session.read(flowFile, { inputStream ->
             try {
-                OutputStream out = new ByteArrayOutputStream()
-                IOUtils.copy(inputStream,out)
-                InputStream input = new ByteArrayInputStream(out.toByteArray())
-                datas.set(input)
-                out.close()//关闭中转流
+                datas.set(JSONObject.parseObject(IOUtils.toString(inputStream, StandardCharsets.UTF_8)))
             } catch (Exception e) {
                 log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 读取流文件失败", e
                 onFailure(session, flowFile)
@@ -127,18 +126,17 @@ class CompressData implements Processor {
             }
         })
         try {
-            if (null == datas.get()) {
+            if (null == datas.get() || datas.get().size() == 0) {
                 throw new Exception("[Processor_id = ${id} Processor_name = ${currentClassName}] 的接收的数据为空!")
             }
             def relationships = pch.invokeMethod("getRelationships", null) as Map<String, Relationship>
             final def attributesMap = (pch.invokeMethod("updateAttributes", [flowFile.getAttributes()]) as Map<String, String>)
-            attributesMap.put('size.before', flowFile.getSize() as String)
+            attributesMap.put('file.size', flowFile.getSize() as String)
             //调用脚本需要传的参数[attributesMap-> flowFile属性][data -> flowFile数据]
             def attributesList = []
             def dataList = []
             switch (datas.get().getClass().canonicalName) {
                 case 'com.alibaba.fastjson.JSONObject':
-                case 'java.io.ByteArrayInputStream':
                     attributesList.add(attributesMap.clone())
                     dataList.add(datas.get())
                     break
@@ -163,7 +161,7 @@ class CompressData implements Processor {
                         continue
                     }
                     //用来接收脚本返回的数据
-                    Map returnMap = former as Map//指针指向，而非深拷贝
+                    Map returnMap = pch.invokeMethod("deepClone", former) as Map
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeStatus = 'S'
                     //路由关系
@@ -205,7 +203,7 @@ class CompressData implements Processor {
                     switch (routeStatus) {
                         case 'A':
                             def flowFiles = []
-                            final List<InputStream> returnDataList = (returnMap.get('data') as List<InputStream>)
+                            final List<JSONObject> returnDataList = (returnMap.get('data') as List<JSONObject>)
                             final List<JSONObject> returnAttributesList = (returnMap.get('attributes') as List<JSONObject>)
                             if ((null == returnDataList || null == returnAttributesList) || (returnDataList.size() != returnAttributesList.size())) {
                                 throw new Exception('结果条数与属性条数不一致，请检查子脚本处理逻辑！')
@@ -216,8 +214,8 @@ class CompressData implements Processor {
                                     session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
                                     //FlowFile write 数据
                                     session.write(flowFileNew, { out ->
-                                        IOUtils.copy(returnDataList.get(i), out)
-                                        returnDataList.get(i).close()
+                                        out.write(JSONObject.toJSONBytes(returnDataList.get(i),
+                                                SerializerFeature.WriteMapNullValue))
                                     } as OutputStreamCallback)
                                     flowFiles.add(flowFileNew)
                                 } catch (Exception e) {
@@ -311,4 +309,4 @@ class CompressData implements Processor {
 }
 
 //脚本部署时需要放开该注释
-//processor = new CompressData()
+//processor = new ParseSendRecord()

@@ -269,7 +269,7 @@ class MergeDataByToShoreGroup implements Processor {
                                     merge = mergeGroupDTOMap.get(key)
                                     JSONArray merged = merge.addAndCheckOut(coltime, JSONObject.toJSONString(jsonDataFormer, SerializerFeature.WriteMapNullValue))
                                     if (null != merged) {//达到合并状态
-                                        String filename = String.join('-', [merge.sid, merge.shipCollectProtocol, merge.shipCollectFreq, merge.shoreGroup, merge.shoreIp, merge.shorePort, merge.shoreFreq as String, merge.compressType, merge.shoreProtocol, Instant.now().getEpochSecond() as String] as Iterable<? extends CharSequence>)
+                                        String filename = String.join('-', [merge.sid, merge.shipCollectProtocol, merge.shipCollectFreq, merge.shoreGroup, merge.shoreIp, merge.shorePort, merge.shoreFreq as String, merge.compressType, merge.shoreProtocol, Instant.now().toEpochMilli() as String] as Iterable<? extends CharSequence>)
                                         jsonAttributesFormer.put('file.name', filename)
                                         returnDataList.add(merged)
                                         returnAttributesList.add(jsonAttributesFormer)
@@ -291,7 +291,7 @@ class MergeDataByToShoreGroup implements Processor {
                                                     newAttributes.put('shore.freq', hisMerge.shoreFreq as String)
                                                     newAttributes.put('compress.type', hisMerge.compressType)
                                                     newAttributes.put('shore.protocol', hisMerge.shoreProtocol)
-                                                    String filename = String.join('-', [hisMerge.sid, hisMerge.shipCollectProtocol, hisMerge.shipCollectFreq, hisMerge.shoreGroup, hisMerge.shoreIp, hisMerge.shorePort, hisMerge.shoreFreq as String, hisMerge.compressType, hisMerge.shoreProtocol, Instant.now().getEpochSecond() as String] as Iterable<? extends CharSequence>)
+                                                    String filename = String.join('-', [hisMerge.sid, hisMerge.shipCollectProtocol, hisMerge.shipCollectFreq, hisMerge.shoreGroup, hisMerge.shoreIp, hisMerge.shorePort, hisMerge.shoreFreq as String, hisMerge.compressType, hisMerge.shoreProtocol, Instant.now().toEpochMilli() as String] as Iterable<? extends CharSequence>)
                                                     newAttributes.put('file.name', filename)
                                                     returnDataList.add hisMerged
                                                     returnAttributesList.add newAttributes
