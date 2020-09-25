@@ -1,4 +1,4 @@
-package com.sdari.processor.CalculationKPI
+package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 
 import com.alibaba.fastjson.JSONObject
@@ -8,11 +8,11 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 绝对风向
+ * @kpiName: 纬度
  * @author Liumouren
- * @date 2020-09-22 13:13:00
+ * @date 2020-09-21 18:47:00
  */
-class TwdDTO {
+class LatDTO {
     private static log
     private static processorId
     private static String processorName
@@ -20,11 +20,11 @@ class TwdDTO {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'twd'
+    private static kpiName = 'latitude'
     //计算相关参数
     final static String SID = 'sid'
 
-    TwdDTO(final def logger, final int pid, final String pName, final int rid) {
+    LatDTO(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -75,7 +75,7 @@ class TwdDTO {
     }
 
     /**
-     * 绝对风向的计算公式
+     * 纬度的计算公式
      * 计算公式 暂时为原代码的一致，并没有明确指出
      *
      * @param configMap 相关系统配置
@@ -83,21 +83,47 @@ class TwdDTO {
      */
     static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
         try {
-            BigDecimal result
-            // 船艏向(真北,度)
-            BigDecimal vg = data.get("hdg");
-            // 相对风向
-            BigDecimal rwd = data.get("rwd");
-            if (vg == null || rwd == null) {
-                log.debug("[${sid}] [${kpiName}] [${time}] vg[${vg}] rwd[${rwd}]  result[${null}] ")
-                return null;
+            BigDecimal result = null;
+            Integer LON_LAT_CALCULATION
+            String a = configMap.get("LON_LAT_CALCULATION");
+            if (a != null && !a.isEmpty()) {
+                LON_LAT_CALCULATION = Integer.parseInt(a);
+            } else {
+                LON_LAT_CALCULATION = 1;
+                log.error("纬度配置查询有误 null，使用默认初始值:[1] ");
             }
-            result = vg.add(rwd);
-            log.debug("[${sid}] [${kpiName}] [${time}] vg[${vg}] rwd[${rwd}]  result[${result}] ")
+            Double dLat = 0;
+            BigDecimal lat = data.get("lat");
+            BigDecimal lon = data.get("lat");
+            if (lat != null && lon != null) {
+                if (LON_LAT_CALCULATION== 0) {
+                    result = lat;
+                } else {
+                    dLat = lat.doubleValue();
+                    lat = BigDecimal.valueOf((int) (dLat / 100)
+                            + (dLat - (int) (dLat / 100) * 100) / 60d
+                            + (dLat - (int) dLat) / 36);
+                    result = lat.setScale(12, BigDecimal.ROUND_HALF_UP);
+                }
+            }
+            log.debug("[${sid}] [${kpiName}] [${time}] lat[${lat}] lon[${lon}]  result[${result}] ")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
             return null
         }
     }
+
+    /**
+     *
+     * @param oilValue
+     * @return
+     */
+    static BigDecimal oilRangeLimit(BigDecimal oilValue) {
+        if (oilValue >= BigDecimal.valueOf(-2) && oilValue <= BigDecimal.valueOf(5)) {
+            return oilValue;
+        }
+        return BigDecimal.valueOf(0);
+    }
+
 }

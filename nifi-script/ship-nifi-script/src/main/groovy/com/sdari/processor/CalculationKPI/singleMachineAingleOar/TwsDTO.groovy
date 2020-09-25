@@ -1,4 +1,4 @@
-package com.sdari.processor.CalculationKPI
+package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 
 import com.alibaba.fastjson.JSONObject
@@ -8,11 +8,11 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 辅机用油
+ * @kpiName: 绝对风速
  * @author Liumouren
- * @date 2020-09-21 15:51:00
+ * @date 2020-09-22 13:21:00
  */
-class AuxUseOilDTO {
+class TwsDTO {
     private static log
     private static processorId
     private static String processorName
@@ -20,14 +20,11 @@ class AuxUseOilDTO {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'aux_use_oil'
+    private static kpiName = 'tws'
     //计算相关参数
     final static String SID = 'sid'
-    final static String COLTIME = 'coltime'
 
-    final static BigDecimal slipperyValue = BigDecimal.valueOf(0.514 * 60)
-
-    AuxUseOilDTO(final def logger, final int pid, final String pName, final int rid) {
+    TwsDTO(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -78,7 +75,7 @@ class AuxUseOilDTO {
     }
 
     /**
-     * 辅机用油的计算公式
+     * 绝对风速的计算公式
      * 计算公式 暂时为原代码的一致，并没有明确指出
      *
      * @param configMap 相关系统配置
@@ -86,41 +83,29 @@ class AuxUseOilDTO {
      */
     static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
         try {
-            BigDecimal result = null;
-            //柴油发电机使用重油指示
-            BigDecimal geUseHfoStr = data.get("ge_use_hfo");
-            //柴油发电机使用柴油/轻柴油指示
-            BigDecimal geUseMdoStr = data.get("ge_use_mdo");
-            if(null==geUseHfoStr&&null==geUseMdoStr){
-                log.debug("[${sid}] [${kpiName}] [${time}] 柴油发电机使用重油指示[${geUseHfoStr}] 柴油发电机使用柴油/轻柴油指示[${geUseMdoStr}] result[${null}] ")
+            BigDecimal result
+            // 相对风速
+            BigDecimal rws = data.get("rws");
+            // 纵向对地速度
+            BigDecimal vg = data.get("vg");
+            // 相对风向
+            BigDecimal rwd = data.get("rwd");
+            if (rws == null || rwd == null || vg == null) {
+                log.debug("[${sid}] [${kpiName}] [${time}] rws[${rws}]  vg[${vg}] rwd[${rwd}]  result[${null}] ")
                 return null;
             }
-            //计算
-            if (null!=geUseHfoStr&& geUseHfoStr == BigDecimal.ONE) {
-                result = BigDecimal.valueOf(0);
-            } else if (null!=geUseMdoStr&& geUseMdoStr == BigDecimal.ONE){
-                result = BigDecimal.valueOf(1);
-            }else if (null!=geUseMdoStr&& geUseMdoStr == BigDecimal.ZERO){
-                result = BigDecimal.valueOf(0);
-            }
-            log.debug("[${sid}] [${kpiName}] [${time}] 柴油发电机使用重油指示[${geUseHfoStr}] 柴油发电机使用柴油/轻柴油指示[${geUseMdoStr}] result[${result}] ")
+            BigDecimal add = (rws * rws).add(vg * vg);
+            //弧度
+            double angle = BigDecimal.valueOf(180d).subtract(BigDecimal.valueOf(Math.abs(rwd.subtract(BigDecimal.valueOf(180d)).doubleValue()))).multiply(BigDecimal.valueOf(Math.PI)).doubleValue()/180;
+            double cos = Math.cos(angle);
+            BigDecimal multiply = ((rws * vg) * BigDecimal.valueOf(2d)) * BigDecimal.valueOf(cos);
+            double pow = Math.pow(add.subtract(multiply).setScale(2, BigDecimal.ROUND_HALF_UP).doubleValue(), 1 / 2d);
+            result = BigDecimal.valueOf(pow).setScale(3, BigDecimal.ROUND_HALF_UP);
+            log.debug("[${sid}] [${kpiName}] [${time}] rws[${rws}]  vg[${vg}] rwd[${rwd}]  result[${result}] ")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
             return null
         }
     }
-
-    /**
-     *
-     * @param oilValue
-     * @return
-     */
-    static BigDecimal oilRangeLimit(BigDecimal oilValue) {
-        if (oilValue >= BigDecimal.valueOf(-2) && oilValue <= BigDecimal.valueOf(5)) {
-            return oilValue;
-        }
-        return BigDecimal.valueOf(0);
-    }
-
 }

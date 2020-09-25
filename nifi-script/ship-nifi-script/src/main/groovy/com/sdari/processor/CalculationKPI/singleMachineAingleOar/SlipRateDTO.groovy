@@ -1,4 +1,4 @@
-package com.sdari.processor.CalculationKPI
+package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 
 import com.alibaba.fastjson.JSONObject
@@ -8,11 +8,11 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 主机油耗率
+ * @kpiName: 对地滑失率
  * @author Liumouren
- * @date 2020-09-21 17:30:00
+ * @date 2020-09-22 11:12:00
  */
-class HostOilRateDTO {
+class SlipRateDTO {
     private static log
     private static processorId
     private static String processorName
@@ -20,11 +20,13 @@ class HostOilRateDTO {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'host_oil_rate'
+    private static kpiName = 'slip_rate'
     //计算相关参数
     final static String SID = 'sid'
+    // 螺距,查询值
+    final static BigDecimal PITCH = BigDecimal.valueOf(11.2d);
 
-    HostOilRateDTO(final def logger, final int pid, final String pName, final int rid) {
+    SlipRateDTO(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -75,7 +77,7 @@ class HostOilRateDTO {
     }
 
     /**
-     * 主机油耗率的计算公式
+     * 辅对地滑失率的计算公式
      * 计算公式 暂时为原代码的一致，并没有明确指出
      *
      * @param configMap 相关系统配置
@@ -83,76 +85,43 @@ class HostOilRateDTO {
      */
     static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
         try {
-            BigDecimal result
-            BigDecimal inRate
-            BigDecimal outRate
-            BigDecimal ge1Power = data.get("me_ecs_power")
-            BigDecimal realMeEcsPower = null
-            if (ge1Power != null && !ge1Power.equals(BigDecimal.valueOf(0))) {
-                String a = configMap.get("SMCR_P");
-                if (a != null && !a.isEmpty()) {
-                    realMeEcsPower = ge1Power*BigDecimal.valueOf(a as long);
-                } else {
-                    realMeEcsPower = ge1Power* BigDecimal.valueOf(24200);
-                }
-                realMeEcsPower = realMeEcsPower.divide(BigDecimal.valueOf(100f), 4).setScale(2, 4)
-            }
-            Integer OIL_CALCULATION_TYPE
-            String a = configMap.get("OIL_CALCULATION_TYPE");
-            if (a != null && !a.isEmpty()) {
-                OIL_CALCULATION_TYPE= Integer.parseInt(a);
-            } else {
-                log.error("主机油耗率计算频率查询有误 NULL，使用默认初始值:OIL_CALCULATION_TYPE [1] 异常为：");
-                OIL_CALCULATION_TYPE= 1;
-            }
-            if (OIL_CALCULATION_TYPE == 0) {
-                // 获取主机流入流量
-                inRate = data.get("me_fo_in_total");
-                // 获取主机流出流量
-                outRate = data.get("me_fo_out_total");
-            } else {
-                // 获取主机流入流量
-                inRate = data.get("me_fo_in_rate");
-                // 获取主机流出流量
-                outRate = data.get("me_fo_out_rate");
-            }
-            if (isBigDecimal(realMeEcsPower) || inRate == null || outRate == null) {
-                log.debug("[${sid}] [${kpiName}] [${time}] 主机流入流量[${inRate}] 主机流出流量[${outRate}] 油耗计算方式{${OIL_CALCULATION_TYPE}} result[${null}] ")
+            BigDecimal result = null;
+            // 获取对地航速
+            BigDecimal Vsog = data.get("vg");
+            // 获取转速
+            BigDecimal n = data.get("me_ecs_speed");
+            if (Vsog == null || n == null || n == BigDecimal.valueOf(0)) {
+                log.debug("[${sid}] [${kpiName}] [${time}] 对地航速[${Vsog}] 获取转速[${n}]  result[${null}] ")
                 return null;
             }
-            BigDecimal geOil = currentTimeOil(inRate, outRate);
-            result = ((geOil * new BigDecimal(1000000)).divide((realMeEcsPower), 2, BigDecimal.ROUND_HALF_UP));
-            log.debug("[${sid}] [${kpiName}] [${time}] 主机流入流量[${inRate}] 主机流出流量[${outRate}] 油耗计算方式{${OIL_CALCULATION_TYPE}} result[${result}] ")
+            result = slipperyDouble(Vsog, n, PITCH, "对地滑失率",BigDecimal.ZERO);
+            if (Objects.requireNonNull(result) > BigDecimal.ONE){
+                result = BigDecimal.ZERO;
+            }
+            log.debug("[${sid}] [${kpiName}] [${time}] 对地航速[${Vsog}] 获取转速[${n}]  result[${result}] ")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
             return null
         }
     }
-    /**
-     * currentTimeOil @Description: 当前时间点燃油消耗量，可用于计算小时流量消耗 @param oilIn
-     * 进口质量流量计流速 @param oilOut 出口质量流量计流速 @return Double @author jiang @date
-     */
-    static BigDecimal currentTimeOil(BigDecimal oilIn, BigDecimal oilOut) {
-        BigDecimal res;
+/**
+ * @Title: slippery @Description: 滑失率计算 @param vsog 对地航速 @param n 主机转速 @param dp
+ * 螺旋桨 @return Double
+ */
+    static BigDecimal slipperyDouble(BigDecimal vsog, BigDecimal n, BigDecimal dp, String name, BigDecimal defaultValue) {
         try {
-            res = oilIn.subtract(oilOut);
-            if (res < BigDecimal.valueOf(0)) {
-                res = BigDecimal.valueOf(0d);
+            if (vsog == BigDecimal.valueOf(0) || n == BigDecimal.valueOf(0)) {
+                return defaultValue;
             }
+            BigDecimal bi1 = vsog * BigDecimal.valueOf(0.514 * 60);
+            BigDecimal bi2 = n * dp;
+            // 四舍五入
+            return BigDecimal.valueOf(1).subtract(bi1.divide(bi2, 2, BigDecimal.ROUND_HALF_UP));
         } catch (Exception e) {
-            res = BigDecimal.valueOf(0d);
+            e.printStackTrace();
+            log.error("slipperyDouble 计算 异常为:{} 指标名 [{}]", e, name);
+            return null;
         }
-        return res;
     }
-    /**
-     * 判断   BigDecimal 是否等于0
-     */
-    static boolean isBigDecimal(BigDecimal decimal) {
-        if (decimal == null) {
-            return true;
-        }
-        return decimal.compareTo(BigDecimal.ZERO) == 0;
-    }
-
 }

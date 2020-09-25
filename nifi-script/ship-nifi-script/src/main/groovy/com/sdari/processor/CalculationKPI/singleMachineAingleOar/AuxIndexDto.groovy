@@ -1,4 +1,4 @@
-package com.sdari.processor.CalculationKPI
+package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 
 import com.alibaba.fastjson.JSONObject
@@ -8,11 +8,11 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 经度
+ * @kpiName: 辅机油耗
  * @author Liumouren
- * @date 2020-09-22 10:24:00
+ * @date 2020-09-21 14:32:00
  */
-class LonDTO {
+class AuxIndexDto {
     private static log
     private static processorId
     private static String processorName
@@ -20,11 +20,14 @@ class LonDTO {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'longitude'
+    private static kpiName = 'aux_oil'
     //计算相关参数
     final static String SID = 'sid'
+    final static String COLTIME = 'coltime'
 
-    LonDTO(final def logger, final int pid, final String pName, final int rid) {
+    final static BigDecimal slipperyValue = BigDecimal.valueOf(0.514 * 60)
+
+    AuxIndexDto(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -75,43 +78,63 @@ class LonDTO {
     }
 
     /**
-     * 经度的计算公式
-     * 计算公式 暂时为原代码的一致，并没有明确指出
+     * 辅机油耗的计算公式
+     * 计算公式为 oil =  入 - 出
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
     static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
         try {
-            BigDecimal result = null;
-            Integer LON_LAT_CALCULATION
-            String a = configMap.get("LON_LAT_CALCULATION");
-            if (a != null && !a.isEmpty()) {
-                LON_LAT_CALCULATION=Integer.parseInt(a);
+            BigDecimal result
+            //油耗计算方式
+            Integer OIL_CALCULATION_TYPE = Integer.valueOf(configMap.get('OIL_CALCULATION_TYPE'))
+            if (OIL_CALCULATION_TYPE == null) {
+                log.error("辅机油耗计算方式查询有误 NULL，使用默认初始值:OIL_CALCULATION_TYPE [1] 异常为：")
+                OIL_CALCULATION_TYPE= 1;
+            }
+            // 辅机流入流量
+            BigDecimal inRate
+            // 辅机流出流量
+            BigDecimal outRate
+            if (OIL_CALCULATION_TYPE == 0) {
+                // 获取辅机流入流量
+                inRate = data.get("ge_fo_in_total")
+                // 获取辅机流出流量
+                outRate = data.get("ge_fo_out_total")
             } else {
-                LON_LAT_CALCULATION=1;
-                log.error("经度配置查询有误 null，使用默认初始值:[1] ");
+                // 获取辅机流入流量
+                inRate = data.get("ge_fo_in_rate")
+                // 获取辅机流出流量
+                outRate = data.get("ge_fo_out_rate")
             }
-            double dLat = 0;
-            // 船艏向(真北,度)
-            BigDecimal lat = data.get("lat");
-            BigDecimal lon = data.get("lon");
-            if (lat != null && lon != null) {
-                if (LON_LAT_CALCULATION == 0) {
-                    result = lat;
-                } else {
-                    dLat = lon.doubleValue();
-                    lon = BigDecimal.valueOf((int) (dLat / 100)
-                            + (dLat - (int) (dLat / 100) * 100) / 60d
-                            + (dLat - (int) dLat) / 36);
-                    result = lon.setScale(12, BigDecimal.ROUND_HALF_UP);
-                }
+            if (inRate == null || outRate == null || OIL_CALCULATION_TYPE == null) {
+                log.debug("[${sid}] [${kpiName}] [${time}] 辅机流入流量[${inRate}] 辅机流出流量[${outRate}] 油耗计算方式[${OIL_CALCULATION_TYPE}] result[${null}] ")
+                return null
             }
-            log.debug("[${sid}] [${kpiName}] [${time}] LON_LAT_CALCULATION[${LON_LAT_CALCULATION}] lat[${lat}] lon{${lon}} result[${result}] ")
+            result = inRate.subtract(outRate);
+            result = oilRangeLimit(result);
+            if (Objects.requireNonNull(result) > BigDecimal.ONE) {
+                result = BigDecimal.ZERO
+            }
+            log.debug("[${sid}] [${kpiName}] [${time}] 辅机流入流量[${inRate}] 辅机流出流量[${outRate}] 油耗计算方式{${OIL_CALCULATION_TYPE}} result[${result}] ")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
             return null
         }
     }
+
+    /**
+     *
+     * @param oilValue
+     * @return
+     */
+    static BigDecimal oilRangeLimit(BigDecimal oilValue) {
+        if (oilValue >= BigDecimal.valueOf(-2) && oilValue <= BigDecimal.valueOf(5)) {
+            return oilValue;
+        }
+        return BigDecimal.valueOf(0);
+    }
+
 }
