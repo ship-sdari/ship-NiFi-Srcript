@@ -1,4 +1,4 @@
-package com.sdari.processor.CalculationKPI
+package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 
 import com.alibaba.fastjson.JSONObject
@@ -7,10 +7,12 @@ import java.time.Instant
 
 /**
  *
- * @type: （单桨单桨）
- * @kpiName: 表象滑式率
+ * @type: （单机单桨）
+ * @kpiName: 主机油耗
+ * @author Liumouren
+ * @date 2020-09-21 17:17:00
  */
-class SlipSogIndexDto {
+class HostIndexDto {
     private static log
     private static processorId
     private static String processorName
@@ -18,14 +20,11 @@ class SlipSogIndexDto {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'slip_sog'
+    private static kpiName = 'host_oil'
     //计算相关参数
     final static String SID = 'sid'
-    final static String COLTIME = 'coltime'
 
-    final static BigDecimal slipperyValue = BigDecimal.valueOf(0.514 * 60)
-
-    SlipSogIndexDto(final def logger, final int pid, final String pName, final int rid) {
+    HostIndexDto(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -76,32 +75,43 @@ class SlipSogIndexDto {
     }
 
     /**
-     * 表象滑失率率的计算公式
-     * 计算公式为 1- 对地航速*0.514/ (np/60)
-     * n 为 转速 mon_navstate NMS_1
-     * p VLOC  = 8.51794m VLCC = 7.5730m
+     * 计算主机的 燃料小时消耗量
+     * 主机in - 主机out
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
     static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
         try {
-            BigDecimal result
-            // 获取对地航速
-            BigDecimal vg = data.get('vg')
-            // 获取转速
-            BigDecimal speed = data.get('me_ecs_speed')
-            //螺距
-            BigDecimal pitch = BigDecimal.valueOf(configMap.get('PITCH') as Double)
-            if (vg == null || speed == null || speed == BigDecimal.ZERO || pitch == null) {
-                log.debug("[${sid}] [${kpiName}] [${time}] 对地航速[${vg}] 转速[${speed}] 螺距[${pitch}] result[${null}] ")
-                return null
+            Integer OIL_CALCULATION_TYPE
+            String a = configMap.get("OIL_CALCULATION_TYPE");
+            if (a != null && !a.isEmpty()) {
+                OIL_CALCULATION_TYPE= Integer.parseInt(a);
+            } else {
+                log.error("主机油耗计算方式查询有误 NULL，使用默认初始值:OIL_CALCULATION_TYPE [1] 异常为：");
+                OIL_CALCULATION_TYPE = 1;
             }
-            result = slipperyDouble(vg, speed, pitch, BigDecimal.ONE, time, sid)
-            if (Objects.requireNonNull(result) > BigDecimal.ONE) {
-                result = BigDecimal.ZERO
+            BigDecimal result;
+            BigDecimal inRate;
+            BigDecimal outRate;
+            if (OIL_CALCULATION_TYPE == 0) {
+                // 获取主机流入流量
+                inRate = data.get("me_fo_in_total");
+                // 获取主机流出流量
+                outRate = data.get("me_fo_out_total");
+            } else {
+                // 获取主机流入流量
+                inRate = data.get("me_fo_in_rate");
+                // 获取主机流出流量
+                outRate = data.get("me_fo_out_rate");
             }
-            log.debug("[${sid}] [${kpiName}] [${time}] vg[${vg}] me_ecs_speed[${speed}] PITCH{${pitch}} result[${result}] ")
+            if (inRate == null || outRate == null) {
+                log.debug("[${sid}] [${kpiName}] [${time}] 主机流入流量[${inRate}] 主机流出流量[${outRate}] 油耗计算方式{${OIL_CALCULATION_TYPE}} result[${null}] ")
+                return null;
+            }
+            result = inRate.subtract(outRate);
+            result = oilRangeLimit(result);
+            log.debug("[${sid}] [${kpiName}] [${time}] 主机流入流量[${inRate}] 主机流出流量[${outRate}] 油耗计算方式{${OIL_CALCULATION_TYPE}} result[${result}] ")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
@@ -110,26 +120,15 @@ class SlipSogIndexDto {
     }
 
     /**
-     * 滑失率计算
-     * @Title: slipperyDouble*
      *
-     * @param vg 对地航速
-     * @param speed 主机转速
-     * @param pitch 螺旋桨
-     * @return defaultValue
+     * @param oilValue
+     * @return
      */
-    static BigDecimal slipperyDouble(BigDecimal vg, BigDecimal speed, BigDecimal pitch, BigDecimal defaultValue, final String time, final String sid) {
-        try {
-            if (vg == BigDecimal.ZERO || speed == BigDecimal.ZERO) {
-                return defaultValue
-            }
-            BigDecimal bi1 = vg * slipperyValue
-            BigDecimal bi2 = speed * pitch
-            // 四舍五入
-            return BigDecimal.ONE.subtract(bi1.divide(bi2, 2, BigDecimal.ROUND_HALF_UP))
-        } catch (Exception e) {
-            log.error("指标名 [${kpiName}][${sid}][${time}] slipperyDouble 计算 异常为:${e} ")
-            return null
+    static BigDecimal oilRangeLimit(BigDecimal oilValue) {
+        if (oilValue >= BigDecimal.valueOf(-2) && oilValue <= BigDecimal.valueOf(5)) {
+            return oilValue;
         }
+        return BigDecimal.valueOf(0);
     }
+
 }

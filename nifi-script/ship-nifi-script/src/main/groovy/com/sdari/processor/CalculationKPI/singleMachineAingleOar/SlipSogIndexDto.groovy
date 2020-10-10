@@ -1,4 +1,4 @@
-package com.sdari.processor.CalculationKPI
+package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 
 import com.alibaba.fastjson.JSONObject
@@ -7,12 +7,10 @@ import java.time.Instant
 
 /**
  *
- * @type: （单机单桨）
- * @kpiName: 锅炉用油类型
- * @author Liumouren
- * @date 2020-09-21 17:01:00
+ * @type: （单桨单桨）
+ * @kpiName: 表象滑式率
  */
-class BoilerOilTypeDTO {
+class SlipSogIndexDto {
     private static log
     private static processorId
     private static String processorName
@@ -20,11 +18,14 @@ class BoilerOilTypeDTO {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'boiler_oil_type'
+    private static kpiName = 'slip_sog'
     //计算相关参数
     final static String SID = 'sid'
+    final static String COLTIME = 'coltime'
 
-    BoilerOilTypeDTO(final def logger, final int pid, final String pName, final int rid) {
+    final static BigDecimal slipperyValue = BigDecimal.valueOf(0.514 * 60)
+
+    SlipSogIndexDto(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -75,32 +76,32 @@ class BoilerOilTypeDTO {
     }
 
     /**
-     * 锅炉用油类型的计算公式
-     * 计算公式 ：0:重油；1：轻油'
+     * 表象滑失率率的计算公式
+     * 计算公式为 1- 对地航速*0.514/ (np/60)
+     * n 为 转速 mon_navstate NMS_1
+     * p VLOC  = 8.51794m VLCC = 7.5730m
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
     static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
         try {
-            BigDecimal result = null;
-            //锅炉用燃油
-            BigDecimal boilerHFO = data.get("boil_use_hfo");
-            //锅炉用柴油
-            BigDecimal boilerMOD = data.get("boil_use_mdo");
-            if(null==boilerHFO&&null==boilerMOD){
-                log.debug("[${sid}] [${kpiName}] [${time}] 锅炉用燃油[${boilerHFO}] 锅炉用柴油[${boilerMOD}] result[${null}] ")
-                return null;
+            BigDecimal result
+            // 获取对地航速
+            BigDecimal vg = data.get('vg')
+            // 获取转速
+            BigDecimal speed = data.get('me_ecs_speed')
+            //螺距
+            BigDecimal pitch = BigDecimal.valueOf(configMap.get('PITCH') as Double)
+            if (vg == null || speed == null || speed == BigDecimal.ZERO || pitch == null) {
+                log.debug("[${sid}] [${kpiName}] [${time}] 对地航速[${vg}] 转速[${speed}] 螺距[${pitch}] result[${null}] ")
+                return null
             }
-            //计算
-            if (null!=boilerHFO&&boilerHFO.compareTo(BigDecimal.ONE) == 0) {
-                result = BigDecimal.valueOf(0)
-            }else if (null!=boilerMOD&&boilerMOD.compareTo(BigDecimal.ONE) == 0){
-                result = BigDecimal.valueOf(1)
-            }else if (null!=boilerMOD&&boilerMOD.compareTo(BigDecimal.ZERO) == 0){
-                result = BigDecimal.valueOf(0)
+            result = slipperyDouble(vg, speed, pitch, BigDecimal.ONE, time, sid)
+            if (Objects.requireNonNull(result) > BigDecimal.ONE) {
+                result = BigDecimal.ZERO
             }
-            log.debug("[${sid}] [${kpiName}] [${time}] 锅炉用燃油[${boilerHFO}] 锅炉用柴油[${boilerMOD}] result[${result}] ")
+            log.debug("[${sid}] [${kpiName}] [${time}] vg[${vg}] me_ecs_speed[${speed}] PITCH{${pitch}} result[${result}] ")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
@@ -109,15 +110,26 @@ class BoilerOilTypeDTO {
     }
 
     /**
+     * 滑失率计算
+     * @Title: slipperyDouble*
      *
-     * @param oilValue
-     * @return
+     * @param vg 对地航速
+     * @param speed 主机转速
+     * @param pitch 螺旋桨
+     * @return defaultValue
      */
-    static BigDecimal oilRangeLimit(BigDecimal oilValue) {
-        if (oilValue >= BigDecimal.valueOf(-2) && oilValue <= BigDecimal.valueOf(5)) {
-            return oilValue;
+    static BigDecimal slipperyDouble(BigDecimal vg, BigDecimal speed, BigDecimal pitch, BigDecimal defaultValue, final String time, final String sid) {
+        try {
+            if (vg == BigDecimal.ZERO || speed == BigDecimal.ZERO) {
+                return defaultValue
+            }
+            BigDecimal bi1 = vg * slipperyValue
+            BigDecimal bi2 = speed * pitch
+            // 四舍五入
+            return BigDecimal.ONE.subtract(bi1.divide(bi2, 2, BigDecimal.ROUND_HALF_UP))
+        } catch (Exception e) {
+            log.error("指标名 [${kpiName}][${sid}][${time}] slipperyDouble 计算 异常为:${e} ")
+            return null
         }
-        return BigDecimal.valueOf(0);
     }
-
 }

@@ -1,4 +1,4 @@
-package com.sdari.processor.CalculationKPI
+package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 
 import com.alibaba.fastjson.JSONObject
@@ -7,12 +7,10 @@ import java.time.Instant
 
 /**
  *
- * @type: （单机单桨）
- * @kpiName: 辅机油耗
- * @author Liumouren
- * @date 2020-09-21 14:32:00
+ * @type: （单桨单桨）
+ * @kpiName: 计算工况判定情况
  */
-class AuxIndexDto {
+class WorkConditionIndexDto {
     private static log
     private static processorId
     private static String processorName
@@ -20,14 +18,12 @@ class AuxIndexDto {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'aux_oil'
+    private static kpiName = 'work_condition'
     //计算相关参数
     final static String SID = 'sid'
     final static String COLTIME = 'coltime'
 
-    final static BigDecimal slipperyValue = BigDecimal.valueOf(0.514 * 60)
-
-    AuxIndexDto(final def logger, final int pid, final String pName, final int rid) {
+    WorkConditionIndexDto(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -76,48 +72,36 @@ class AuxIndexDto {
         returnMap.put('attributes', attributesListReturn)
         return returnMap
     }
-
     /**
-     * 辅机油耗的计算公式
-     * 计算公式为 oil =  入 - 出
+     * 计算工况判定情况
+     * 计算公式 吃水 = 0.5 * (艉吃水 + 艏吃水)
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
     static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
+
         try {
             BigDecimal result
-            //油耗计算方式
-            Integer OIL_CALCULATION_TYPE = Integer.valueOf(configMap.get('OIL_CALCULATION_TYPE'))
-            if (OIL_CALCULATION_TYPE == null) {
-                log.error("辅机油耗计算方式查询有误 NULL，使用默认初始值:OIL_CALCULATION_TYPE [1] 异常为：")
-                OIL_CALCULATION_TYPE= 1;
-            }
-            // 辅机流入流量
-            BigDecimal inRate
-            // 辅机流出流量
-            BigDecimal outRate
-            if (OIL_CALCULATION_TYPE == 0) {
-                // 获取辅机流入流量
-                inRate = data.get("ge_fo_in_total")
-                // 获取辅机流出流量
-                outRate = data.get("ge_fo_out_total")
-            } else {
-                // 获取辅机流入流量
-                inRate = data.get("ge_fo_in_rate")
-                // 获取辅机流出流量
-                outRate = data.get("ge_fo_out_rate")
-            }
-            if (inRate == null || outRate == null || OIL_CALCULATION_TYPE == null) {
-                log.debug("[${sid}] [${kpiName}] [${time}] 辅机流入流量[${inRate}] 辅机流出流量[${outRate}] 油耗计算方式[${OIL_CALCULATION_TYPE}] result[${null}] ")
+            // 获取艏吃水
+            BigDecimal dfWater = data.get('df')
+            // 获取艉吃水
+            BigDecimal daWater = data.get('da')
+            BigDecimal DRAFT_X = BigDecimal.valueOf(configMap.get('DRAFT_X') as Double)
+            if (daWater == null || dfWater == null || DRAFT_X == null) {
+                log.debug("[${sid}] [${kpiName}] [${time}] df[${dfWater}] da[${daWater}] num[${null}] DRAFT_X{${DRAFT_X}} result[${null}] ")
                 return null
             }
-            result = inRate.subtract(outRate);
-            result = oilRangeLimit(result);
-            if (Objects.requireNonNull(result) > BigDecimal.ONE) {
-                result = BigDecimal.ZERO
+
+            BigDecimal num = BigDecimal.valueOf(0.5) * dfWater.add(daWater)
+            if (num > DRAFT_X) {
+                result = BigDecimal.valueOf(1)//满载
+            } else if (num <= DRAFT_X) {
+                result = BigDecimal.valueOf(0)//压载
+            } else {//中载，暂时没有中载的情况
+                result = BigDecimal.valueOf(2)
             }
-            log.debug("[${sid}] [${kpiName}] [${time}] 辅机流入流量[${inRate}] 辅机流出流量[${outRate}] 油耗计算方式{${OIL_CALCULATION_TYPE}} result[${result}] ")
+            log.debug("[${sid}] [${kpiName}] [${time}] df[${dfWater}] da[${daWater}] num[${num}] DRAFT_X{${DRAFT_X}} result[${result}] ")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
@@ -125,16 +109,5 @@ class AuxIndexDto {
         }
     }
 
-    /**
-     *
-     * @param oilValue
-     * @return
-     */
-    static BigDecimal oilRangeLimit(BigDecimal oilValue) {
-        if (oilValue >= BigDecimal.valueOf(-2) && oilValue <= BigDecimal.valueOf(5)) {
-            return oilValue;
-        }
-        return BigDecimal.valueOf(0);
-    }
 
 }

@@ -1,4 +1,4 @@
-package com.sdari.processor.CalculationKPI
+package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 
 import com.alibaba.fastjson.JSONObject
@@ -8,11 +8,11 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 主机油耗
+ * @kpiName: 锅炉用油类型
  * @author Liumouren
- * @date 2020-09-21 17:17:00
+ * @date 2020-09-21 17:01:00
  */
-class HostIndexDto {
+class BoilerOilTypeDTO {
     private static log
     private static processorId
     private static String processorName
@@ -20,11 +20,11 @@ class HostIndexDto {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'host_oil'
+    private static kpiName = 'boiler_oil_type'
     //计算相关参数
     final static String SID = 'sid'
 
-    HostIndexDto(final def logger, final int pid, final String pName, final int rid) {
+    BoilerOilTypeDTO(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -75,43 +75,32 @@ class HostIndexDto {
     }
 
     /**
-     * 计算主机的 燃料小时消耗量
-     * 主机in - 主机out
+     * 锅炉用油类型的计算公式
+     * 计算公式 ：0:重油；1：轻油'
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
     static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
         try {
-            Integer OIL_CALCULATION_TYPE
-            String a = configMap.get("OIL_CALCULATION_TYPE");
-            if (a != null && !a.isEmpty()) {
-                OIL_CALCULATION_TYPE= Integer.parseInt(a);
-            } else {
-                log.error("主机油耗计算方式查询有误 NULL，使用默认初始值:OIL_CALCULATION_TYPE [1] 异常为：");
-                OIL_CALCULATION_TYPE = 1;
-            }
-            BigDecimal result;
-            BigDecimal inRate;
-            BigDecimal outRate;
-            if (OIL_CALCULATION_TYPE == 0) {
-                // 获取主机流入流量
-                inRate = data.get("me_fo_in_total");
-                // 获取主机流出流量
-                outRate = data.get("me_fo_out_total");
-            } else {
-                // 获取主机流入流量
-                inRate = data.get("me_fo_in_rate");
-                // 获取主机流出流量
-                outRate = data.get("me_fo_out_rate");
-            }
-            if (inRate == null || outRate == null) {
-                log.debug("[${sid}] [${kpiName}] [${time}] 主机流入流量[${inRate}] 主机流出流量[${outRate}] 油耗计算方式{${OIL_CALCULATION_TYPE}} result[${null}] ")
+            BigDecimal result = null;
+            //锅炉用燃油
+            BigDecimal boilerHFO = data.get("boil_use_hfo");
+            //锅炉用柴油
+            BigDecimal boilerMOD = data.get("boil_use_mdo");
+            if(null==boilerHFO&&null==boilerMOD){
+                log.debug("[${sid}] [${kpiName}] [${time}] 锅炉用燃油[${boilerHFO}] 锅炉用柴油[${boilerMOD}] result[${null}] ")
                 return null;
             }
-            result = inRate.subtract(outRate);
-            result = oilRangeLimit(result);
-            log.debug("[${sid}] [${kpiName}] [${time}] 主机流入流量[${inRate}] 主机流出流量[${outRate}] 油耗计算方式{${OIL_CALCULATION_TYPE}} result[${result}] ")
+            //计算
+            if (null!=boilerHFO&&boilerHFO.compareTo(BigDecimal.ONE) == 0) {
+                result = BigDecimal.valueOf(0)
+            }else if (null!=boilerMOD&&boilerMOD.compareTo(BigDecimal.ONE) == 0){
+                result = BigDecimal.valueOf(1)
+            }else if (null!=boilerMOD&&boilerMOD.compareTo(BigDecimal.ZERO) == 0){
+                result = BigDecimal.valueOf(0)
+            }
+            log.debug("[${sid}] [${kpiName}] [${time}] 锅炉用燃油[${boilerHFO}] 锅炉用柴油[${boilerMOD}] result[${result}] ")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")

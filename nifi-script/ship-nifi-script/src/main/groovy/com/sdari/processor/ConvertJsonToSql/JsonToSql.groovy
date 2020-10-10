@@ -36,8 +36,8 @@ class JsonToSql {
     final static String TABLE_NAME_OUT = 'table.name'
     private final static String databasesMain = 'main.name'//主库
     private final static String databasesFrom = 'from.name'//从库
-    private final static String formatSqlInsert = "INSERT INTO `{0}` (`{1}`) VALUES (''{2}'');"
-    private final static String formatSqlUpdate = 'update `{0}` set {1} where sid ={2};'
+    private final static String formatSqlInsert = "INSERT INTO `{0}` ({1}) VALUES ({2});"
+    private final static String formatSqlUpdate = 'update `{0}` set {1} where sid ={2} and id={3};'
     private final static String formatSqlDelete = 'delete from `{0}` where id={1};'
 
     JsonToSql(final ComponentLog logger, final int pid, final String pName, final int rid) {
@@ -116,9 +116,32 @@ class JsonToSql {
      */
     static String dataByInsert(JSONObject data, String tableName) {
         String formatSql = formatSqlInsert
-        String key = StringUtils.join(Arrays.asList(data.keySet().toArray()), "`,`")
-        String value = StringUtils.join(Arrays.asList(data.values().toArray()), "','")
-        return MessageFormat.format(formatSql, tableName, key, value).replace("''", "null")
+        String[] columns = new String[data.keySet().size()];
+        String[] values = new String[data.keySet().size()];
+        int i = -1;
+        for (String column : data.keySet()) {
+            i++
+            Object value = data.get(column)
+            if (column.toLowerCase().contains("time")) {//时间字段
+                Long valueByLong = value as Long
+                columns[i] = "`".concat(column).concat("`");
+                values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong)).concat(")");
+                continue;
+            }
+            if (null == value) {
+                columns[i] = "`".concat(column).concat("`");
+                values[i] = "null";
+                continue;
+            }
+            if (value instanceof String) {
+                value = "'".concat(String.valueOf(value)).concat("'");
+            }
+            columns[i] = "`".concat(column).concat("`");
+            values[i] = String.valueOf(value);
+        }
+        String key = StringUtils.join(columns, ",");
+        String value = StringUtils.join(values, ",");
+        return MessageFormat.format(formatSql, tableName, key, value)
     }
     /**
      *
@@ -129,12 +152,37 @@ class JsonToSql {
      */
     static String dataByUpdate(JSONObject data, String tableName, String sid) {
         String formatSql = formatSqlUpdate
-        String sql = ''
-        for (String key : data.keySet()) {
-            sql = sql.concat("`").concat(key).concat('` =').concat(data.get(key) as String).concat(', ')
+        List<String> setPart = new ArrayList<>();
+        String[] columns = new String[data.keySet().size() - 1];
+        String[] values = new String[data.keySet().size() - 1];
+        int i = -1;
+        for (String column : data.keySet()) {
+            i++;
+            Object value = data.get(column);
+            if (column.toLowerCase().contains("time")) {//时间字段
+                Long valueByLong = value as Long
+                columns[i] = "`".concat(column).concat("`");
+                values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong)).concat(")");
+                setPart.add("`".concat(column).concat("`=").concat("FROM_UNIXTIME(").concat(String.valueOf(valueByLong)).concat(")"));
+                continue;
+            }
+            if (null == value) {
+                columns[i] = "`".concat(column).concat("`");
+                values[i] = "null";
+                setPart.add("`".concat(column).concat("`=").concat("null").concat(""));
+                continue;
+            }
+            if (value instanceof String) {
+                value = "'".concat(String.valueOf(value)).concat("'");
+            }
+            columns[i] = "`".concat(column).concat("`");
+            values[i] = String.valueOf(value);
+            setPart.add("`".concat(column).concat("`=").concat(String.valueOf(value)));
         }
-        sql = sql.substring(0, sql.length() - 2)
-        return MessageFormat.format(formatSql, tableName, sql, sid)
+        String key = StringUtils.join(columns, ",");
+        String value = StringUtils.join(values, ",");
+
+        return MessageFormat.format(formatSql, tableName, key, value, StringUtils.join(setPart, ","),sid,data.get('id'));
     }
     /**
      * 删除

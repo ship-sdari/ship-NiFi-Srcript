@@ -1,4 +1,4 @@
-package com.sdari.processor.CalculationKPI
+package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 
 import com.alibaba.fastjson.JSONObject
@@ -7,10 +7,12 @@ import java.time.Instant
 
 /**
  *
- * @type: （单桨单桨）
- * @kpiName: 计算工况判定情况
+ * @type: （单机单桨）
+ * @kpiName: 经度
+ * @author Liumouren
+ * @date 2020-09-22 10:24:00
  */
-class WorkConditionIndexDto {
+class LonDTO {
     private static log
     private static processorId
     private static String processorName
@@ -18,12 +20,11 @@ class WorkConditionIndexDto {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'work_condition'
+    private static kpiName = 'longitude'
     //计算相关参数
     final static String SID = 'sid'
-    final static String COLTIME = 'coltime'
 
-    WorkConditionIndexDto(final def logger, final int pid, final String pName, final int rid) {
+    LonDTO(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -72,42 +73,45 @@ class WorkConditionIndexDto {
         returnMap.put('attributes', attributesListReturn)
         return returnMap
     }
+
     /**
-     * 计算工况判定情况
-     * 计算公式 吃水 = 0.5 * (艉吃水 + 艏吃水)
+     * 经度的计算公式
+     * 计算公式 暂时为原代码的一致，并没有明确指出
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
     static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
-
         try {
-            BigDecimal result
-            // 获取艏吃水
-            BigDecimal dfWater = data.get('df')
-            // 获取艉吃水
-            BigDecimal daWater = data.get('da')
-            BigDecimal DRAFT_X = BigDecimal.valueOf(configMap.get('DRAFT_X') as Double)
-            if (daWater == null || dfWater == null || DRAFT_X == null) {
-                log.debug("[${sid}] [${kpiName}] [${time}] df[${dfWater}] da[${daWater}] num[${null}] DRAFT_X{${DRAFT_X}} result[${null}] ")
-                return null
+            BigDecimal result = null;
+            Integer LON_LAT_CALCULATION
+            String a = configMap.get("LON_LAT_CALCULATION");
+            if (a != null && !a.isEmpty()) {
+                LON_LAT_CALCULATION=Integer.parseInt(a);
+            } else {
+                LON_LAT_CALCULATION=1;
+                log.error("经度配置查询有误 null，使用默认初始值:[1] ");
             }
-
-            BigDecimal num = BigDecimal.valueOf(0.5) * dfWater.add(daWater)
-            if (num > DRAFT_X) {
-                result = BigDecimal.valueOf(1)//满载
-            } else if (num <= DRAFT_X) {
-                result = BigDecimal.valueOf(0)//压载
-            } else {//中载，暂时没有中载的情况
-                result = BigDecimal.valueOf(2)
+            double dLat = 0;
+            // 船艏向(真北,度)
+            BigDecimal lat = data.get("lat");
+            BigDecimal lon = data.get("lon");
+            if (lat != null && lon != null) {
+                if (LON_LAT_CALCULATION == 0) {
+                    result = lat;
+                } else {
+                    dLat = lon.doubleValue();
+                    lon = BigDecimal.valueOf((int) (dLat / 100)
+                            + (dLat - (int) (dLat / 100) * 100) / 60d
+                            + (dLat - (int) dLat) / 36);
+                    result = lon.setScale(12, BigDecimal.ROUND_HALF_UP);
+                }
             }
-            log.debug("[${sid}] [${kpiName}] [${time}] df[${dfWater}] da[${daWater}] num[${num}] DRAFT_X{${DRAFT_X}} result[${result}] ")
+            log.debug("[${sid}] [${kpiName}] [${time}] LON_LAT_CALCULATION[${LON_LAT_CALCULATION}] lat[${lat}] lon{${lon}} result[${result}] ")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
             return null
         }
     }
-
-
 }

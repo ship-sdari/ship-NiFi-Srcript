@@ -1,4 +1,4 @@
-package com.sdari.processor.CompressData
+package com.sdari.processor.DeCompressData
 
 import com.alibaba.fastjson.JSONObject
 import org.apache.commons.io.IOUtils
@@ -15,12 +15,13 @@ import org.apache.nifi.logging.ComponentLog
 import org.apache.nifi.processor.*
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
+
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
-@CapabilityDescription('数据压缩处理器')
-class CompressData implements Processor {
+@CapabilityDescription('数据解压缩处理器')
+class DeCompressData implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
@@ -131,8 +132,7 @@ class CompressData implements Processor {
                 throw new Exception("[Processor_id = ${id} Processor_name = ${currentClassName}] 的接收的数据为空!")
             }
             def relationships = pch.invokeMethod("getRelationships", null) as Map<String, Relationship>
-            final def attributesMap = (pch.invokeMethod("updateAttributes", [flowFile.getAttributes()]) as Map<String, String>)
-            attributesMap.put('size.before', flowFile.getSize() as String)
+            final def attributesMap = pch.invokeMethod("updateAttributes", [flowFile.getAttributes()]) as Map<String, String>
             //调用脚本需要传的参数[attributesMap-> flowFile属性][data -> flowFile数据]
             def attributesList = []
             def dataList = []
@@ -311,4 +311,4 @@ class CompressData implements Processor {
 }
 
 //脚本部署时需要放开该注释
-//processor = new CompressData()
+//processor = new DeCompressData()
