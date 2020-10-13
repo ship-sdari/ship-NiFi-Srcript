@@ -112,7 +112,7 @@ class LightPropellerDTO {
                 return null;
             }
             try {
-                BigDecimal c = SMCR_P.divide(SMCR_N, 8, BigDecimal.ROUND_HALF_UP);
+                BigDecimal c = SMCR_P.divide(SMCR_N.pow(3), 8, BigDecimal.ROUND_HALF_UP);
                 double pow = Math.pow(dfWater.divide(c, 8, BigDecimal.ROUND_HALF_UP).doubleValue(), 1.0 / 3);// p/c的1/3次方
                 result = result.add(shaftRpmStr.divide(BigDecimal.valueOf(pow), 8, BigDecimal.ROUND_HALF_UP))
                         .subtract(BigDecimal.ONE).setScale(3, BigDecimal.ROUND_HALF_UP);
