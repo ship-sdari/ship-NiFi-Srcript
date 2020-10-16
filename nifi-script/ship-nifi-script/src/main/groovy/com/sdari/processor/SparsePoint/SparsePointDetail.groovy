@@ -6,7 +6,6 @@ import com.alibaba.fastjson.serializer.SerializerFeature
 import lombok.Data
 import lombok.Getter
 import org.apache.nifi.logging.ComponentLog
-
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
@@ -70,16 +69,17 @@ class SparsePointDetail {
                                 dd.shipCollectFreq = shipCollectFreq
                                 dd.sparseRate = sparseRate
                                 dd.startTime = coltime == null ? Instant.now().getEpochSecond() : Instant.parse(coltime).getEpochSecond()
+                                dilutionDTOMap.put(key,dd)
+                            }
+                            if (!dilutionDTOMap.get(key).dossKeys.containsKey(dossKey)){
                                 DilutionDTO.DossKeyDTO dkd = new DilutionDTO.DossKeyDTO()
                                 dkd.dossKey = dossKey
                                 dkd.dte = DilutionTypeEnum.valueToDilutionTypeEnum(dilutionType)
                                 dkd.values = new ArrayList<>()
-                                dd.dossKeys.put(dossKey,dkd)
-                                dilutionDTOMap.put(key,dd)
+                                dilutionDTOMap.get(key).dossKeys.put(dossKey,dkd)
                             }
                             //输入抽稀仓库元素
-                            log.info "dossKeys : ${JSONObject.toJSONString(dilutionDTOMap.get(key).dossKeys, SerializerFeature.WriteMapNullValue)}"
-                            dilutionDTOMap.get(key).load(dossKey,jsonDataFormer.get(dossKey))
+                            dilutionDTOMap.get(key).load(coltime == null ? Instant.now().getEpochSecond() : Instant.parse(coltime).getEpochSecond(), dossKey, jsonDataFormer.get(dossKey))
                         }
                     } catch (Exception e) {
                         log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} 的数据输入过程有异常", e
@@ -93,6 +93,7 @@ class SparsePointDetail {
                         dilution = dd.check(now)
                         if (null == dilution) continue //未达到抽稀状态
                         dataListReturn.add(dilution)
+                        jsonAttributesFormer.put('table.name.postfix', processorConf.getOrDefault('table.name.postfix', '_total'))
                         attributesListReturn.add(jsonAttributesFormer)
                     }catch(Exception e){
                         log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 的数据检查和输出过程有异常", e
@@ -119,7 +120,7 @@ class SparsePointDetail {
         private String shipCollectProtocol
         private String shipCollectFreq
         private Double sparseRate
-        private Long startTime
+        private Long startTime//常变值
         /**
          * 暂存仓库
          */
@@ -154,13 +155,21 @@ class SparsePointDetail {
                         jo.put(dd.dossKey, null)
                     }
                 }
+                //消除开始时间
+                startTime = null
                 return jo
             } else {
                 return null
             }
         }
 
-        synchronized void load(String dossKey, Object o) throws Exception {
+        synchronized void load(long startTime, String dossKey, Object o) throws Exception {
+            if (null == this.startTime){//没有起始时间，则赋值
+                this.startTime = startTime
+            }else if (this.startTime > startTime){//起始时间大于数据时间，说明来的数据是迟到数据，则舍弃这个数据
+                return
+            }
+            //正常情况下正常输入
             DilutionTypeEnum type = dossKeys.get(dossKey).dte
             switch (type) {
                 case DilutionTypeEnum.TYPE_SUM://求和
