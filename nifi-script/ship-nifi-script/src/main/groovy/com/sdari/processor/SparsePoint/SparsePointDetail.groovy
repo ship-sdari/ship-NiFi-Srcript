@@ -90,7 +90,7 @@ class SparsePointDetail {
                     JSONObject dilution
                     try {
                         Long now = coltime == null ? Instant.now().getEpochSecond() : Instant.parse(coltime).getEpochSecond()
-                        dilution = dd.check(now)
+                        dilution = dd.check(now, log)
                         if (null == dilution) continue //未达到抽稀状态
                         dataListReturn.add(dilution)
                         jsonAttributesFormer.put('table.name.postfix', processorConf.getOrDefault('table.name.postfix', '_total'))
@@ -126,7 +126,7 @@ class SparsePointDetail {
          */
         private Map<String, DossKeyDTO> dossKeys = new HashMap<>()
 
-        synchronized JSONObject check(Long now) {
+        synchronized JSONObject check(Long now, final ComponentLog log) {
             if ((now - startTime) / sparseRate >= 1) {//达到或超过抽稀频率
                 JSONObject jo = new JSONObject()
                 for (DossKeyDTO dd : dossKeys.values()) {
@@ -156,7 +156,7 @@ class SparsePointDetail {
                     }
                 }
                 //消除开始时间
-                startTime = null
+                this.startTime = null
                 return jo
             } else {
                 return null
