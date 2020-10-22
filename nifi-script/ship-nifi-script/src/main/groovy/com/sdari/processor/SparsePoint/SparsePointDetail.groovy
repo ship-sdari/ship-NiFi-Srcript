@@ -68,7 +68,7 @@ class SparsePointDetail {
                                 dd.shipCollectProtocol = shipCollectProtocol
                                 dd.shipCollectFreq = shipCollectFreq
                                 dd.sparseRate = sparseRate
-                                dd.startTime = coltime == null ? Instant.now().getEpochSecond() : Instant.parse(coltime).getEpochSecond()
+                                dd.startTime = coltime == null ? Instant.now().toEpochMilli() : Instant.parse(coltime).toEpochMilli()
                                 dilutionDTOMap.put(key,dd)
                             }
                             if (!dilutionDTOMap.get(key).dossKeys.containsKey(dossKey)){
@@ -79,7 +79,7 @@ class SparsePointDetail {
                                 dilutionDTOMap.get(key).dossKeys.put(dossKey,dkd)
                             }
                             //输入抽稀仓库元素
-                            dilutionDTOMap.get(key).load(coltime == null ? Instant.now().getEpochSecond() : Instant.parse(coltime).getEpochSecond(), dossKey, jsonDataFormer.get(dossKey))
+                            dilutionDTOMap.get(key).load(coltime == null ? Instant.now().toEpochMilli() : Instant.parse(coltime).toEpochMilli(), dossKey, jsonDataFormer.get(dossKey))
                         }
                     } catch (Exception e) {
                         log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} 的数据输入过程有异常", e
@@ -89,7 +89,7 @@ class SparsePointDetail {
                 for (DilutionDTO dd in dilutionDTOMap.values()){
                     JSONObject dilution
                     try {
-                        Long now = coltime == null ? Instant.now().getEpochSecond() : Instant.parse(coltime).getEpochSecond()
+                        Long now = coltime == null ? Instant.now().toEpochMilli() : Instant.parse(coltime).toEpochMilli()
                         dilution = dd.check(now, log)
                         if (null == dilution) continue //未达到抽稀状态
                         dataListReturn.add(dilution)
@@ -119,7 +119,7 @@ class SparsePointDetail {
         private String sid
         private String shipCollectProtocol
         private String shipCollectFreq
-        private Double sparseRate
+        private Integer sparseRate
         private Long startTime//常变值
         /**
          * 暂存仓库

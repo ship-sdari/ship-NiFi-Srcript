@@ -147,7 +147,7 @@ class MergeDataByToShoreGroup implements Processor {
                     merge.shoreGroup = attrs.get(3)
                     merge.shoreIp = attrs.get(4)
                     merge.shorePort = attrs.get(5)
-                    merge.shoreFreq = Double.parseDouble(attrs.get(6))
+                    merge.shoreFreq = Integer.parseInt(attrs.get(6))
                     merge.compressType = attrs.get(7)
                     merge.shoreProtocol = attrs.get(8)
                     InputStream inputStream = file.newInputStream()
@@ -261,7 +261,7 @@ class MergeDataByToShoreGroup implements Processor {
                                         merge.shoreGroup = toShoreGroup
                                         merge.shoreIp = jsonAttributesFormer.getString('shore.ip')
                                         merge.shorePort = jsonAttributesFormer.getString('shore.port')
-                                        merge.shoreFreq = Double.parseDouble(jsonAttributesFormer.getString('shore.freq'))
+                                        merge.shoreFreq = Integer.parseInt(jsonAttributesFormer.getString('shore.freq'))
                                         merge.compressType = jsonAttributesFormer.getString('compress.type')
                                         merge.shoreProtocol = jsonAttributesFormer.getString('shore.protocol')
                                         mergeGroupDTOMap.put(key, merge)
@@ -424,7 +424,7 @@ class MergeDataByToShoreGroup implements Processor {
         private String shoreGroup
         private String shoreIp
         private String shorePort
-        private Double shoreFreq
+        private Integer shoreFreq
         private String compressType
         private String shoreProtocol
         private JSONObject merge = new JSONObject(new TreeMap<String, Object>())
@@ -436,7 +436,7 @@ class MergeDataByToShoreGroup implements Processor {
         private boolean check() throws Exception {
             List<String> times = new ArrayList<>(merge.keySet())
 //            times = times.stream().sorted() as List<String>
-            long gap = Instant.parse(times.max()).getEpochSecond() - Instant.parse(times.min()).getEpochSecond()
+            long gap = Instant.parse(times.max()).toEpochMilli() - Instant.parse(times.min()).toEpochMilli()
             return gap >= shoreFreq
         }
 
