@@ -52,7 +52,6 @@ class analysisByHBase {
     }
 
     static def calculation(params) {
-        log.info "calculation : 进入脚本方法"
         if (null == params) return null
         def returnMap = [:]
         def dataListReturn = []
