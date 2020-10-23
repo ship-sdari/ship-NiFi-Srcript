@@ -20,11 +20,9 @@ import org.apache.nifi.processor.io.OutputStreamCallback
 
 import java.nio.charset.StandardCharsets
 import java.sql.Connection
-import java.sql.Driver
 import java.sql.DriverManager
 import java.sql.ResultSet
 import java.sql.Statement
-import java.text.MessageFormat
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -201,6 +199,7 @@ class CalculationKPI implements Processor {
                             //根据路由名称 获取脚本实体GroovyObject instance
                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
+                             returnMap.put("con", con)
                             Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
                             lists.add(returnMat.get('data') as JSONArray)
                         }
