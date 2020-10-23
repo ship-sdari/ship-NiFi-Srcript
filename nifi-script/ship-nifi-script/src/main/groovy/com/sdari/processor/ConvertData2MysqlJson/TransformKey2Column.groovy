@@ -52,8 +52,12 @@ class TransformKey2Column {
                             try {
                                 if ('A' != (warehousingDto as JSONObject).getString('write_status')) continue
                                 //库名如果配置表中为空则组成库名
-                                final String databaseName = ((warehousingDto as JSONObject).getOrDefault('schema_id', (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid'))) as String)
+                                final String databaseName = ((warehousingDto as JSONObject).get('schema_id') == null ? (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid')) as String : (warehousingDto as JSONObject).get('schema_id'))
                                 final String tableName = ((warehousingDto as JSONObject).getString('table_id')) + jsonAttributesFormer.getString('table.name.postfix') == null ? '' : jsonAttributesFormer.getString('table.name.postfix')
+                                final String columnName = (warehousingDto as JSONObject).getString('column_id')
+                                if (null == tableName || null == columnName){
+                                    throw new Exception("配置不合法，表名或列名为空！")
+                                }
                                 final String key = databaseName + '.' + tableName//组合key值，考虑进多库的情况
                                 if (!tables.containsKey(key)) {
                                     tables.put(key, new JSONObject())
@@ -63,7 +67,7 @@ class TransformKey2Column {
                                     attribute.put('database.name', databaseName)
                                     jsonAttributes.put(key, attribute)
                                 }
-                                (tables.get(key) as JSONObject).put((warehousingDto as JSONObject).getString('column_id'), jsonDataFormer.get(dossKey))
+                                (tables.get(key) as JSONObject).put(columnName, jsonDataFormer.get(dossKey))
                             } catch (Exception e) {
                                 log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} warehousing = ${(warehousingDto as JSONObject).getString('id')} 处理异常", e
                             }

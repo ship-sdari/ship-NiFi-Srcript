@@ -1,9 +1,7 @@
-package com.sdari.processor.MergeDataByToShoreGroup
+package com.sdari.processor.FormatDataByDistGroup
 
-import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
-import lombok.Data
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
 import org.apache.nifi.annotation.documentation.CapabilityDescription
@@ -20,31 +18,22 @@ import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
 
 import java.nio.charset.StandardCharsets
-import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
-@CapabilityDescription('合并岸基分发的数据，该处理器与其它处理器的不同点在于具有数据暂存仓库，并需要将仓库指针传入子脚本')
-class MergeDataByToShoreGroup implements Processor {
+@CapabilityDescription('格式化第三方分发的数据格式')
+class FormatDataByDistGroup implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
     private String currentClassName = this.class.canonicalName
     private DBCPService dbcpService = null
     private GroovyObject pch
-    private Map<String, MergeGroupDTO> mergeGroupDTOMap = new ConcurrentHashMap<>()//合并仓库
-    private List<MergeGroupDTO> history = new ArrayList<>()//历史合并仓库，主要用于规则回调及程序停止时未合并完的数据的续处理
-    final static Relationship REL_ORIGINAL = new Relationship.Builder()
-            .name("original")
-            .description('FlowFiles that were used originally are routed here')
-            .build()
 
     @Override
     Set<Relationship> getRelationships() {
         Set<Relationship> set = new HashSet<Relationship>()
-        set.add(REL_ORIGINAL)//单独添加初始数据路由
         Map<String, Relationship> relationshipMap = (pch?.invokeMethod("getRelationships", null) as Map<String, Relationship>)
         if (relationshipMap != null && relationshipMap.size() > 0) {
             for (String relation : relationshipMap.keySet()) {
@@ -84,7 +73,6 @@ class MergeDataByToShoreGroup implements Processor {
         try {
             pch.invokeMethod("initComponent", null)//相关公共配置实例更新查询
             pch.invokeMethod("initScript", [log, currentClassName])
-            path2package()//将暂存本地的历史数据包读取出来
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行异常", e
@@ -99,65 +87,10 @@ class MergeDataByToShoreGroup implements Processor {
     @OnStopped
     public void onStopped(final ProcessContext context) {
         try {
-            package2path()//相关打包数据暂存并清空
             pch.invokeMethod("releaseComponent", null)//相关公共配置实例清空
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器停止运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器停止运行异常", e
-        }
-    }
-
-    void package2path() {
-        for (mergeDto in mergeGroupDTOMap.values()) {
-            try {
-                JSONObject json = mergeDto.merge
-                if (json.size() == 0) return
-                final String fileName = String.join('-', [mergeDto.sid, mergeDto.shipCollectProtocol, mergeDto.shipCollectFreq, mergeDto.shoreGroup, mergeDto.shoreIp, mergeDto.shorePort, mergeDto.shoreFreq as String, mergeDto.compressType, mergeDto.shoreProtocol] as Iterable<? extends CharSequence>) + '.json'
-                final String path = (pch.getProperty('parameters') as HashMap)?.getOrDefault('merge.path', "/home/sdari/app/nifi/share/merged/${mergeDto.sid}/") as String
-                File file = new File(path)
-                if (!file.isDirectory()) file.mkdirs()//目录不存在就创建
-                File full = new File(path + fileName)
-                if (!full.exists()) file.createNewFile()//文件不存在就创建
-                BufferedWriter writer = new BufferedWriter(new FileWriter(full))
-                writer.write(JSONObject.toJSONString(json, SerializerFeature.WriteMapNullValue))
-                writer.close()
-            } catch (Exception e) {
-                log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器停止时，暂存打包数据异常", e
-            }
-        }
-        mergeGroupDTOMap?.clear()//清空用于打包的抽象数据类型仓库
-        history?.clear()//清空存储历史包的抽象数据类型仓库
-    }
-
-    void path2package() {
-        final String path = (pch.getProperty('parameters') as HashMap)?.getOrDefault('merge.path', "/home/sdari/app/nifi/share/merged/${(pch?.invokeMethod('getProcessor', null) as GroovyObject)?.getProperty('sid') as String}/") as String
-        File p = new File(path)
-        if (!p.isDirectory()) return
-        File[] files = p.listFiles()
-        for (file in files) {
-            try {
-                if (file.isFile()) {
-                    List<String> attrs = file.name?.substring(0, file.name?.length() - 5)?.split('-')?.toList()
-                    if (null == attrs || attrs.size() != 9) throw new Exception('文件名解析异常')
-                    MergeGroupDTO merge = new MergeGroupDTO()
-                    merge.sid = attrs.get(0)
-                    merge.shipCollectProtocol = attrs.get(1)
-                    merge.shipCollectFreq = attrs.get(2)
-                    merge.shoreGroup = attrs.get(3)
-                    merge.shoreIp = attrs.get(4)
-                    merge.shorePort = attrs.get(5)
-                    merge.shoreFreq = Integer.parseInt(attrs.get(6))
-                    merge.compressType = attrs.get(7)
-                    merge.shoreProtocol = attrs.get(8)
-                    InputStream inputStream = file.newInputStream()
-                    merge.merge.putAll JSONObject.parseObject(IOUtils.toString(inputStream, 'UTF-8'))
-                    history.add merge
-                    inputStream.close()
-                    if (!file.delete()) throw new Exception('文件删除失败')
-                }
-            } catch (Exception e) {
-                log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器启动时，历史包${file.name}恢复异常", e
-            }
         }
     }
 
@@ -226,7 +159,7 @@ class MergeDataByToShoreGroup implements Processor {
                         continue
                     }
                     //用来接收脚本返回的数据
-                    Map returnMap = pch.invokeMethod("deepClone", former) as Map
+                    Map returnMap = pch.invokeMethod("deepClone",former) as Map
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeStatus = 'S'
                     //路由关系
@@ -254,9 +187,6 @@ class MergeDataByToShoreGroup implements Processor {
                                         if ('A' == subClassDTO.getProperty('status')) {
                                             //根据路由名称 获取脚本实体GroovyObject instance
                                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
-                                            //特殊处理，参数添加合并仓库指针和历史仓库指针
-                                            returnMap.put('mergeGroupDTOMap', mergeGroupDTOMap)
-                                            returnMap.put('mergeGroupDTOMap', history)
                                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
                                             returnMap = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
                                             routeStatus = 'A'
@@ -304,12 +234,9 @@ class MergeDataByToShoreGroup implements Processor {
                     }
                 } catch (Exception e) {
                     log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的处理过程有异常", e
-                } finally {
-                    //路由关系循环只循环第一个，即默认配置的最有效输出路由只有merged一个
-                    break
                 }
             }
-            session.transfer(flowFile, REL_ORIGINAL)//源文件路由
+            session.remove(flowFile)
         } catch (final Throwable t) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 的处理过程有异常", t
             onFailure(session, flowFile)
@@ -377,49 +304,7 @@ class MergeDataByToShoreGroup implements Processor {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 设置日志的调用方法异常", e
         }
     }
-
-    @Data
-    static class MergeGroupDTO {
-        private String sid
-        private String shipCollectProtocol
-        private String shipCollectFreq
-        private String shoreGroup
-        private String shoreIp
-        private String shorePort
-        private Integer shoreFreq
-        private String compressType
-        private String shoreProtocol
-        private JSONObject merge = new JSONObject(new TreeMap<String, Object>())
-
-        private void push(String time, String data) throws Exception {
-            merge.put(time, data)
-        }
-
-        private boolean check() throws Exception {
-            List<String> times = new ArrayList<>(merge.keySet())
-//            times = times.stream().sorted() as List<String>
-            long gap = Instant.parse(times.max()).toEpochMilli() - Instant.parse(times.min()).toEpochMilli()
-            return gap >= shoreFreq
-        }
-
-        synchronized private JSONArray out() throws Exception {
-            JSONArray array = new JSONArray()
-            array.addAll(merge.values())//输出仓库
-            merge.clear()//清空仓库
-            return array
-        }
-
-        synchronized JSONArray addAndCheckOut(String time, String data) throws Exception {//同步类实例
-            push(time, data)
-            boolean isReturn = check()
-            if (isReturn) {
-                return out()
-            } else {
-                return null
-            }
-        }
-    }
 }
 
 //脚本部署时需要放开该注释
-//processor = new MergeDataByToShoreGroup()
+//processor = new FormatDataByDistGroup()

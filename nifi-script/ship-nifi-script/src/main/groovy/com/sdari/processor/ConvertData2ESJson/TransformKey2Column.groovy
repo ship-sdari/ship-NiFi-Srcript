@@ -58,10 +58,11 @@ class TransformKey2Column {
                                 if (!tables.containsKey(tableName)) {
                                     //添加rowkey、upload_time、coltime
                                     JSONObject tableJson = new JSONObject()
+                                    final String timestamp = (Instant.parse(jsonAttributesFormer.get('coltime') as String).toEpochMilli() as String)
                                     final String createTime = dateFormat(Instant.parse(jsonAttributesFormer.get('coltime') as String).toEpochMilli(), 'yyyyMMddHHmmssSSS', 'UTC')
                                     final String rowkey = (jsonAttributesFormer.get('sid') as String)?.padLeft(4, '0') + createTime
-                                    tableJson.put('coltime', createTime)
-                                    tableJson.put('upload_time', dateFormat(Instant.now().toEpochMilli(), 'yyyy-MM-dd HH:mm:ss:SSS', 'UTC'))
+                                    tableJson.put('coltime', timestamp)
+                                    tableJson.put('upload_time', Instant.now().toEpochMilli() as String)
                                     tableJson.put('rowkey', rowkey)
                                     tables.put(tableName, tableJson)
                                     //属性加入表名（包含后缀）、库名

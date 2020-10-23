@@ -12,88 +12,61 @@ class TStreamRuleDTO implements Serializable {
     Integer sid
     //船舶ID
     String ship_id
-
     //系统ID
     Integer sys_id
-
     //信号分组分表编号-新增
     Integer cat_id
-
     // DOSS系统key值
     Integer doss_key
-
     //通讯协议
     String protocol
-
     // 信号中文名
     String name_chn
-
     //信号英文名
     String name_eng
-
     // 原始key值
     String orig_key
-
     //     数据来源标志位
     String data_from
-
     //单位
     String unit
-
     //量纲转换因子
     BigDecimal transfer_factor
-
     //系数-修改
     BigDecimal coefficient
-
     //启用状态
     // A - 活跃
     // S - 暂时禁用
     // D - 删除"
     String status
-
     //开关量/模拟量
     String value_type
-
     //量程最小值
     BigDecimal value_min
-
     //量程最小值
     BigDecimal value_max
-
     // 应用名称
     String inner_key
-
     //输入时间
     String input_time
-
     //输入用户
     String input_user
-
     //最后更新时间
     String last_modify_time
-
     //最后更新用户
     String last_modify_user
-
     //报警分表
     List<AlarmDTO> alarm = []
-
     //计算分表
     List<CalculationDTO> calculation = []
-
     //采集分表
     List<CollectionDTO> collection = []
-
     //第三方分发分表
     List<DistDTO> other_distributions = []
-
     //岸基分发分表
     List<ShoreBasedDTO> shore_based_distributions = []
-
     //抽稀分表
     List<ThinningDTO> thinning = []
-
     //入库分表
     List<WarehousingDTO> warehousing = []
 
@@ -104,6 +77,32 @@ class TStreamRuleDTO implements Serializable {
         Integer sid
         // DOSS系统key值
         Integer doss_key
+        // 规则名称
+        String rule_name
+        // 规则类型/报警类型
+        Integer rule_type
+        // 是否允许临时屏蔽
+        Integer allow_suspense
+        // 规则表达式
+        String expr
+        // 报警窗口长度
+        Integer gen_duration
+        // 报警窗口统计次数
+        Integer gen_count
+        // 忽略窗口长度
+        Integer ignore_duration
+        // 恢复窗口长度
+        Integer recover_duration
+        // 恢复窗口统计次数
+        Integer recover_count
+        // 报警名称-中文
+        String alarm_name_chn
+        // 报警名称-英文
+        String alarm_name_eng
+        //  报警来源
+        String alarm_source
+        // 报警等级
+        Integer alarm_level
         // 报警最大值，最小值范围
         BigDecimal alert_min
         BigDecimal alert_max
@@ -111,13 +110,13 @@ class TStreamRuleDTO implements Serializable {
         BigDecimal alert_2nd_max
         //关联设备状态标志位
         String relate_stop_sig
-        //    报警启用状态字段
+        // 报警启用状态字段
         String alert_status
-        //    报警是否弹窗
+        // 报警是否弹窗
         String is_popup
-        //    AMS报警报警参考
+        // AMS报警报警参考
         Integer ams_alarm_standard
-        //    报警方式
+        // 报警方式
         String alert_way
     }
 
@@ -144,19 +143,19 @@ class TStreamRuleDTO implements Serializable {
         // DOSS系统key值
         Integer doss_key
         // 采集组编号
-        String colgroup
+        Integer colgroup
         //SlaveID从站编号
         Integer modbus_slave_id
         //modbus操作功能
         Integer modbus_func_id
-        //modbus寄存器地址
-        String addr
+        //modbus寄存器地址-高位
+        Integer high_addr
+        //modbus寄存器地址-低位
+        Integer low_addr
         //数据来源IP地址
         String ip_addr
-        //    用于链路中断暂存字段-删除
-//        String ip_addr_down
         //端口号-修改
-        String port_addr
+        Integer port_addr
         //    来源表名
         String from_table_id
         //   来源列名
@@ -164,13 +163,13 @@ class TStreamRuleDTO implements Serializable {
         //通讯协议
         String protocol
         //采样频率
-        Double col_freq
+        Integer col_freq
         // 主题
         String topic
         // modbus信号标签
         String modbus_sig_tag
         //数据包请求间隔
-        Double col_interval
+        Integer col_interval
         //数据包请求数量-修改
         Integer col_count
         //nema0183_config关联id
@@ -187,28 +186,19 @@ class TStreamRuleDTO implements Serializable {
         // DOSS系统key值
         Integer doss_key
         //数据分发分组
-        String dist_group
+        Integer dist_group
         //数据分发目的IP
         String dist_ip
-
         //数据分发目的端口-修改
         Integer dist_port
-
-        //    链路中断暂存字段-删除
-//        String dist_ip_addr_down
-
         //  数据分发频率
-        Double dist_freq
-
+        Integer dist_freq
         //数据分发协议
         String dist_protocol
-
         //    链路中断暂存字段=删除
 //        String dis_user_and_password_down
-
         //  用于SFTP分发的用户名和密码-修改
         String dist_user_and_password
-
         //启用状态-修改
         String dist_status
     }
@@ -221,13 +211,13 @@ class TStreamRuleDTO implements Serializable {
         // DOSS系统key值
         Integer doss_key
         //船岸传输组
-        String to_shore_group
+        Integer to_shore_group
         //船岸传输目的IP
         String to_shore_ip
         //船岸传输目的port
         Integer to_shore_port
         //船岸传输频率
-        Double to_shore_freq
+        Integer to_shore_freq
         //船岸传输协议
         String to_shore_protocol
         //岸基压缩方式
@@ -297,6 +287,19 @@ class TStreamRuleDTO implements Serializable {
                 dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
+                dto.rule_name = res.getString('rule_name')
+                dto.rule_type = res.getObject('rule_type') as Integer
+                dto.allow_suspense = res.getObject('allow_suspense') as Integer
+                dto.expr = res.getString('expr')
+                dto.gen_duration = res.getObject('gen_duration') as Integer
+                dto.gen_count = res.getObject('gen_count') as Integer
+                dto.ignore_duration = res.getObject('ignore_duration') as Integer
+                dto.recover_duration = res.getObject('recover_duration') as Integer
+                dto.recover_count = res.getObject('recover_count') as Integer
+                dto.alarm_name_chn = res.getString('alarm_name_chn')
+                dto.alarm_name_eng = res.getString('alarm_name_eng')
+                dto.alarm_source = res.getString('alarm_source')
+                dto.alarm_level = res.getObject('alarm_level') as Integer
                 dto.alert_min = res.getBigDecimal('alert_min')
                 dto.alert_max = res.getBigDecimal('alert_max')
                 dto.alert_2nd_min = res.getBigDecimal('alert_2nd_min')
@@ -319,20 +322,20 @@ class TStreamRuleDTO implements Serializable {
                 dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
-                dto.colgroup = res.getString('colgroup')
+                dto.colgroup = res.getObject('colgroup') as Integer
                 dto.modbus_slave_id = res.getObject('modbus_slave_id') as Integer
                 dto.modbus_func_id = res.getObject('modbus_func_id') as Integer
-                dto.addr = res.getString('addr')
+                dto.high_addr = res.getObject('high_addr') as Integer
+                dto.low_addr = res.getObject('low_addr') as Integer
                 dto.ip_addr = res.getString('ip_addr')
-//                dto.ip_addr_down = res.getString('ip_addr_down')
-                dto.port_addr = res.getString('port_addr')
+                dto.port_addr = res.getObject('port_addr') as Integer
                 dto.from_table_id = res.getString('from_table_id')
                 dto.from_column_id = res.getString('from_column_id')
                 dto.protocol = res.getString('protocol')
-                dto.col_freq = res.getObject('col_freq') as Double
+                dto.col_freq = res.getObject('col_freq') as Integer
                 dto.topic = res.getString('topic')
                 dto.modbus_sig_tag = res.getString('modbus_sig_tag')
-                dto.col_interval = res.getObject('col_interval') as Double
+                dto.col_interval = res.getObject('col_interval') as Integer
                 dto.col_count = res.getObject('col_count') as Integer
                 dto.nmea_id = res.getObject('nmea_id') as Long
                 dto.collection_status = res.getString('collection_status')
@@ -341,13 +344,11 @@ class TStreamRuleDTO implements Serializable {
                 dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
-                dto.dist_group = res.getString('dist_group')
+                dto.dist_group = res.getObject('dist_group') as Integer
                 dto.dist_ip = res.getString('dist_ip')
                 dto.dist_port = res.getObject('dist_port') as Integer
-//                dto.dist_ip_addr_down = res.getString('dist_ip_addr_down')
-                dto.dist_freq = res.getObject('dist_freq') as Double
+                dto.dist_freq = res.getObject('dist_freq') as Integer
                 dto.dist_protocol = res.getString('dist_protocol')
-//                dto.dis_user_and_password_down = res.getString('dis_user_and_password_down')
                 dto.dist_user_and_password = res.getString('dist_user_and_password')
                 dto.dist_status = res.getString('dist_status')
             }
@@ -355,13 +356,13 @@ class TStreamRuleDTO implements Serializable {
                 dto.id = res.getObject('id') as Integer
                 dto.sid = res.getObject('sid') as Integer
                 dto.doss_key = res.getObject('doss_key') as Integer
-                dto.to_shore_group = res.getString('to_shore_group')
+                dto.to_shore_group = res.getObject('to_shore_group') as Integer
                 dto.to_shore_ip = res.getString('to_shore_ip')
                 dto.to_shore_port = res.getObject('to_shore_port') as Integer
-                dto.to_shore_freq = res.getObject('to_shore_freq') as Double
+                dto.to_shore_freq = res.getObject('to_shore_freq') as Integer
                 dto.to_shore_protocol = res.getString('to_shore_protocol')
                 dto.compress_type = res.getString('compress_type')
-                dto.to_shore_status= res.getString('to_shore_status')
+                dto.to_shore_status = res.getString('to_shore_status')
             }
             def createThinningDto = { ThinningDTO dto, res ->
                 dto.id = res.getObject('id') as Integer
@@ -369,7 +370,7 @@ class TStreamRuleDTO implements Serializable {
                 dto.doss_key = res.getObject('doss_key') as Integer
                 dto.sparse_rate = res.getObject('sparse_rate') as Integer
                 dto.dilution_type = res.getObject('dilution_type') as Integer
-                dto.dilution_status = res.getObject('dilution_status')as String
+                dto.dilution_status = res.getObject('dilution_status') as String
             }
             def createWarehousingDto = { WarehousingDTO dto, res ->
                 dto.id = res.getObject('id') as Integer
@@ -390,7 +391,7 @@ class TStreamRuleDTO implements Serializable {
                 if (!TStreamRules.containsKey(basicDto.sid as String)) {
                     TStreamRules.put(basicDto.sid as String, new HashMap<String, TStreamRuleDTO>())
                 }
-                TStreamRules.get(basicDto.sid as String).put((basicDto.doss_key as String),basicDto)
+                TStreamRules.get(basicDto.sid as String).put((basicDto.doss_key as String), basicDto)
             }
             //遍历报警表
             while (resAlarm.next()) {
