@@ -325,8 +325,8 @@ class TStreamRuleDTO implements Serializable {
                 dto.colgroup = res.getObject('colgroup') as Integer
                 dto.modbus_slave_id = res.getObject('modbus_slave_id') as Integer
                 dto.modbus_func_id = res.getObject('modbus_func_id') as Integer
-                dto.high_addr = res.getObject('addr') as Integer
-                dto.low_addr = res.getObject('addr') as Integer
+                dto.high_addr = res.getObject('high_addr') as Integer
+                dto.low_addr = res.getObject('low_addr') as Integer
                 dto.ip_addr = res.getString('ip_addr')
                 dto.port_addr = res.getObject('port_addr') as Integer
                 dto.from_table_id = res.getString('from_table_id')

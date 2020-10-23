@@ -18,7 +18,6 @@ import org.apache.nifi.logging.ComponentLog
 import org.apache.nifi.processor.*
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
-import org.luaj.vm2.ast.Str
 
 import java.nio.charset.StandardCharsets
 import java.time.Instant
@@ -27,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
-@CapabilityDescription('合并岸基分发的数据，该处理器为功能处理器，所以无子脚本流程')
+@CapabilityDescription('合并岸基分发的数据，该处理器与其它处理器的不同点在于具有数据暂存仓库，并需要将仓库指针传入子脚本')
 class MergeDataByToShoreGroup implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
@@ -35,8 +34,8 @@ class MergeDataByToShoreGroup implements Processor {
     private String currentClassName = this.class.canonicalName
     private DBCPService dbcpService = null
     private GroovyObject pch
-    private Map<String, MergeGroupDTO> mergeGroupDTOMap = new ConcurrentHashMap<>()
-    private List<MergeGroupDTO> history = new ArrayList<>()
+    private Map<String, MergeGroupDTO> mergeGroupDTOMap = new ConcurrentHashMap<>()//合并仓库
+    private List<MergeGroupDTO> history = new ArrayList<>()//历史合并仓库，主要用于规则回调及程序停止时未合并完的数据的续处理
     final static Relationship REL_ORIGINAL = new Relationship.Builder()
             .name("original")
             .description('FlowFiles that were used originally are routed here')
@@ -213,6 +212,10 @@ class MergeDataByToShoreGroup implements Processor {
                 default:
                     throw new Exception("暂不支持处理当前所接收的数据类型：${datas.get().getClass().canonicalName}")
             }
+            final def former = [(pch.getProperty("returnRules") as String)     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
+                                (pch.getProperty("returnAttributes") as String): attributesList,
+                                (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
+                                (pch.getProperty("returnData") as String)      : dataList]
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             String routeName = ''
             for (routesDTO in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
@@ -222,9 +225,8 @@ class MergeDataByToShoreGroup implements Processor {
                         log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的运行方式，暂不支持并行执行方式，请检查路由管理表!"
                         continue
                     }
-                    //结果存储
-                    List<JSONArray> returnDataList
-                    List<JSONObject> returnAttributesList
+                    //用来接收脚本返回的数据
+                    Map returnMap = pch.invokeMethod("deepClone", former) as Map
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeStatus = 'S'
                     //路由关系
@@ -239,72 +241,29 @@ class MergeDataByToShoreGroup implements Processor {
                             break
                     //路由关系正常执行
                         default:
-                            //数据录入并检查
-                            returnDataList = []
-                            returnAttributesList = []
-                            //循环list中的每一条数据
-                            for (int i = 0; i < (dataList as ArrayList).size(); i++) {
-                                try {
-                                    MergeGroupDTO merge
-                                    final JSONObject jsonDataFormer = ((dataList as ArrayList).get(i) as JSONObject)
-                                    final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
-                                    final String toShoreGroup = jsonAttributesFormer.getString('shore.group')
-                                    final String shipCollectProtocol = jsonAttributesFormer.getString('ship.collect.protocol')
-                                    final String shipCollectFreq = jsonAttributesFormer.getString('ship.collect.freq')
-                                    final String coltime = (jsonAttributesFormer.getString('coltime'))
-                                    final String key = shipCollectProtocol + '/' + shipCollectFreq + '/' + toShoreGroup
-                                    if (!mergeGroupDTOMap.containsKey(key)) {
-                                        merge = new MergeGroupDTO()
-                                        merge.sid = jsonAttributesFormer.getString('sid')
-                                        merge.shipCollectProtocol = shipCollectProtocol
-                                        merge.shipCollectFreq = shipCollectFreq
-                                        merge.shoreGroup = toShoreGroup
-                                        merge.shoreIp = jsonAttributesFormer.getString('shore.ip')
-                                        merge.shorePort = jsonAttributesFormer.getString('shore.port')
-                                        merge.shoreFreq = Integer.parseInt(jsonAttributesFormer.getString('shore.freq'))
-                                        merge.compressType = jsonAttributesFormer.getString('compress.type')
-                                        merge.shoreProtocol = jsonAttributesFormer.getString('shore.protocol')
-                                        mergeGroupDTOMap.put(key, merge)
-                                    }
-                                    merge = mergeGroupDTOMap.get(key)
-                                    JSONArray merged = merge.addAndCheckOut(coltime, JSONObject.toJSONString(jsonDataFormer, SerializerFeature.WriteMapNullValue))
-                                    if (null != merged) {//达到合并状态
-                                        String filename = String.join('-', [merge.sid, merge.shipCollectProtocol, merge.shipCollectFreq, merge.shoreGroup, merge.shoreIp, merge.shorePort, merge.shoreFreq as String, merge.compressType, merge.shoreProtocol, Instant.now().toEpochMilli() as String] as Iterable<? extends CharSequence>)
-                                        jsonAttributesFormer.put('file.name', filename)
-                                        returnDataList.add(merged)
-                                        returnAttributesList.add(jsonAttributesFormer)
-                                        routeStatus = 'A'
-                                    } else {//未达到合并状态就检查历史仓库
-                                        if (history.size() > 0) {//有历史
-                                            Iterator its = history.iterator()
-                                            while (its.hasNext()) {
-                                                try {
-                                                    MergeGroupDTO hisMerge = its.next() as MergeGroupDTO
-                                                    JSONArray hisMerged = hisMerge.out()
-                                                    JSONObject newAttributes = new JSONObject()
-                                                    newAttributes.put('sid', hisMerge.sid)
-                                                    newAttributes.put('ship.collect.protocol', hisMerge.shipCollectProtocol)
-                                                    newAttributes.put('ship.collect.freq', hisMerge.shipCollectFreq)
-                                                    newAttributes.put('shore.group', hisMerge.shoreGroup)
-                                                    newAttributes.put('shore.ip', hisMerge.shoreIp)
-                                                    newAttributes.put('shore.port', hisMerge.shorePort)
-                                                    newAttributes.put('shore.freq', hisMerge.shoreFreq as String)
-                                                    newAttributes.put('compress.type', hisMerge.compressType)
-                                                    newAttributes.put('shore.protocol', hisMerge.shoreProtocol)
-                                                    String filename = String.join('-', [hisMerge.sid, hisMerge.shipCollectProtocol, hisMerge.shipCollectFreq, hisMerge.shoreGroup, hisMerge.shoreIp, hisMerge.shorePort, hisMerge.shoreFreq as String, hisMerge.compressType, hisMerge.shoreProtocol, Instant.now().toEpochMilli() as String] as Iterable<? extends CharSequence>)
-                                                    newAttributes.put('file.name', filename)
-                                                    returnDataList.add hisMerged
-                                                    returnAttributesList.add newAttributes
-                                                    its.remove()
-                                                } catch (Exception e) {
-                                                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的历史数据包路由有异常", e
-                                                }
-                                            }
+                            def subClasses = (pch.getProperty('subClasses') as Map<String, Map<String, List<GroovyObject>>>)
+                            //开始循环分脚本
+                            if ((subClasses.get(routeName) as Map<String, List<GroovyObject>>).size() > 1) {
+                                log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的分脚本运行方式配置异常，请检查子脚本管理表!"
+                                break
+                            }
+                            for (runningWay in subClasses.get(routeName).keySet()) {
+                                //执行方式 A-并行 S-串行
+                                if ("S" == runningWay) {
+                                    for (subClassDTO in subClasses.get(routeName).get(runningWay)) {
+                                        if ('A' == subClassDTO.getProperty('status')) {
+                                            //根据路由名称 获取脚本实体GroovyObject instance
+                                            final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
+                                            //特殊处理，参数添加合并仓库指针和历史仓库指针
+                                            returnMap.put('mergeGroupDTOMap', mergeGroupDTOMap)
+                                            returnMap.put('mergeGroupDTOMap', history)
+                                            //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
+                                            returnMap = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
                                             routeStatus = 'A'
                                         }
                                     }
-                                } catch (Exception e) {
-                                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的数据插入和检查过程有异常", e
+                                } else {
+                                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的分脚本运行方式，暂不支持并行执行方式，请检查子脚本管理表!"
                                 }
                             }
                     }
@@ -312,6 +271,8 @@ class MergeDataByToShoreGroup implements Processor {
                     switch (routeStatus) {
                         case 'A':
                             def flowFiles = []
+                            final List<JSONObject> returnDataList = (returnMap.get('data') as List<JSONObject>)
+                            final List<JSONObject> returnAttributesList = (returnMap.get('attributes') as List<JSONObject>)
                             if ((null == returnDataList || null == returnAttributesList) || (returnDataList.size() != returnAttributesList.size())) {
                                 throw new Exception('结果条数与属性条数不一致，请检查子脚本处理逻辑！')
                             }
@@ -321,7 +282,8 @@ class MergeDataByToShoreGroup implements Processor {
                                     session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
                                     //FlowFile write 数据
                                     session.write(flowFileNew, { out ->
-                                        IOUtils.writeLines(returnDataList.get(i), "\n", out, "UTF-8")
+                                        out.write(JSONObject.toJSONBytes(returnDataList.get(i),
+                                                SerializerFeature.WriteMapNullValue))
                                     } as OutputStreamCallback)
                                     flowFiles.add(flowFileNew)
                                 } catch (Exception e) {
