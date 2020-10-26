@@ -122,7 +122,7 @@ class JsonToSql {
         for (String column : data.keySet()) {
             i++
             Object value = data.get(column)
-            if (column.toLowerCase().contains("time")) {//时间字段
+            if (column.toLowerCase().contains("time")&&null!=value) {//时间字段
                 Long valueByLong = value as Long
                 columns[i] = "`".concat(column).concat("`");
                 values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong)).concat(")");

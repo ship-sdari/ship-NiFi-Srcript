@@ -1,7 +1,6 @@
 package com.sdari.processor.CommitByMySql
 
 import com.alibaba.fastjson.JSONArray
-import com.alibaba.fastjson.JSONObject
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
 import org.apache.nifi.annotation.documentation.CapabilityDescription
@@ -39,6 +38,7 @@ class CommitByMySql implements Processor {
     private String port
     private String userName
     private String password
+    private String driverByClass
     //库名->url
     private Map<String, String> databases = new HashMap<>()
     //库名->数据库连接
@@ -247,6 +247,7 @@ class CommitByMySql implements Processor {
         port = confMap.get("port")
         userName = confMap.get("user.name")
         password = confMap.get("password")
+        driverByClass = confMap.get("driver.class")
     }
     /**
      * 根据数据库名 创建连接
@@ -255,6 +256,7 @@ class CommitByMySql implements Processor {
     void ConnectionsInIt(String database) throws Exception {
         String u = url
         String url = MessageFormat.format(u, ip, port, database)
+        Class.forName(driverByClass).newInstance()
         connections.put(database, DriverManager.getConnection(url, userName, password))
     }
 
