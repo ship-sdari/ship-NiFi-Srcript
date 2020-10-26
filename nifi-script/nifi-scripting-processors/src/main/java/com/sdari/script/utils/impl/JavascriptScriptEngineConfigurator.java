@@ -1,4 +1,11 @@
 /*
+ * @Description: 
+ * @Author: Brave
+ * @Date: 2020-08-10 11:34:27
+ * @LastEditTime: 2020-10-26 11:59:39
+ * @LastEditors: Brave
+ */
+/*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -18,7 +25,6 @@ package com.sdari.script.utils.impl;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
-import com.sdari.script.processors.ScriptEngineConfigurator;
 /**
  * This class offers methods to perform Javascript-specific operations during the script engine lifecycle.
  */

@@ -1,23 +1,22 @@
-package com.sdari.processor.DataCleanAndTransform
+package com.sdari.processor.DataCleanAndTransform.Ship_1
 
+import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import org.apache.nifi.logging.ComponentLog
-
-import java.time.Instant
 
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 将数据拆分路由到ES路由
+ * 子脚本模板
  */
-class List2ES {
+class Send2Dist {
     private static log
     private static processorId
     private static String processorName
     private static routeId
     private static String currentClassName
 
-    List2ES(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    Send2Dist(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -37,14 +36,36 @@ class List2ES {
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
-            try {//详细处理流程
+            try {
+                //详细处理流程
                 final JSONObject jsonDataFormer = (dataList.get(i) as JSONObject)
                 final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
-                final String colTime = (Instant.ofEpochMilli(jsonDataFormer.getLong('time')) as String)
-                jsonAttributesFormer.put('coltime', colTime)
-                jsonDataFormer.remove('time')
+                //循环所有信号
+                def doss_key = [:]
+                String sid = jsonAttributesFormer.get('sid') as String
+                for (String dossKey in jsonDataFormer.keySet()) {
+                    try {
+                        JSONArray warehousing = (rules?.get(sid)?.get(dossKey)?.getJSONArray('warehousing'))
+                        for (def ware in warehousing){
+                            if ('A' != (ware as JSONObject).getString('write_status') ||
+                                    null == (ware as JSONObject).getString('schema_id') ||
+                                    null == (ware as JSONObject).getString('table_id') ||
+                                    null == (ware as JSONObject).getString('column_id')) continue
+                            def value = jsonDataFormer.get(dossKey)
+                            if (null == value) {
+                                //
+                            }else if (value instanceof BigDecimal) {
+                                BigDecimal transfer = rules?.get(sid)?.get(dossKey)?.get('transfer_factor') as BigDecimal
+                                value = value * transfer
+                            }
+                            doss_key.put(dossKey, value)//写入值
+                        }
+                    } catch (Exception e) {
+                        log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName} dossKey = ${dossKey}] 处理计算数据录入错误", e
+                    }
+                }
                 //单条数据处理结束，放入返回仓库
-                dataListReturn.add(jsonDataFormer)
+                dataListReturn.add(doss_key)
                 attributesListReturn.add(jsonAttributesFormer)
             } catch (Exception e) {
                 log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 处理单条数据时异常", e
