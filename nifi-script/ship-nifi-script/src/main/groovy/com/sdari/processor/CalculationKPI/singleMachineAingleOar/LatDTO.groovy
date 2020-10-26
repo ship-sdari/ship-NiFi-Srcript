@@ -94,7 +94,7 @@ class LatDTO {
             }
             Double dLat = 0;
             BigDecimal lat = data.get("lat");
-            BigDecimal lon = data.get("lat");
+            BigDecimal lon = data.get("lon");
             if (lat != null && lon != null) {
                 if (LON_LAT_CALCULATION== 0) {
                     result = lat;

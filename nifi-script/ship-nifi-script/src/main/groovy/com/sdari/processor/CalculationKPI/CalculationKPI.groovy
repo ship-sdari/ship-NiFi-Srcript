@@ -23,7 +23,6 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.ResultSet
 import java.sql.Statement
-import java.text.MessageFormat
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -41,13 +40,12 @@ class CalculationKPI implements Processor {
     //处理器数据库连接 相关参数
     private Connection con
     private String urls
+    private String driverByClass
     private String userName
     private String password
     private String sql
-
     //船舶配置 sdi-><key->value>
     private Map<String, Map<String, String>> shipConf = null
-    private static final String url = "jdbc:mysql://{0}:{1}/{2}?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true"
 
     @Override
     Set<Relationship> getRelationships() {
@@ -201,6 +199,7 @@ class CalculationKPI implements Processor {
                             //根据路由名称 获取脚本实体GroovyObject instance
                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
+                             returnMap.put("con", con)
                             Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
                             lists.add(returnMat.get('data') as JSONArray)
                         }
@@ -341,21 +340,21 @@ class CalculationKPI implements Processor {
      * 初始化所有连接配置
      */
     void initConf(Map<String, String> confMap) throws Exception {
-        String ip = confMap.get("ip")
-        String port = confMap.get("port")
         userName = confMap.get("user.name")
         password = confMap.get("password")
         sql = confMap.get("sql.conf")
-        String database = confMap.get("database.name")
-        String u = url
-        urls = MessageFormat.format(u, ip, port, database)
+        urls = confMap.get("url")
+        driverByClass = confMap.get("driver.class")
     }
 
     /**
      * 创建连接
      */
     void ConnectionsInIt() throws Exception {
-        con = DriverManager.getConnection(urls, userName, password)
+        if (null == con || con.isClosed()) {
+            Class.forName(driverByClass).newInstance()
+            con = DriverManager.getConnection(urls, userName, password)
+        }
     }
 
     /**

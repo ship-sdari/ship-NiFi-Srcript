@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class RoutesTest extends GroovyTestCase {
     private Connection con
-    private String url = 'jdbc:mysql://10.0.16.20:3306/doss_e?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true'
+    private String url = 'jdbc:mysql://10.0.16.20:3306/doss?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true'
     private String userName = 'appuser'
     private String password = 'Qgy@815133'
     private String sid = '1' as String
@@ -77,11 +77,9 @@ class RoutesTest extends GroovyTestCase {
                 "\t\"mappings\": {\n" +
                 "\t\t\"_doc\": {\n" +
                 "\t\t\t\"properties\": {\"upload_time\": {\n" +
-                "\t\t\t\t\t\"format\": \"yyyy-MM-dd HH:mm:ss:SSS\",\n" +
-                "\t\t\t\t\t\"type\": \"date\"\n" +
+                "\t\t\t\t\t\"type\": \"long\"\n" +
                 "\t\t\t\t},\"coltime\": {\n" +
-                "\t\t\t\t\t\"format\": \"yyyyMMddHHmmssSSS\",\n" +
-                "\t\t\t\t\t\"type\": \"date\"\n" +
+                "\t\t\t\t\t\"type\": \"long\"\n" +
                 "\t\t\t\t},\"rowkey\": {\n" +
                 "\t\t\t\t\t\"type\": \"keyword\"\n" +
                 "\t\t\t\t}"

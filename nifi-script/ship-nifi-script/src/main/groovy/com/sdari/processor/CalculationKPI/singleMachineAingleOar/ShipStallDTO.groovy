@@ -129,7 +129,7 @@ class ShipStallDTO {
                 log.error("船舶失速查询配置有误，使用默认初始值:r[{}] 默认1[{6.038,0.0009128,-0.00000003986,0.000000000001108,-0.00000000000000001249}] " +
                         " 默认0[{6.425,0.001048,-0.00000004074,0.0000000000008114,-0.00000000000000000524}] 默认其他[{null}] 异常为", r, e);
             }
-            if (null != dbParams && !dbParams.isEmpty() && shaftP==null && shaftP >= BigDecimal.valueOf(3000) && vs != null) {
+            if (null != dbParams && !dbParams.isEmpty() && shaftP !=null && shaftP >= BigDecimal.valueOf(3000) && vs != null) {
                 try {
                     String[] split = dbParams.split(",");
                     result = BigDecimal.ZERO;
@@ -150,7 +150,7 @@ class ShipStallDTO {
                     log.debug("[${sid}] [${kpiName}] [${time}] dbParams[${dbParams}] shaftP[${shaftP}] vs{${vs}} result[${BigDecimal.valueOf(value).setScale(4, BigDecimal.ROUND_HALF_UP)}] ")
                     return BigDecimal.valueOf(value).setScale(4, BigDecimal.ROUND_HALF_UP)
                 } catch (Exception e) {
-                    log.error("[${sid}] [${kpiName}] [${time}] dbParams[${dbParams}] shaftP[${shaftP}] vs{${vs}} result[${result}] ")
+                    log.error("[${sid}] [${kpiName}] [${time}] dbParams[${dbParams}] shaftP[${shaftP}] vs{${vs}} result[${result}] e:${e}")
                     return null;
                 }
             } else {

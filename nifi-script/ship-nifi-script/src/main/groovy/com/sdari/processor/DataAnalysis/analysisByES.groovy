@@ -5,8 +5,8 @@ import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import org.apache.commons.lang3.ArrayUtils
 import org.apache.commons.lang3.StringUtils
-import org.joda.time.Instant
 import java.text.SimpleDateFormat
+import java.time.Instant
 
 /**
  * @author wanghuaizhi@sdari.mail.com
@@ -98,7 +98,7 @@ class analysisByES {
                 json = json as JSONObject
                 JSONObject jsonAttributesFormers = jsonAttributesFormer.clone() as JSONObject
                 if (ArrayUtils.contains(FileTables.toArray(), tableName.toLowerCase())) {
-                    if (json.containsKey(record_time) && json.get(record_time) != null) {
+                   /* if (json.containsKey(record_time) && json.get(record_time) != null) {
                         long time = Long.parseLong((json.get(record_time) as String)) as long
                         json.put(record_time, DateByFormat(time) as String)
                     }
@@ -117,10 +117,10 @@ class analysisByES {
                     if (json.containsKey(end_time) && json.get(end_time) != null) {
                         long time = Long.parseLong((json.get(end_time) as String)) as long
                         json.put(end_time, DateByFormat(time) as String)
-                    }
+                    }*/
                     String rowId = StringUtils.leftPad(sid, 4, "0").concat(json.get("id") as String)
                     json.put(rowKey, rowId)
-                    json.put(upload_time, upDate(String.valueOf(Instant.now())))
+                    json.put(upload_time, Instant.now().getEpochSecond())
                     jsonAttributesFormers.put(TABLE_NAME_OUT, (tableNamePrefix + tableName).toLowerCase())
                     jsonAttributesFormers.put(rowKey, rowId)
                     attributesListReturn.add(jsonAttributesFormers)

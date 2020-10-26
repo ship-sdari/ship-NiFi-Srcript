@@ -91,7 +91,7 @@ class analysisByMysql {
                 if (null == json) continue
                 JSONObject jsonAttributesFormers = jsonAttributesFormer.clone() as JSONObject
                 if (!ArrayUtils.contains(FileTables.toArray(), tableName.toLowerCase())) {
-                    if (json.containsKey(record_time) && json.get(record_time) != null) {
+                  /*  if (json.containsKey(record_time) && json.get(record_time) != null) {
                         long time = Long.parseLong((json.get(record_time) as String)) as long
                         json.put(record_time, DateByFormat(time) as String)
                     }
@@ -110,7 +110,7 @@ class analysisByMysql {
                     if (json.containsKey(end_time) && json.get(end_time) != null) {
                         long time = Long.parseLong((json.get(end_time) as String)) as long
                         json.put(end_time, DateByFormat(time) as String)
-                    }
+                    }*/
                     attributesListReturn.add(jsonAttributesFormers)
                     //单条数据处理结束，放入返回仓库
                     dataListReturn.add(json)

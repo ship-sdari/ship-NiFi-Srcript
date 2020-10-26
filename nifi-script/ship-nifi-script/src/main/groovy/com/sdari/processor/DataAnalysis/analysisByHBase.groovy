@@ -80,7 +80,7 @@ class analysisByHBase {
                 json = json as JSONObject
                 if (null == json) continue
                 JSONObject jsonAttributesFormers = jsonAttributesFormer
-                if (json.containsKey(record_time) && json.get(record_time) != null) {
+                /*if (json.containsKey(record_time) && json.get(record_time) != null) {
                     long time = Long.parseLong((json.get(record_time) as String)) as long
                     json.put(record_time, DateByFormat(time) as String)
                 }
@@ -99,7 +99,7 @@ class analysisByHBase {
                 if (json.containsKey(end_time) && json.get(end_time) != null) {
                     long time = Long.parseLong((json.get(end_time) as String)) as long
                     json.put(end_time, DateByFormat(time) as String)
-                }
+                }*/
                 jsonAttributesFormers.put(TABLE_NAME_OUT, table_name_prefix.concat(tableName).toUpperCase())
                 jsonAttributesFormers.put(familyName, familyNameValue)
                 jsonAttributesFormers.put(rowKey,
