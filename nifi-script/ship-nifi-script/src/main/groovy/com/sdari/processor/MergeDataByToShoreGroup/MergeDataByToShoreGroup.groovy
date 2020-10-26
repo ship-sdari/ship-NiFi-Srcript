@@ -402,20 +402,37 @@ class MergeDataByToShoreGroup implements Processor {
             return gap >= shoreFreq
         }
 
-        synchronized private JSONArray out() throws Exception {
-            JSONArray array = new JSONArray()
-            array.addAll(merge.values())//输出仓库
+        synchronized private JSONObject out() throws Exception {
+            SendMetaData sendMetaData = new SendMetaData()
+            sendMetaData.meta.sid = this.sid
+            sendMetaData.meta.shipCollectProtocol = this.shipCollectProtocol
+            sendMetaData.meta.shipCollectFreq = this.shipCollectFreq
+            sendMetaData.meta.compressType = this.compressType
+            sendMetaData.data.addAll(merge.values())//输出仓库
             merge.clear()//清空仓库
-            return array
+            return JSONObject.toJSON(sendMetaData) as JSONObject
         }
 
-        synchronized JSONArray addAndCheckOut(String time, String data) throws Exception {//同步类实例
+        synchronized JSONObject addAndCheckOut(String time, String data) throws Exception {//同步类实例
             push(time, data)
             boolean isReturn = check()
             if (isReturn) {
                 return out()
             } else {
                 return null
+            }
+        }
+
+        @Data
+        class SendMetaData{
+            private meta meta = new meta()
+            private JSONArray data = new JSONArray()
+            @Data
+            class meta{
+                private String sid
+                private String shipCollectProtocol
+                private String shipCollectFreq
+                private String compressType
             }
         }
     }

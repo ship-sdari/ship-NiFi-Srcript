@@ -11,7 +11,7 @@ import java.util.regex.Pattern
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 子脚本模板
+ * 格式化成一行
  */
 class Format2OneLine {
     private static log
@@ -96,6 +96,7 @@ class Format2OneLine {
                 InputStream returnIn = new ByteArrayInputStream(out.toByteArray())
                 jsonDataFormer.close()//输入流关闭
                 out.close()//中转输出流关闭
+                jsonAttributesFormer.put('filename', jsonAttributesFormer.getString('file.name'))
                 //单条数据处理结束，放入返回仓库
                 dataListReturn.add(returnIn)
                 attributesListReturn.add(jsonAttributesFormer)

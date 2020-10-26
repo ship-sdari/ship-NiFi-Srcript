@@ -11,7 +11,7 @@ import java.util.regex.Pattern
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 子脚本模板
+ * 还原多行
  */
 class Format2Lines {
     private static log
