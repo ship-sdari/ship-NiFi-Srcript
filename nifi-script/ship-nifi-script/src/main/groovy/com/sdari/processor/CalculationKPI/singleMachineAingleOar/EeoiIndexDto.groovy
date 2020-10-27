@@ -107,10 +107,7 @@ class EeoiIndexDto {
     }
 
     /**
-     * 表象滑失率率的计算公式
-     * 计算公式为 1- 对地航速*0.514/ (np/60)
-     * n 为 转速 mon_navstate NMS_1
-     * p VLOC  = 8.51794m VLCC = 7.5730m
+     *（进口质量流量-出口质量流量）*（含碳量*1000000）/对地航速 * 载货量
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
@@ -197,6 +194,7 @@ class EeoiIndexDto {
                     BigDecimal auxBi = vg * CargoMass;
                     result = hostBi.divide(auxBi, 2, BigDecimal.ROUND_HALF_UP);
                 }
+
             }
             log.debug("[${sid}] [${kpiName}] [${time}] 载货量[${CargoMass}] 含碳量[${cf}] 对地航速[${vg}] result[${result}]")
             return result
