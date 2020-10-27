@@ -52,11 +52,11 @@ class TransformKey2Column {
                             try {
                                 if ('A' != (warehousingDto as JSONObject).getString('write_status')) continue
                                 //库名如果配置表中为空则组成库名
-                                final String databaseName = ((warehousingDto as JSONObject).get('schema_id') == null ? (processorConf.get('database.name.prefix') as String)?.concat(jsonAttributesFormer.getString('sid')) as String : (warehousingDto as JSONObject).get('schema_id'))
+                                final String databaseName = ((warehousingDto as JSONObject).get('schema_id'))
                                 final String tableName = ((warehousingDto as JSONObject).getString('table_id')) + jsonAttributesFormer.getString('table.name.postfix') == null ? '' : jsonAttributesFormer.getString('table.name.postfix')
                                 final String columnName = (warehousingDto as JSONObject).getString('column_id')
-                                if (null == tableName || null == columnName){
-                                    throw new Exception("配置不合法，表名或列名为空！")
+                                if (null == databaseName || null == tableName || null == columnName){
+                                    throw new Exception("配置不合法，库名、表名或列名为空！")
                                 }
                                 final String key = databaseName + '.' + tableName//组合key值，考虑进多库的情况
                                 if (!tables.containsKey(key)) {

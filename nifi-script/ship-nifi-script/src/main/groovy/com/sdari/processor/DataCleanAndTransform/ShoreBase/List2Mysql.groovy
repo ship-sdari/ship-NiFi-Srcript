@@ -1,4 +1,4 @@
-package com.sdari.processor.DataCleanAndTransform
+package com.sdari.processor.DataCleanAndTransform.ShoreBase
 
 import com.alibaba.fastjson.JSONObject
 import org.apache.nifi.logging.ComponentLog
