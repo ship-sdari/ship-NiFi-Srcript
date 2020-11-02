@@ -76,7 +76,9 @@ class JsonToSql {
                     jsonAttributesFormers.put(databaseName, processorConf.get(databasesFrom) + sid)
                     break
                 default:
-                    log.error "option error status=>[${status}] value=>[${option}] data:[${JsonData}]"
+                    if (!jsonAttributesFormers.containsKey(databasesFrom)) {
+                        log.error "option error status=>[${status}] value=>[${option}] data:[${JsonData}]"
+                    }
             }
 
             switch (option) {
@@ -122,7 +124,7 @@ class JsonToSql {
         for (String column : data.keySet()) {
             i++
             Object value = data.get(column)
-            if (column.toLowerCase().contains("time")&&null!=value) {//时间字段
+            if (column.toLowerCase().contains("time") && null != value) {//时间字段
                 Long valueByLong = value as Long
                 columns[i] = "`".concat(column).concat("`");
                 values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong)).concat(")");
@@ -159,7 +161,7 @@ class JsonToSql {
         for (String column : data.keySet()) {
             i++;
             Object value = data.get(column);
-            if (column.toLowerCase().contains("time")&&null!=value) {//时间字段
+            if (column.toLowerCase().contains("time") && null != value) {//时间字段
                 Long valueByLong = value as Long
                 columns[i] = "`".concat(column).concat("`");
                 values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong)).concat(")");
@@ -182,7 +184,7 @@ class JsonToSql {
         String key = StringUtils.join(columns, ",");
         String value = StringUtils.join(values, ",");
 
-        return MessageFormat.format(formatSql, tableName, key, value, StringUtils.join(setPart, ","),sid,data.get('id'));
+        return MessageFormat.format(formatSql, tableName, key, value, StringUtils.join(setPart, ","), sid, data.get('id'));
     }
     /**
      * 删除
