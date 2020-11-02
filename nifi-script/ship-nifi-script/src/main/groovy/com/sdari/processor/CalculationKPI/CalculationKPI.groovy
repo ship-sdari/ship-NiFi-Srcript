@@ -36,7 +36,7 @@ class CalculationKPI implements Processor {
     private String currentClassName = this.class.canonicalName
     private DBCPService dbcpService = null
     private GroovyObject pch
-
+    final static String databaseName = 'database.name'
     //处理器数据库连接 相关参数
     private Connection con
     private String urls
@@ -44,6 +44,7 @@ class CalculationKPI implements Processor {
     private String userName
     private String password
     private String sql
+    private String databaseNameByData
     //船舶配置 sdi-><key->value>
     private Map<String, Map<String, String>> shipConf = null
 
@@ -199,7 +200,7 @@ class CalculationKPI implements Processor {
                             //根据路由名称 获取脚本实体GroovyObject instance
                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                             returnMap.put("con", con)
+                            returnMap.put("con", con)
                             Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
                             lists.add(returnMat.get('data') as JSONArray)
                         }
@@ -234,6 +235,8 @@ class CalculationKPI implements Processor {
                                 for (int i = 0; i < returnAttributesList.size(); i++) {
                                     FlowFile flowFileNew = session.create()
                                     try {
+                                        //put 入库的名称
+                                        returnAttributesList.get(i).put(databaseName, databaseNameByData)
                                         session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
                                         //返回的指标
                                         JSONObject ruData = new JSONObject()
@@ -340,6 +343,7 @@ class CalculationKPI implements Processor {
      * 初始化所有连接配置
      */
     void initConf(Map<String, String> confMap) throws Exception {
+        databaseNameByData = confMap.get(databaseName)
         userName = confMap.get("user.name")
         password = confMap.get("password")
         sql = confMap.get("sql.conf")
