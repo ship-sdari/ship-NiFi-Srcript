@@ -8,9 +8,9 @@ import java.sql.Statement
 import java.time.Instant
 
 /**
- * 单位运输量co2
+ *
  * @type: （单桨单桨）
- * @kpiName: EEOI
+ * @kpiName: 单位运输量co2
  */
 class UnitTransportationCo2DTO {
     private static log
@@ -108,8 +108,8 @@ class UnitTransportationCo2DTO {
     }
 
     /**
-     * 对地航速 不能是空值 且 大于 5
-     * （进口质量流量-出口质量流量）*（含碳量*1000000）/对地航速 * 载货量
+     *
+     * （进口质量流量-出口质量流量）*（含碳量*1000000）/载货量
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
