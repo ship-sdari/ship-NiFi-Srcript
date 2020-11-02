@@ -159,7 +159,8 @@ class StopIndexDto {
     static Double selectVarMe(Statement statement, String getTime) throws Exception {
         Double standardDeviation = null;
         String sql_data = null;
-        final String sql_config = MessageFormat.format("SELECT w.column_id,w.table_id FROM tstream_rule t,tstream_rule_warehousing w WHERE t.doss_key=w.doss_key and t.inner_key =''{0}'' LIMIT 1;", me_ecs_speed);
+        final String sql_config = MessageFormat.format("SELECT tableid, columnid FROM `tstream_rule` WHERE Innerkey = ''{0}'' LIMIT 1;", me_ecs_speed);
+        //final String sql_config = MessageFormat.format("SELECT w.column_id,w.table_id FROM tstream_rule t,tstream_rule_warehousing w WHERE t.doss_key=w.doss_key and t.inner_key =''{0}'' LIMIT 1;", me_ecs_speed);
         ResultSet resultSet = statement.executeQuery(sql_config);
         while (resultSet.next()) {
             sql_data = MessageFormat.format("SELECT {0} FROM {1} WHERE coltime >=  ''{2}'' LIMIT 3600;"

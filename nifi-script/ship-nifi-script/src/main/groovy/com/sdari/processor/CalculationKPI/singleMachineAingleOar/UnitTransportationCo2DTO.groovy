@@ -1,17 +1,18 @@
 package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 import com.alibaba.fastjson.JSONObject
+
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Statement
 import java.time.Instant
 
 /**
- *
+ * 单位运输量co2
  * @type: （单桨单桨）
  * @kpiName: EEOI
  */
-class EeoiIndexDto {
+class UnitTransportationCo2DTO {
     private static log
     private static processorId
     private static String processorName
@@ -19,7 +20,7 @@ class EeoiIndexDto {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'eeoi'
+    private static kpiName = 'unit_transportation_co2'
     //计算相关参数
     final static String SID = 'sid'
     final static String COLTIME = 'coltime'
@@ -52,9 +53,9 @@ class EeoiIndexDto {
     final static String SHIP_CARGO_VOLUME = "CARGO_VOLUME"
     // 油耗计算方式
     final static String OIL_CALCULATION_TYPE = "OIL_CALCULATION_TYPE";
-    static final String VG_SL = "vg";
+    final static BigDecimal BIG1000F = 1000f
 
-    EeoiIndexDto(final def logger, final int pid, final String pName, final int rid) {
+    UnitTransportationCo2DTO(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -114,11 +115,9 @@ class EeoiIndexDto {
      * @param data 参与计算的信号值<innerKey,value></>
      */
     static BigDecimal calculationKpi(Connection con, Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
-        Statement statement
         try {
             BigDecimal result = null
             Integer oilType
-            statement = con.createStatement()
             BigDecimal hfo = data.get(ME_USE_HFO);
             BigDecimal mdo = data.get(ME_USE_MDO);
             String key;
@@ -174,43 +173,38 @@ class EeoiIndexDto {
                 // 获取锅炉流出流量
                 blr_outRate = data.get(BOIL_FO_OUT_RATE);
             }
-            //对地航速
-            BigDecimal vg = data.get(VG_SL);
 
-            if (CargoMass == null || cf == null) {
-                log.debug("[${sid}] [${kpiName}] [${time}] 载货量{${CargoMass}}  含碳量{${cf}}  对地航速[${vg}]  " +
+            if (CargoMass == null || 0 == null || me_inRate == null || ge_inRate == null || blr_inRate == null || me_outRate == null || ge_outRate == null
+                    || blr_outRate == null) {
+                log.debug("[${sid}] [${kpiName}] [${time}] 载货量{${CargoMass}} 含碳量{${cf}} " +
                         "进口质量流量计流速（主机[${me_inRate}]/辅机[${ge_inRate}]/锅炉[${blr_inRate}]）" +
-                        "出口质量流量计流速（主机[${me_outRate}]/辅机[${ge_outRate}]/锅炉[${blr_outRate}]）")
+                        "出口质量流量计流速（主机[${me_outRate}]/辅机[${ge_outRate}]/锅炉[${blr_outRate}] result[${result}]")
+                return null
             }
-            if (vg != null && vg > new BigDecimal(5)) {
-//				计算公式eeoi传入参数fint\cf\vog\cargoVolunme
-                BigDecimal fint
-                try {
-                    fint = me_inRate.add(ge_inRate).add(BigDecimal.valueOf(blr_inRate.doubleValue() / 1000f))
-                            .subtract(me_outRate).subtract(ge_outRate).subtract(BigDecimal.valueOf(blr_outRate.doubleValue() / 1000f));
-                } catch (Exception ignored) {
-                    fint = 0
-                    log.error("[${sid}] [${kpiName}] [${time}] 载货量{${CargoMass}} 含碳量{${cf}} " +
-                            "进口质量流量计流速（主机[${me_inRate}]/辅机[${ge_inRate}]/锅炉[${blr_inRate}]）" +
-                            "出口质量流量计流速（主机[${me_outRate}]/辅机[${ge_outRate}]/锅炉[${blr_outRate}] " +
-                            " 对地航速[${vg}]  e:[${ignored}]）")
-                }
-                if (CargoMass != null && CargoMass != new BigDecimal(0) && cf != null && vg != new BigDecimal(0)) {
-                    BigDecimal hostBi = fint * (cf * BigDecimal.valueOf(1000000));
-                    BigDecimal auxBi = vg * CargoMass;
-                    result = hostBi.divide(auxBi, 2, BigDecimal.ROUND_HALF_UP);
-                }
+            //开始计算指标
+            BigDecimal fint;
+            try {
+                BigDecimal me = me_inRate.subtract(me_outRate);
+                BigDecimal ge = ge_inRate.subtract(ge_outRate);
+                BigDecimal blr = blr_inRate.subtract(blr_outRate).divide(BIG1000F, 4);
+                fint = me.add(ge).add(blr);
+            } catch (Exception e) {
+                fint = BigDecimal.ZERO;
+                log.error("[${sid}] [${kpiName}] [${time}] 载货量{${fint}} 含碳量{${cf}} " +
+                        "进口质量流量计流速（主机[${me_inRate}]/辅机[${ge_inRate}]/锅炉[${blr_inRate}]）" +
+                        "出口质量流量计流速（主机[${me_outRate}]/辅机[${ge_outRate}]/锅炉[${blr_outRate}] " +
+                        " e:[${e}]）")
+            }
+            result = ((fint * BigDecimal.valueOf(1000000)) * cf).divide(CargoMass, 2, BigDecimal.ROUND_HALF_UP);
 
-            }
-            log.debug("[${sid}] [${kpiName}] [${time}] 载货量{${CargoMass}} 含碳量{${cf}}  对地航速[${vg}]  " +
-                    "进口质量流量计流速(主机[${me_inRate}]/辅机[${ge_inRate}]/锅炉[${blr_inRate}])" +
-                    "出口质量流量计流速（主机[${me_outRate}]/辅机[${ge_outRate}]/锅炉[${blr_outRate}]）result[${result}]")
+            log.debug("[${sid}] [${kpiName}] [${time}] 载货量{${CargoMass}} 含碳量{${cf}} " +
+                    "进口质量流量计流速（主机[${me_inRate}]/辅机[${ge_inRate}]/锅炉[${blr_inRate}]）" +
+                    "出口质量流量计流速（主机[${me_outRate}]/辅机[${ge_outRate}]/锅炉[${blr_outRate}] " +
+                    " result[${result}]")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
             return null
-        } finally {
-            if (statement != null && !statement.isClosed()) statement.close()
         }
     }
 
