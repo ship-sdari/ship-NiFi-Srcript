@@ -3,7 +3,6 @@ package com.sdari.processor.CalculationKPI
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
-import com.sdari.vo.AmsInnerKeyVo
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
 import org.apache.nifi.annotation.documentation.CapabilityDescription
@@ -287,7 +286,8 @@ class CalculationKPI implements Processor {
                                                     JSONObject hostData = originalData.get(host_use_oil) as JSONObject
                                                     JSONObject auxData = originalData.get(aux_use_oil) as JSONObject
                                                     JSONObject boilerData = originalData.get(boiler_oil_type) as JSONObject
-                                                    mas = kpiDataCheck(mas, hostData, auxData, boilerData)
+                                                    def logs = log
+                                                    mas = kpiDataCheck(logs, mas, hostData, auxData, boilerData)
                                                     ruData.putAll(mas)
                                                 }
                                                 returnMap.get((pch.getProperty("returnData") as String))
@@ -479,9 +479,9 @@ class CalculationKPI implements Processor {
      * 检查 KPI数据
      * 用油筛选,主机辅机锅炉使用油耗类型为null全部采用重油
      */
-    static JSONObject kpiDataCheck(JSONObject data, JSONObject hostData, JSONObject auxData, JSONObject boilerData) {
+    static JSONObject kpiDataCheck(def logs, JSONObject data, JSONObject hostData, JSONObject auxData, JSONObject boilerData) {
         JSONObject dataCheck = data
-        if (data != null && data.containsKey(host_use_oil) && data.containsKey(host_use_oil) && data.containsKey(host_use_oil)) {
+        if (hostData != null && auxData != null && boilerData != null) {
             if (null == hostData.get('me_use_hfo') && hostData.get('me_use_mdo') == null
                     || auxData.get('ge_use_hfo') == null || auxData.get('ge_use_mdo') == null
                     || boilerData.get('boil_use_hfo') == null || boilerData.get('boil_use_mdo') == null) {
@@ -489,12 +489,17 @@ class CalculationKPI implements Processor {
                 dataCheck.put(aux_use_oil, 0)
                 dataCheck.put(boiler_oil_type, 0)
             }
+            logs.debug("主机辅机锅炉使用油耗类型为null全部采用重油 " +
+                    "ME_USE_HFO:[${hostData.get('me_use_hfo')}] ME_USE_MDO:[${hostData.get('me_use_mdo')}] " +
+                    "GE_USE_HFO:[${auxData.get('ge_use_hfo')}] GE_USE_MDO:[${auxData.get('ge_use_mdo')}]" +
+                    "BOIL_USE_HFO:[${boilerData.get('boil_use_hfo')}] BOIL_USE_MDO:[${boilerData.get('boil_use_mdo')}]")
         } else {
             if (data != null && data.containsKey(host_use_oil) && data.containsKey(host_use_oil) && data.containsKey(host_use_oil)) {
                 dataCheck.put(host_use_oil, 0)
                 dataCheck.put(aux_use_oil, 0)
                 dataCheck.put(boiler_oil_type, 0)
             }
+            logs.debug("计算源数据为null,全部采用重油 ")
         }
         return dataCheck
     }
