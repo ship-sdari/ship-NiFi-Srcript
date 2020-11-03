@@ -3,6 +3,7 @@ package com.sdari.processor.CalculationKPI
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
+import com.sdari.vo.AmsInnerKeyVo
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
 import org.apache.nifi.annotation.documentation.CapabilityDescription
@@ -47,7 +48,10 @@ class CalculationKPI implements Processor {
     final static String ShipPositionRoutesName = 'ship_position'
     final static String latitude = 'latitude'
     final static String longitude = 'longitude'
-
+    //换油检测相关
+    final static host_use_oil = 'host_use_oil'
+    final static aux_use_oil = 'aux_use_oil'
+    final static boiler_oil_type = 'boiler_oil_type'
     //处理器数据库连接 相关参数
     private Connection con
     private String urls
@@ -247,7 +251,7 @@ class CalculationKPI implements Processor {
                                                     //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
                                                     returnMap = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
                                             }
-                                            routeStatus='A'
+                                            routeStatus = 'A'
                                         }
                                     }
                                 } else {
@@ -279,8 +283,14 @@ class CalculationKPI implements Processor {
                                                 for (data in kpiLists) {
                                                     //根据下标 获取对应的 计算指标数据
                                                     JSONObject mas = data.get(i) as JSONObject
+                                                    JSONObject originalData = returnDataList.get(i) as JSONObject
+                                                    JSONObject hostData = originalData.get(host_use_oil) as JSONObject
+                                                    JSONObject auxData = originalData.get(aux_use_oil) as JSONObject
+                                                    JSONObject boilerData = originalData.get(boiler_oil_type) as JSONObject
+                                                    mas = kpiDataCheck(mas, hostData, auxData, boilerData)
                                                     ruData.putAll(mas)
                                                 }
+                                                returnMap.get((pch.getProperty("returnData") as String))
                                             }
                                             attributesMaps.put(tableName, tableNameByKpi)
                                             attributesMaps.put(option, '0')
@@ -463,6 +473,30 @@ class CalculationKPI implements Processor {
             String t = JSONObject.toJSONString(configMap)
             logs.debug "[Processor_id = ${id} Processor_name = ${currentClassName}] conf:[${t}]"
         }
+    }
+
+    /**
+     * 检查 KPI数据
+     * 用油筛选,主机辅机锅炉使用油耗类型为null全部采用重油
+     */
+    static JSONObject kpiDataCheck(JSONObject data, JSONObject hostData, JSONObject auxData, JSONObject boilerData) {
+        JSONObject dataCheck = data
+        if (data != null && data.containsKey(host_use_oil) && data.containsKey(host_use_oil) && data.containsKey(host_use_oil)) {
+            if (null == hostData.get('me_use_hfo') && hostData.get('me_use_mdo') == null
+                    || auxData.get('ge_use_hfo') == null || auxData.get('ge_use_mdo') == null
+                    || boilerData.get('boil_use_hfo') == null || boilerData.get('boil_use_mdo') == null) {
+                dataCheck.put(host_use_oil, 0)
+                dataCheck.put(aux_use_oil, 0)
+                dataCheck.put(boiler_oil_type, 0)
+            }
+        } else {
+            if (data != null && data.containsKey(host_use_oil) && data.containsKey(host_use_oil) && data.containsKey(host_use_oil)) {
+                dataCheck.put(host_use_oil, 0)
+                dataCheck.put(aux_use_oil, 0)
+                dataCheck.put(boiler_oil_type, 0)
+            }
+        }
+        return dataCheck
     }
 
 }
