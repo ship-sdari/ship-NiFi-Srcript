@@ -36,7 +36,13 @@ class CalculationKPI implements Processor {
     private String currentClassName = this.class.canonicalName
     private DBCPService dbcpService = null
     private GroovyObject pch
+    //入库相关
     final static String databaseName = 'database.name'
+    final static String tableName = 'table.name'
+    final static String option = 'option'
+    //计算表名
+    final static String tableNameByKpi = 't_calculation'
+    final static String kpiRoutesName = 'kpi'
     //处理器数据库连接 相关参数
     private Connection con
     private String urls
@@ -180,7 +186,7 @@ class CalculationKPI implements Processor {
                                 'shipConf'                                     : shipConf]
             final Map routeConf = pch.getProperty('routeConf') as Map<String, GroovyObject>
             //根据路由名称 获取路由运行方式
-            def routesDTO = routeConf.get('success')
+            def routesDTO = routeConf.get(kpiRoutesName)
             String routeName = routesDTO.getProperty('route_name') as String
             if ('A' == routesDTO.getProperty('route_running_way')) {
                 log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的运行方式，暂不支持并行执行方式，请检查路由管理表!"
@@ -201,8 +207,13 @@ class CalculationKPI implements Processor {
                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
                             returnMap.put("con", con)
-                            Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
-                            lists.add(returnMat.get('data') as JSONArray)
+                            if (kpiRoutesName == routeName) {
+                                Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
+                                lists.add(returnMat.get('data') as JSONArray)
+                            } else {
+                                //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
+                                returnMap = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
+                            }
                         }
                     }
                 } else {
@@ -212,6 +223,7 @@ class CalculationKPI implements Processor {
 
 
             //循环路由
+            final List<JSONObject> returnDataList = (returnMap.get('data') as List<JSONObject>)
             final List<JSONObject> returnAttributesList = former.get('attributes') as List<JSONObject>
             for (routes in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
                 String rouName = routes.getProperty('route_name')
@@ -231,30 +243,37 @@ class CalculationKPI implements Processor {
                             if (null == relationships.get(rouName)) throw new Exception('没有该创建路由关系，请核对管理表！')
                             //如果有数据 路由下去
                             def flowFiles = []
-                            if (lists.size() > 0) {
-                                for (int i = 0; i < returnAttributesList.size(); i++) {
-                                    FlowFile flowFileNew = session.create()
-                                    try {
-                                        //put 入库的名称
-                                        returnAttributesList.get(i).put(databaseName, databaseNameByData)
-                                        session.putAllAttributes(flowFileNew, (returnAttributesList.get(i) as Map<String, String>))
+                            for (int i = 0; i < returnAttributesList.size(); i++) {
+                                FlowFile flowFileNew = session.create()
+                                JSONObject ruData = new JSONObject()
+                                Map<String, String> attributesMaps = returnAttributesList.get(i);
+                                try {
+                                    //put 入库的名称
+                                    attributesMaps.put(databaseName, databaseNameByData)
+                                    if (kpiRoutesName == routeName) {
                                         //返回的指标
-                                        JSONObject ruData = new JSONObject()
                                         //循环 返回指标的计算结果
-                                        for (data in lists) {
-                                            //根据下标 获取对应的 计算指标数据
-                                            JSONObject mas = data.get(i) as JSONObject
-                                            ruData.putAll(mas)
+                                        if (lists.size() > 0) {
+                                            for (data in lists) {
+                                                //根据下标 获取对应的 计算指标数据
+                                                JSONObject mas = data.get(i) as JSONObject
+                                                ruData.putAll(mas)
+                                            }
                                         }
-                                        //FlowFile write 数据
-                                        session.write(flowFileNew, { out ->
-                                            out.write(JSONObject.toJSONBytes(ruData, SerializerFeature.WriteMapNullValue))
-                                        } as OutputStreamCallback)
-                                        flowFiles.add(flowFileNew)
-                                    } catch (Exception e) {
-                                        log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${rouName} 创建流文件异常", e
-                                        session.remove(flowFileNew)
+                                        attributesMaps.put(tableName, tableNameByKpi)
+                                        attributesMaps.put(option, '0')
+                                    } else {
+                                        ruData = returnDataList.get(i)
                                     }
+                                    //FlowFile write 数据
+                                    session.putAllAttributes(flowFileNew, attributesMaps)
+                                    session.write(flowFileNew, { out ->
+                                        out.write(JSONObject.toJSONBytes(ruData, SerializerFeature.WriteMapNullValue))
+                                    } as OutputStreamCallback)
+                                    flowFiles.add(flowFileNew)
+                                } catch (Exception e) {
+                                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${rouName} 创建流文件异常", e
+                                    session.remove(flowFileNew)
                                 }
                             }
                             if (flowFiles.size() > 0) {

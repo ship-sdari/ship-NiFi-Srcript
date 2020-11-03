@@ -76,7 +76,7 @@ class JsonToSql {
                     jsonAttributesFormers.put(databaseName, processorConf.get(databasesFrom) + sid)
                     break
                 default:
-                    if (!jsonAttributesFormers.containsKey(databasesFrom)) {
+                    if (!jsonAttributesFormers.containsKey(databaseName)) {
                         log.error "option error status=>[${status}] value=>[${option}] data:[${JsonData}]"
                     }
             }

@@ -2,6 +2,8 @@ package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 import com.alibaba.fastjson.JSONObject
 
+import java.text.SimpleDateFormat
+
 /**
  *
  * @type: （单机单桨）
@@ -44,8 +46,10 @@ class RecordTimeDTO {
             JSONObject json = new JSONObject()
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
-            String coltime = dateUp(jsonAttributesFormer.get(SID) as String, jsonAttributesFormer.get(COLTIME) as String)
-            json.put(kpiName, coltime)
+            String sid = jsonAttributesFormer.get(SID)
+            String coltime = dateUp(sid, jsonAttributesFormer.get(COLTIME) as String)
+            long time = dateUpByLong(sid, coltime);
+            json.put(kpiName, time)
             //单条数据处理结束，放入返回
             dataListReturn.add(json)
             attributesListReturn.add(jsonAttributesFormer)
@@ -73,6 +77,26 @@ class RecordTimeDTO {
             return time.replace("T", " ").replace("Z", "");
         } catch (Exception ignored) {
             log.error("[${sid}] [${kpiName}] [${time}] 时间格式化失败 e[${ignored}] ")
+            return null;
+        }
+    }
+
+    /**
+     * 时间格式化
+     *
+     * @param time Instant time
+     * @return String
+     */
+    private static Long dateUpByLong(String sid, String time) {
+        try {
+            if (time.isEmpty()) {
+                return null;
+            }
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+            return sdf.parse(time).getTime()
+        } catch (Exception ignored) {
+            log.error("[${sid}]  [${kpiName}] [${time}] 时间格式化失败 e[${ignored}] ")
             return null;
         }
     }
