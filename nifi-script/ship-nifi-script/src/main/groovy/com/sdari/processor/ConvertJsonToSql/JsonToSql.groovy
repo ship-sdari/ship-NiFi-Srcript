@@ -127,7 +127,12 @@ class JsonToSql {
             if (column.toLowerCase().contains("time") && null != value) {//时间字段
                 Long valueByLong = value as Long
                 columns[i] = "`".concat(column).concat("`");
-                values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong)).concat(")");
+                int size = String.valueOf(valueByLong).size()
+                if (size == 13) {
+                    values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong / 1000)).concat(")");
+                } else {
+                    values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong)).concat(")");
+                }
                 continue;
             }
             if (null == value) {
