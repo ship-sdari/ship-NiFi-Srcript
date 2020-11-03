@@ -43,6 +43,12 @@ class CalculationKPI implements Processor {
     //计算表名
     final static String tableNameByKpi = 't_calculation'
     final static String kpiRoutesName = 'kpi'
+    //船位相关
+    final static String tableNameByShipPosition = 't_ship_position'
+    final static String ShipPositionRoutesName = 'ship_position'
+    final static String latitude = 'latitude'
+    final static String longitude = 'longitude'
+
     //处理器数据库连接 相关参数
     private Connection con
     private String urls
@@ -196,7 +202,9 @@ class CalculationKPI implements Processor {
             //路由关系
             def subClasses = (pch.getProperty('subClasses') as Map<String, Map<String, List<GroovyObject>>>)
             //用来接收计算指标 返回的数据
-            List<JSONArray> lists = new ArrayList<>()
+            List<JSONArray> kpiLists = new ArrayList<>()
+            //用来接收 经度纬度 数据
+            List<JSONArray> longitudeLists = new ArrayList<>()
             //开始循环分脚本
             for (runningWay in subClasses.get(routeName).keySet()) {
                 //执行方式 A-并行 S-串行
@@ -207,12 +215,19 @@ class CalculationKPI implements Processor {
                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
                             returnMap.put("con", con)
-                            if (kpiRoutesName == routeName) {
-                                Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
-                                lists.add(returnMat.get('data') as JSONArray)
-                            } else {
-                                //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                returnMap = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
+
+                            switch (routeName) {
+                                case kpiRoutesName:
+                                    Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
+                                    kpiLists.add(returnMat.get('data') as JSONArray)
+                                    break
+                                case ShipPositionRoutesName:
+                                    Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
+                                    longitudeLists.add(returnMat.get('data') as JSONArray)
+                                    break
+                                default:
+                                    //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
+                                    returnMap = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
                             }
                         }
                     }
@@ -246,31 +261,56 @@ class CalculationKPI implements Processor {
                             for (int i = 0; i < returnAttributesList.size(); i++) {
                                 FlowFile flowFileNew = session.create()
                                 JSONObject ruData = new JSONObject()
-                                Map<String, String> attributesMaps = returnAttributesList.get(i);
+                                Map<String, String> attributesMaps = returnAttributesList.get(i) as Map<String, String>
                                 try {
                                     //put 入库的名称
                                     attributesMaps.put(databaseName, databaseNameByData)
-                                    if (kpiRoutesName == routeName) {
-                                        //返回的指标
-                                        //循环 返回指标的计算结果
-                                        if (lists.size() > 0) {
-                                            for (data in lists) {
-                                                //根据下标 获取对应的 计算指标数据
-                                                JSONObject mas = data.get(i) as JSONObject
-                                                ruData.putAll(mas)
+                                    switch (rouName) {
+                                    //计算指标处理
+                                        case kpiRoutesName:
+                                            //循环 返回指标的计算结果
+                                            if (kpiLists.size() > 0) {
+                                                for (data in kpiLists) {
+                                                    //根据下标 获取对应的 计算指标数据
+                                                    JSONObject mas = data.get(i) as JSONObject
+                                                    ruData.putAll(mas)
+                                                }
                                             }
-                                        }
-                                        attributesMaps.put(tableName, tableNameByKpi)
-                                        attributesMaps.put(option, '0')
-                                    } else {
-                                        ruData = returnDataList.get(i)
+                                            attributesMaps.put(tableName, tableNameByKpi)
+                                            attributesMaps.put(option, '0')
+                                            break
+                                    //船位处理
+                                        case ShipPositionRoutesName:
+                                            if (longitudeLists.size() > 0) {
+                                                for (data in longitudeLists) {
+                                                    //根据下标 获取对应的 计算指标数据
+                                                    JSONObject mas = data.get(i) as JSONObject
+                                                    ruData.putAll(mas)
+                                                }
+                                                if (!ruData.containsKey(latitude) || ruData.get(latitude) == null) {
+                                                    ruData = null
+                                                }
+                                                if (!ruData.containsKey(longitude) || ruData.get(longitude) == null) {
+                                                    ruData = null
+                                                }
+                                            }
+                                            attributesMaps.put(tableName, tableNameByShipPosition)
+                                            attributesMaps.put(option, '0')
+                                            break
+                                        default:
+                                            ruData = returnDataList.get(i)
                                     }
-                                    //FlowFile write 数据
-                                    session.putAllAttributes(flowFileNew, attributesMaps)
-                                    session.write(flowFileNew, { out ->
-                                        out.write(JSONObject.toJSONBytes(ruData, SerializerFeature.WriteMapNullValue))
-                                    } as OutputStreamCallback)
-                                    flowFiles.add(flowFileNew)
+
+                                    if (ruData != null && ruData.size() > 0) {
+                                        //FlowFile write 数据
+                                        session.putAllAttributes(flowFileNew, attributesMaps)
+                                        session.write(flowFileNew, { out ->
+                                            out.write(JSONObject.toJSONBytes(ruData, SerializerFeature.WriteMapNullValue))
+                                        } as OutputStreamCallback)
+                                        flowFiles.add(flowFileNew)
+                                    } else {
+                                        session.remove(flowFileNew)
+                                    }
                                 } catch (Exception e) {
                                     log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${rouName} 创建流文件异常", e
                                     session.remove(flowFileNew)

@@ -1,4 +1,4 @@
-package com.sdari.processor.CalculationKPI.singleMachineAingleOar
+package com.sdari.processor.CalculationKPI.longde
 
 
 import com.alibaba.fastjson.JSONObject
@@ -8,11 +8,11 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 经度
+ * @kpiName: 纬度
  * @author Liumouren
- * @date 2020-09-22 10:24:00
+ * @date 2020-09-21 18:47:00
  */
-class LonDTO {
+class LatDTO {
     private static log
     private static processorId
     private static String processorName
@@ -20,11 +20,11 @@ class LonDTO {
     private static String currentClassName
 
     //指标名称
-    private static kpiName = 'longitude'
+    private static kpiName = 'latitude'
     //计算相关参数
     final static String SID = 'sid'
 
-    LonDTO(final def logger, final int pid, final String pName, final int rid) {
+    LatDTO(final def logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -75,7 +75,7 @@ class LonDTO {
     }
 
     /**
-     * 经度的计算公式
+     * 纬度的计算公式
      * 计算公式 暂时为原代码的一致，并没有明确指出
      *
      * @param configMap 相关系统配置
@@ -87,31 +87,43 @@ class LonDTO {
             Integer LON_LAT_CALCULATION
             String a = configMap.get("LON_LAT_CALCULATION");
             if (a != null && !a.isEmpty()) {
-                LON_LAT_CALCULATION=Integer.parseInt(a);
+                LON_LAT_CALCULATION = Integer.parseInt(a);
             } else {
-                LON_LAT_CALCULATION=1;
-                log.error("经度配置查询有误 null，使用默认初始值:[1] ");
+                LON_LAT_CALCULATION = 1;
+                log.error("纬度配置查询有误 null，使用默认初始值:[1] ");
             }
-            double dLat = 0;
-            // 船艏向(真北,度)
+            Double dLat = 0;
             BigDecimal lat = data.get("lat");
             BigDecimal lon = data.get("lon");
             if (lat != null && lon != null) {
-                if (LON_LAT_CALCULATION == 0) {
+                if (LON_LAT_CALCULATION== 0) {
                     result = lat;
                 } else {
-                    dLat = lon.doubleValue();
-                    lon = BigDecimal.valueOf((int) (dLat / 100)
+                    dLat = lat.doubleValue();
+                    lat = BigDecimal.valueOf((int) (dLat / 100)
                             + (dLat - (int) (dLat / 100) * 100) / 60d
                             + (dLat - (int) dLat) / 36);
-                    result = lon.setScale(12, BigDecimal.ROUND_HALF_UP);
+                    result = lat.setScale(12, BigDecimal.ROUND_HALF_UP);
                 }
             }
-            log.debug("[${sid}] [${kpiName}] [${time}] LON_LAT_CALCULATION[${LON_LAT_CALCULATION}] lat[${lat}] lon{${lon}} result[${result}] ")
+            log.debug("[${sid}] [${kpiName}] [${time}] lat[${lat}] lon[${lon}]  result[${result}] ")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
             return null
         }
     }
+
+    /**
+     *
+     * @param oilValue
+     * @return
+     */
+    static BigDecimal oilRangeLimit(BigDecimal oilValue) {
+        if (oilValue >= BigDecimal.valueOf(-2) && oilValue <= BigDecimal.valueOf(5)) {
+            return oilValue;
+        }
+        return BigDecimal.valueOf(0);
+    }
+
 }

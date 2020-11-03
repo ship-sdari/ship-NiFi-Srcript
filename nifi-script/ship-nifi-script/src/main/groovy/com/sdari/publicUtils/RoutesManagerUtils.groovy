@@ -71,6 +71,11 @@ class RoutesManagerUtils {
             .name('kpi')
             .description('FlowFiles that success to merged route')
             .build()
+    /** A relationship indicating window_alarm while processing flow files */
+    static final Relationship REL_SHIP_POSITION = new Relationship.Builder()
+            .name('ship_position')
+            .description('FlowFiles that success to merged route')
+            .build()
     static {
         relationshipMap = [:]
         relationshipMap.put(REL_SUCCESS.getName() as String, (REL_SUCCESS))
@@ -89,6 +94,7 @@ class RoutesManagerUtils {
 
         relationshipMap.put(REL_MERGED.getName() as String, (REL_MERGED))
         relationshipMap.put(REL_KPI.getName() as String, (REL_KPI))
+        relationshipMap.put(REL_SHIP_POSITION.getName() as String, (REL_SHIP_POSITION))
     }
 
     static Map<String, Relationship> createRelationshipMap(List<String> names) throws Exception {
