@@ -23,7 +23,6 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.ResultSet
 import java.sql.Statement
-import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -158,15 +157,14 @@ class CalculationKPI implements Processor {
                 session.commit()
             }
         })
-        final boolean isMinute = Instant.now().getEpochSecond() % 60 == 0
         try {
+            if (null == datas.get() || datas.get().size() == 0) {
+                throw new Exception("[Processor_id = ${id} Processor_name = ${currentClassName}] 的接收的数据为空!")
+            }
             //配置第一次初始化
             if (null == shipConf) {
                 def logs = log
                 transaction(logs)
-            }
-            if (null == datas.get() || datas.get().size() == 0) {
-                throw new Exception("[Processor_id = ${id} Processor_name = ${currentClassName}] 的接收的数据为空!")
             }
             def relationships = pch.invokeMethod("getRelationships", null) as Map<String, Relationship>
             final def attributesMap = pch.invokeMethod("updateAttributes", [flowFile.getAttributes()]) as Map<String, String>
@@ -190,82 +188,90 @@ class CalculationKPI implements Processor {
                                 (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
                                 (pch.getProperty("returnData") as String)      : dataList,
                                 'shipConf'                                     : shipConf]
-            final Map routeConf = pch.getProperty('routeConf') as Map<String, GroovyObject>
-            //根据路由名称 获取路由运行方式
-            def routesDTO = routeConf.get(kpiRoutesName)
-            String routeName = routesDTO.getProperty('route_name') as String
-            if ('A' == routesDTO.getProperty('route_running_way')) {
-                log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的运行方式，暂不支持并行执行方式，请检查路由管理表!"
-            }
-            //用来接收脚本返回的数据
-            Map returnMap = pch.invokeMethod("deepClone", former) as Map
-            //路由关系
-            def subClasses = (pch.getProperty('subClasses') as Map<String, Map<String, List<GroovyObject>>>)
-            //用来接收计算指标 返回的数据
-            List<JSONArray> kpiLists = new ArrayList<>()
-            //用来接收 经度纬度 数据
-            List<JSONArray> longitudeLists = new ArrayList<>()
-            //开始循环分脚本
-            for (runningWay in subClasses.get(routeName).keySet()) {
-                //执行方式 A-并行 S-串行
-                if ("S" == runningWay) {
-                    for (subClassDTO in subClasses.get(routeName).get(runningWay)) {
-                        if ('A' == subClassDTO.getProperty('status')) {
-                            //根据路由名称 获取脚本实体GroovyObject instance
-                            final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
-                            //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                            returnMap.put("con", con)
-
-                            switch (routeName) {
-                                case kpiRoutesName:
-                                    Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
-                                    kpiLists.add(returnMat.get('data') as JSONArray)
-                                    break
-                                case ShipPositionRoutesName:
-                                    Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
-                                    longitudeLists.add(returnMat.get('data') as JSONArray)
-                                    break
-                                default:
-                                    //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                    returnMap = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
-                            }
-                        }
-                    }
-                } else {
-                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的分脚本运行方式，暂不支持并行执行方式，请检查子脚本管理表!"
-                }
-            }
-
-
-            //循环路由
-            final List<JSONObject> returnDataList = (returnMap.get('data') as List<JSONObject>)
-            final List<JSONObject> returnAttributesList = former.get('attributes') as List<JSONObject>
-            for (routes in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
-                String rouName = routes.getProperty('route_name')
+            //循环路由名称 根据路由状态处理 [路由名称->路由实体]
+            String routeName = ''
+            for (routesDTO in (pch.getProperty('routeConf') as Map<String, GroovyObject>)?.values()) {
                 try {
+                    routeName = routesDTO.getProperty('route_name') as String
+                    if ('A' == routesDTO.getProperty('route_running_way')) {
+                        log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的运行方式，暂不支持并行执行方式，请检查路由管理表!"
+                        continue
+                    }
+                    //用来接收脚本返回的数据
+                    Map returnMap = pch.invokeMethod("deepClone", former) as Map
+                    //用来接收计算指标 返回的数据
+                    List<JSONArray> kpiLists = new ArrayList<>()
+                    //用来接收 经度纬度 数据
+                    List<JSONArray> longitudeLists = new ArrayList<>()
+                    //路由方式 A-正常路由 I-源文本路由 S-不路由
+                    def routeStatus = 'S'
                     //路由关系
-                    switch (routes.getProperty('status')) {
+                    switch (routesDTO.getProperty('status')) {
                     //路由关系禁用
                         case "S":
+                            routeStatus = 'S'
                             break
                     //路由关系忽略，应当源文本路由
                         case "I":
-                            if (null == relationships.get(rouName)) throw new Exception('没有该创建路由关系，请核对管理表！')
-                            session.transfer(session.clone(flowFile), relationships.get(rouName))
+                            routeStatus = 'I'
                             break
                     //路由关系正常执行
                         default:
-                            if (null == relationships.get(rouName)) throw new Exception('没有该创建路由关系，请核对管理表！')
-                            //如果有数据 路由下去
+                            def subClasses = (pch.getProperty('subClasses') as Map<String, Map<String, List<GroovyObject>>>)
+                            //开始循环分脚本
+                            if ((subClasses.get(routeName) as Map<String, List<GroovyObject>>).size() > 1) {
+                                log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的分脚本运行方式配置异常，请检查子脚本管理表!"
+                                break
+                            }
+                            for (runningWay in subClasses.get(routeName).keySet()) {
+                                //执行方式 A-并行 S-串行
+                                if ("S" == runningWay) {
+                                    for (subClassDTO in subClasses.get(routeName).get(runningWay)) {
+                                        if ('A' == subClassDTO.getProperty('status')) {
+                                            //根据路由名称 获取脚本实体GroovyObject instance
+                                            final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
+                                            //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
+                                            returnMap.put("con", con)
+                                            log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName}"
+
+                                            switch (routeName) {
+                                                case kpiRoutesName:
+                                                    Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
+                                                    kpiLists.add(returnMat.get('data') as JSONArray)
+                                                    break
+                                                case ShipPositionRoutesName:
+                                                    Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
+                                                    longitudeLists.add(returnMat.get('data') as JSONArray)
+                                                    break
+                                                default:
+                                                    //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
+                                                    returnMap = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
+                                            }
+                                            routeStatus='A'
+                                        }
+                                    }
+                                } else {
+                                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的分脚本运行方式，暂不支持并行执行方式，请检查子脚本管理表!"
+                                }
+                            }
+                    }
+                    //如果脚本执行了路由下去
+                    switch (routeStatus) {
+                        case 'A':
                             def flowFiles = []
-                            for (int i = 0; i < returnAttributesList.size(); i++) {
+                            final List<JSONObject> returnDataList = (returnMap.get('data') as List<JSONObject>)
+                            final List<JSONObject> returnAttributesList = (returnMap.get('attributes') as List<JSONObject>)
+                            if ((null == returnDataList || null == returnAttributesList) || (returnDataList.size() != returnAttributesList.size())) {
+                                throw new Exception('结果条数与属性条数不一致，请检查子脚本处理逻辑！')
+                            }
+                            for (int i = 0; i < returnDataList.size(); i++) {
                                 FlowFile flowFileNew = session.create()
                                 JSONObject ruData = new JSONObject()
                                 Map<String, String> attributesMaps = returnAttributesList.get(i) as Map<String, String>
                                 try {
                                     //put 入库的名称
                                     attributesMaps.put(databaseName, databaseNameByData)
-                                    switch (rouName) {
+                                    switch (routeName) {
                                     //计算指标处理
                                         case kpiRoutesName:
                                             //循环 返回指标的计算结果
@@ -300,7 +306,6 @@ class CalculationKPI implements Processor {
                                         default:
                                             ruData = returnDataList.get(i)
                                     }
-
                                     if (ruData != null && ruData.size() > 0) {
                                         //FlowFile write 数据
                                         session.putAllAttributes(flowFileNew, attributesMaps)
@@ -312,16 +317,23 @@ class CalculationKPI implements Processor {
                                         session.remove(flowFileNew)
                                     }
                                 } catch (Exception e) {
-                                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${rouName} 创建流文件异常", e
+                                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 创建流文件异常", e
                                     session.remove(flowFileNew)
                                 }
                             }
-                            if (flowFiles.size() > 0) {
-                                session.transfer(flowFiles, relationships.get(rouName))
-                            }
+                            if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
+                            session.transfer(flowFiles, relationships.get(routeName))
+                            break
+                        case 'I':
+                            if (null == relationships.get(routeName)) throw new Exception('没有该创建路由关系，请核对管理表！')
+                            session.transfer(session.clone(flowFile), relationships.get(routeName))
+                            break
+                        default:
+                            //不路由
+                            break
                     }
                 } catch (Exception e) {
-                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${rouName} 的路由程有异常", e
+                    log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName} 的处理过程有异常", e
                 }
             }
             session.remove(flowFile)
@@ -329,15 +341,9 @@ class CalculationKPI implements Processor {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 的处理过程有异常", t
             onFailure(session, flowFile)
         } finally {
-            //整分钟更新配置
-            if (isMinute) {
-                def logs = log
-                transaction(logs)
-            }
             session.commit()
         }
     }
-
 
     @Override
     Collection<ValidationResult> validate(ValidationContext context) { null }
