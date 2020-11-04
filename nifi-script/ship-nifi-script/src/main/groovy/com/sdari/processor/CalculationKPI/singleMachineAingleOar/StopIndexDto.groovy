@@ -54,7 +54,7 @@ class StopIndexDto {
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         final Map shipConf = ((params as HashMap).get('shipConf') as HashMap)
         Connection con = ((params as HashMap).get('con')) as Connection
-
+        log.debug(" rules:[${JSONObject.toJSON(rules)}] [${kpiName}]  ")
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             JSONObject json = new JSONObject()

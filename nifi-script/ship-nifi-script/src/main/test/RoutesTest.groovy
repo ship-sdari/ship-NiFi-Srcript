@@ -9,6 +9,7 @@ import org.apache.commons.lang3.ArrayUtils
 import java.sql.*
 import java.text.SimpleDateFormat
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -88,11 +89,11 @@ class RoutesTest extends GroovyTestCase {
         final pu = "PUT "
         final de = "DELETE "
         final name1 = "xcloud_"
-        final delDoc="/_doc"
+        final delDoc = "/_doc"
         List<String> list = new ArrayList<>()
         for (String tableName : a.keySet()) {
-            String tl= de+name1+tableName
-      //  println(tl)
+            String tl = de + name1 + tableName
+            //  println(tl)
             String json = pu + name1 + tableName + k
             for (WarehousingDTO dto : warehousing) {
                 if (tableName == dto.table_id) {
@@ -410,11 +411,11 @@ class RoutesTest extends GroovyTestCase {
     }
 
     void testSer() {
-        String a=" t_calculation  , t_alarm_history "
-        List<String> te=[]
+        String a = " t_calculation  , t_alarm_history "
+        List<String> te = []
         te.add("t_calculation")
         te.add("t_alarm_history")
-        String tableName="t_alarm_history"
+        String tableName = "t_alarm_history"
         if (ArrayUtils.contains((te.toArray()), tableName.toLowerCase())) {
             println(tableName)
         }

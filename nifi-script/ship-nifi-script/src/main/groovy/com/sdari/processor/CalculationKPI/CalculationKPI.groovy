@@ -48,6 +48,8 @@ class CalculationKPI implements Processor {
     final static String latitude = 'latitude'
     final static String longitude = 'longitude'
     //换油检测相关
+    final static String tableNameByOilChang = 't_oil_change_record'
+    final static String OilChangRoutesName = 'oil_change'
     final static host_use_oil = 'host_use_oil'
     final static aux_use_oil = 'aux_use_oil'
     final static boiler_oil_type = 'boiler_oil_type'

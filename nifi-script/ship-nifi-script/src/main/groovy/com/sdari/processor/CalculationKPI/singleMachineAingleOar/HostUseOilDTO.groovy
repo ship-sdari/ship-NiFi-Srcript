@@ -93,11 +93,11 @@ class HostUseOilDTO {
                 return null;
             }
             //计算
-            if (null!=meUseHfoStr&&meUseHfoStr.compareTo(BigDecimal.ONE) == 0) {
+            if (null!=meUseHfoStr&& meUseHfoStr == BigDecimal.ONE) {
                 result = BigDecimal.valueOf(0);
-            }else if (null!=meUseMdoStr&&meUseMdoStr.compareTo(BigDecimal.ONE) == 0){
+            }else if (null!=meUseMdoStr&& meUseMdoStr == BigDecimal.ONE){
                 result = BigDecimal.valueOf(1);
-            }else if(null!=meUseMdoStr&&meUseMdoStr.compareTo(BigDecimal.ZERO) == 0){
+            }else if(null!=meUseMdoStr&& meUseMdoStr == BigDecimal.ZERO){
                 result = BigDecimal.valueOf(0);
             }
             log.debug("[${sid}] [${kpiName}] [${time}] 主机使用重油指示[${meUseHfoStr}] 主机使用柴油/轻柴油指示[${meUseMdoStr}] result[${result}] ")

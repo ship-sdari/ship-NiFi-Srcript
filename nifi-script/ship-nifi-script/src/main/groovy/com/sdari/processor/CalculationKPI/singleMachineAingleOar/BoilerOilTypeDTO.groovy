@@ -93,11 +93,11 @@ class BoilerOilTypeDTO {
                 return null;
             }
             //计算
-            if (null!=boilerHFO&&boilerHFO.compareTo(BigDecimal.ONE) == 0) {
+            if (null!=boilerHFO&& boilerHFO == BigDecimal.ONE) {
                 result = BigDecimal.valueOf(0)
-            }else if (null!=boilerMOD&&boilerMOD.compareTo(BigDecimal.ONE) == 0){
+            }else if (null!=boilerMOD&& boilerMOD == BigDecimal.ONE){
                 result = BigDecimal.valueOf(1)
-            }else if (null!=boilerMOD&&boilerMOD.compareTo(BigDecimal.ZERO) == 0){
+            }else if (null!=boilerMOD&& boilerMOD == BigDecimal.ZERO){
                 result = BigDecimal.valueOf(0)
             }
             log.debug("[${sid}] [${kpiName}] [${time}] 锅炉用燃油[${boilerHFO}] 锅炉用柴油[${boilerMOD}] result[${result}] ")
