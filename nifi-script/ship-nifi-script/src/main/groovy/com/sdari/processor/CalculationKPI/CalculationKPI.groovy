@@ -506,11 +506,11 @@ class CalculationKPI implements Processor {
                 dataCheck.put(host_use_oil, 0)
                 dataCheck.put(aux_use_oil, 0)
                 dataCheck.put(boiler_oil_type, 0)
+                logs.debug("主机辅机锅炉使用油耗类型为null全部采用重油 " +
+                        "ME_USE_HFO:[${hostData.get('me_use_hfo')}] ME_USE_MDO:[${hostData.get('me_use_mdo')}] " +
+                        "GE_USE_HFO:[${auxData.get('ge_use_hfo')}] GE_USE_MDO:[${auxData.get('ge_use_mdo')}]" +
+                        "BOIL_USE_HFO:[${boilerData.get('boil_use_hfo')}] BOIL_USE_MDO:[${boilerData.get('boil_use_mdo')}]")
             }
-            logs.debug("主机辅机锅炉使用油耗类型为null全部采用重油 " +
-                    "ME_USE_HFO:[${hostData.get('me_use_hfo')}] ME_USE_MDO:[${hostData.get('me_use_mdo')}] " +
-                    "GE_USE_HFO:[${auxData.get('ge_use_hfo')}] GE_USE_MDO:[${auxData.get('ge_use_mdo')}]" +
-                    "BOIL_USE_HFO:[${boilerData.get('boil_use_hfo')}] BOIL_USE_MDO:[${boilerData.get('boil_use_mdo')}]")
         } else {
             if (data != null && data.containsKey(host_use_oil) && data.containsKey(host_use_oil) && data.containsKey(host_use_oil)) {
                 dataCheck.put(host_use_oil, 0)
