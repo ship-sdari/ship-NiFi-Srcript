@@ -1,13 +1,13 @@
 package com.sdari.processor.CalculationKPI.oilChange
 
 import com.alibaba.fastjson.JSONObject
+import com.alibaba.fastjson.serializer.SerializerFeature
 import lombok.Data
 
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Statement
 import java.text.MessageFormat
-import java.time.Instant
 
 /**
  *
@@ -51,14 +51,13 @@ class OilChangeDto {
         Connection con = ((params as HashMap).get('con')) as Connection
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
-            JSONObject json = new JSONObject()
             final JSONObject JsonData = (dataList.get(i) as JSONObject)
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            String coltime = String.valueOf(Instant.now())
-            //  String coltime = jsonAttributesFormer.get(COLTIME)
-            json = calculationKpi(con, (shipConf.get(sid) as Map<String, String>), JsonData, coltime, sid)
+            //   String coltime = String.valueOf(Instant.now())
+            String coltime = jsonAttributesFormer.get(COLTIME)
+            JSONObject json = calculationKpi(con, (shipConf.get(sid) as Map<String, String>), JsonData, coltime, sid)
 
             //单条数据处理结束，放入返回
             dataListReturn.add(json)
@@ -81,26 +80,44 @@ class OilChangeDto {
      */
     static JSONObject calculationKpi(Connection con, Map<String, String> configMap, JSONObject data, final String time, final String sid) {
         Statement statement
-        JSONObject jsonObject = new JSONObject()
+        String JsonData = null
         try {
-            BigDecimal result = null
             statement = con.createStatement()
+
+            Map<String, BigDecimal> hostDate = data.get(host_use_oil) as Map<String, BigDecimal>
+            Map<String, BigDecimal> auxDate = data.get(aux_use_oil) as Map<String, BigDecimal>
+            Map<String, BigDecimal> boilDate = data.get(boiler_oil_type) as Map<String, BigDecimal>
             // 主机使用重油指示
-            BigDecimal meUseHfoStr = data.get("me_use_hfo");
+            BigDecimal meUseHfoStr = hostDate.get("me_use_hfo")
             //主机使用柴油/轻柴油指示
-            BigDecimal meUseMdoStr = data.get("me_use_mdo");
+            BigDecimal meUseMdoStr = hostDate.get("me_use_mdo")
             //柴油发电机使用重油指示
-            BigDecimal geUseHfoStr = data.get("ge_use_hfo");
+            BigDecimal geUseHfoStr = auxDate.get("ge_use_hfo")
             //柴油发电机使用柴油/轻柴油指示
-            BigDecimal geUseMdoStr = data.get("ge_use_mdo");
+            BigDecimal geUseMdoStr = auxDate.get("ge_use_mdo")
             //锅炉用燃油
-            BigDecimal boilerHFO = data.get("boil_use_hfo");
+            BigDecimal boilerHFO = boilDate.get("boil_use_hfo")
             //锅炉用柴油
-            BigDecimal boilerMOD = data.get("boil_use_mdo");
+            BigDecimal boilerMOD = boilDate.get("boil_use_mdo")
 
+            String hostUseOil = oilType(meUseHfoStr, meUseMdoStr)
+            String auxUseOil = oilType(geUseHfoStr, geUseMdoStr)
+            String boilerUseOil = oilType(boilerHFO, boilerMOD)
 
-            log.debug("[${sid}] [换油检测] [${time}] 方差值[${meVar_double}]me_ecs_speed[${n}] XRPM{${XRPM}} YRPM{${YRPM}} result[${null}] ")
-            return jsonObject
+            OliChangeRecord_single monitorSingle = oilMonitor_single(hostUseOil, auxUseOil, boilerUseOil, statement)
+            if (null != monitorSingle) {
+                if (monitorSingle.host_after_oil_id != null && monitorSingle.aux_after_oil_id != null && monitorSingle.boiler_after_oil_id != null) {
+                    monitorSingle.sid = sid
+                    monitorSingle.create_time = time
+                    monitorSingle.change_time = time
+                    JsonData = JSONObject.toJSONString(monitorSingle, SerializerFeature.WriteMapNullValue)
+                } else {
+                    log.warn("换油监测输出结果不符合规范，请检查：" + JSONObject.toJSONString(monitorSingle, SerializerFeature.WriteMapNullValue))
+                }
+            }
+            log.debug("[${sid}] [换油检测] [${time}] result[${JsonData}] ")
+            if (JsonData != null) return JSONObject.parseObject(JsonData)
+            return null
         } catch (Exception e) {
             if (statement != null && !statement.isClosed()) statement.close()
             log.error("[${sid}] [换油检测] [${time}] 计算错误异常:${e} ")
@@ -123,7 +140,7 @@ class OilChangeDto {
         } else if (null != dataMOD && dataMOD == BigDecimal.ZERO) {
             result = BigDecimal.valueOf(0)
         }
-        return result;
+        return result
     }
 
     /**
@@ -139,9 +156,9 @@ class OilChangeDto {
     static OliChangeRecord_single oilMonitor_single(String hostUseOil, String auxUseOil, String boilerUseOil, Statement stmt) throws Exception {
         final String sqlSelectFormat = "SELECT b.id from t_oil_change_record r LEFT JOIN t_oil_meter b on r.{0} = b.id WHERE b.oil_type = ''{1}'' ORDER BY r.change_time DESC LIMIT 1"
         final String sqlSelectNullFormat = "SELECT m.id FROM t_oil_record r LEFT JOIN t_oil_meter m ON r.oil_id  = m.id WHERE m.oil_type = ''{0}'' ORDER BY r.create_time DESC LIMIT 1"
-        final String sqlSelectCurrentFormat = "select oil_type from t_oil_meter where id = {0};"
+        final String sqlSelectCurrentFormat = "select oil_type from t_oil_meter where id = {0}"
         OliChangeRecord_single changeRecord = null
-        OliChangeRecord_single oilChangeRecord = null
+        OliChangeRecord_single oilChangeRecord
         final String sqlSelectChange = "SELECT host_after_oil_id,aux_after_oil_id,boiler_after_oil_id  FROM" +
                 " t_oil_change_record ORDER BY change_time DESC LIMIT 1"
         ResultSet res_change = stmt.executeQuery(sqlSelectChange)
@@ -166,12 +183,12 @@ class OilChangeDto {
                 final Long h = init_oil(hostUseOil, stmt, sqlSelectNullFormat, oidHFOId, oidMDOId) as Long
                 if (null != h) {//加抽油记录表中有相关数据
                     oilChangeRecord.host_after_oil_id = (h)
-                    flag = true;
+                    flag = true
                 }
             } else {
                 ResultSet res_currentHostOid = stmt.executeQuery(MessageFormat.format(sqlSelectCurrentFormat,
                         changeRecord.host_after_oil_id))
-                String currentHostOid = null;
+                String currentHostOid = null
                 while (res_currentHostOid.next()) currentHostOid = res_currentHostOid.getString(1)
                 if (currentHostOid == null)
                     throw new Exception("t_oil_meter没有查询到当前主机油类型，语句为:" + MessageFormat.format(sqlSelectCurrentFormat,
@@ -244,8 +261,8 @@ class OilChangeDto {
             // 油品获取
             //主机
             // 油品不一样清空
-            Long oidHFOId = null;
-            Long oidMDOId = null;
+            Long oidHFOId = null
+            Long oidMDOId = null
             final Long h = init_oil(hostUseOil, stmt, sqlSelectNullFormat, oidHFOId, oidMDOId)
             if (null != h) {//加抽油记录表中有相关数据
                 oilChangeRecord.host_after_oil_id = (h)
@@ -283,15 +300,17 @@ class OilChangeDto {
      */
     private static Long init_oil(String OilType, Statement stmt, String sqlSelectNullFormat, Long oidHFOId, Long oidMDOId) throws Exception {
         Long OilId = null
-        ResultSet OilId_null = null
+        ResultSet OilId_null
         if ("0" == OilType) {
             OilId_null = stmt.executeQuery(MessageFormat.format(sqlSelectNullFormat, "HFO"))
-            while (OilId_null.next())
+            while (OilId_null.next()) {
                 OilId = oidHFOId == null ? OilId_null.getLong(1) : oidHFOId
+            }
         } else {
             OilId_null = stmt.executeQuery(MessageFormat.format(sqlSelectNullFormat, "MDO"))
-            while (OilId_null.next())
+            while (OilId_null.next()) {
                 OilId = oidMDOId == null ? OilId_null.getLong(1) : oidMDOId
+            }
         }
         if (OilId_null != null && OilId_null.isClosed()) OilId_null.close()
         return OilId
