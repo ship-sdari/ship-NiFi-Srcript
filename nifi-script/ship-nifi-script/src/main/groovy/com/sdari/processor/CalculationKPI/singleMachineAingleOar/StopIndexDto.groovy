@@ -32,7 +32,10 @@ class StopIndexDto {
     final static String XRPMConf = 'XRPM'
     final static String YRPMConf = 'YRPM'
 
-    final static BigDecimal slipperyValue = BigDecimal.valueOf(0.514 * 60)
+    //获取流配置相关
+    final static String table_id = 'table_id'
+    final static String column_id = 'table_id'
+    final static String schema_id = 'schema_id'
 
     StopIndexDto(final def logger, final int pid, final String pName, final int rid) {
         log = logger
@@ -62,15 +65,14 @@ class StopIndexDto {
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            String coltime = String.valueOf(Instant.now())
-            //  String coltime = jsonAttributesFormer.get(COLTIME)
+            String coltime = jsonAttributesFormer.get(COLTIME)
             //判断数据里是否 有 当前计算指标数据
             if (!JsonData.containsKey(kpiName)) {
                 log.debug("[${sid}] [${kpiName}] [没有当前指标 计算所需的数据] result[${null}] ")
                 json.put(kpiName, null)
             } else {
                 Map<String, BigDecimal> maps = JsonData.get(kpiName) as Map<String, BigDecimal>
-                BigDecimal result = calculationKpi(con, (shipConf.get(sid) as Map<String, String>), maps, coltime, sid)
+                BigDecimal result = calculationKpi(con, (shipConf.get(sid) as Map<String, String>), maps, rules.get(sid), coltime, sid)
                 json.put(kpiName, result)
             }
             //单条数据处理结束，放入返回
@@ -93,20 +95,20 @@ class StopIndexDto {
      * 主机转速标准差 > 机动航速标准 Y  机动航行
      * 主机转速标准差 < 机动航速标准 Y  匀速航行
      * 如果没有标准差就按照当前实时值计算
-     * {主机转速 > 机动航速标准 Y 机动航行 否则 匀速航行}
-     *
+     *{主机转速 > 机动航速标准 Y 机动航行 否则 匀速航行}*
      *
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
-    static BigDecimal calculationKpi(Connection con, Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
+    static BigDecimal calculationKpi(Connection con, Map<String, String> configMap, Map<String, BigDecimal> data, Map<String, JSONObject> rules, final String time, final String sid) {
         Statement statement
         try {
             BigDecimal result
             statement = con.createStatement()
             Double meVar_double = null
             try {
-                meVar_double = selectVarMe(statement, time)
+                Map<String, String> stringMap = getDataByInner_key(me_ecs_speed, rules)
+                meVar_double = selectVarMe(statement, time, stringMap)
             } catch (Exception e) {
                 log.error("[${sid}] [${kpiName}] [${time}] selectVarMe:查询方差报错 ${e} ")
             }
@@ -125,25 +127,25 @@ class StopIndexDto {
             BigDecimal n = data.get(me_ecs_speed)
             if (n == null || XRPM == null || YRPM == null) {
                 log.debug("[${sid}] [${kpiName}] [${time}] 方差值[${meVar_double}]me_ecs_speed[${n}] XRPM{${XRPM}} YRPM{${YRPM}} result[${null}] ")
-                return null;
+                return null
             }
             // 几个指标
             if (null != n && n < XRPM) {
                 // 停泊
-                result = BigDecimal.valueOf(0);
+                result = BigDecimal.valueOf(0)
             } else if (null != meVar_double && BigDecimal.valueOf(meVar_double) > YRPM) {
                 // 机动航行
-                result = BigDecimal.valueOf(1);
+                result = BigDecimal.valueOf(1)
             } else if (null != meVar_double && BigDecimal.valueOf(meVar_double) < YRPM) {
                 // 匀速航行
-                result = BigDecimal.valueOf(2);
+                result = BigDecimal.valueOf(2)
             } else {//如果没有标准差就按照当前实时值计算
                 if (null != n && n > YRPM) {
                     // 机动航行
-                    result = BigDecimal.valueOf(1);
+                    result = BigDecimal.valueOf(1)
                 } else {
                     // 匀速航行
-                    result = BigDecimal.valueOf(2);
+                    result = BigDecimal.valueOf(2)
                 }
             }
             log.debug("[${sid}] [${kpiName}] [${time}] 方差值[${meVar_double}]me_ecs_speed[${n}] XRPM{${XRPM}} YRPM{${YRPM}} result[${null}] ")
@@ -154,36 +156,36 @@ class StopIndexDto {
             return null
         }
     }
+    /**
+     * 获取数据库数据
+     * 并计算标准差
+     * @param statement
+     * @param getTime
+     * @param rules
+     */
+    static Double selectVarMe(Statement statement, String getTime, Map<String, String> rules) throws Exception {
+        Double standardDeviation = null
+        String sql_data = MessageFormat.format("SELECT {0} FROM {1} WHERE coltime >=  ''{2}'' LIMIT 3600;",
+                rules.get(column_id), rules.get(table_id),
+                String.valueOf(Instant.parse(getTime).minusSeconds(3600))
+                        .replace("T", " ").replace("Z", ""))
 
-
-    static Double selectVarMe(Statement statement, String getTime) throws Exception {
-        Double standardDeviation = null;
-        String sql_data = null;
-        final String sql_config = MessageFormat.format("SELECT tableid, columnid FROM `tstream_rule` WHERE Innerkey = ''{0}'' LIMIT 1;", me_ecs_speed);
-        //final String sql_config = MessageFormat.format("SELECT w.column_id,w.table_id FROM tstream_rule t,tstream_rule_warehousing w WHERE t.doss_key=w.doss_key and t.inner_key =''{0}'' LIMIT 1;", me_ecs_speed);
-        ResultSet resultSet = statement.executeQuery(sql_config);
-        while (resultSet.next()) {
-            sql_data = MessageFormat.format("SELECT {0} FROM {1} WHERE coltime >=  ''{2}'' LIMIT 3600;"
-                    , resultSet.getString(2), resultSet.getString(1)
-                    , String.valueOf(Instant.parse(getTime).minusSeconds(3600)).replace("T", " ").replace("Z", ""));
-        }
-        if (!resultSet.isClosed()) resultSet.close();
-        List<Double> meSpeedList = new ArrayList<>();
+        List<Double> meSpeedList = new ArrayList<>()
         if (null != sql_data) {
-            ResultSet res_data = statement.executeQuery(sql_data);
+            ResultSet res_data = statement.executeQuery(sql_data)
             while (res_data.next()) {
                 if (null != res_data.getBigDecimal(1)) {
-                    meSpeedList.add(res_data.getDouble(1));
+                    meSpeedList.add(res_data.getDouble(1))
                 }
             }
-            res_data.close();
-            if (!res_data.isClosed()) res_data.close();
+            res_data.close()
+            if (!res_data.isClosed()) res_data.close()
             if (meSpeedList.size() > 0) {
-                Double[] arrays = new Double[meSpeedList.size()];
-                standardDeviation = standardDeviationByMethod(meSpeedList.toArray(arrays));
+                Double[] arrays = new Double[meSpeedList.size()]
+                standardDeviation = standardDeviationByMethod(meSpeedList.toArray(arrays))
             }
         }
-        return standardDeviation;
+        return standardDeviation
     }
     /**
      * standardDeviation
@@ -193,18 +195,38 @@ class StopIndexDto {
      * @return Double
      */
     static Double standardDeviationByMethod(Double[] array) {
-        Double sum = 0d;
+        Double sum = 0d
         for (Double value : array) {
-            sum += value; // 求出数组的总和
+            sum += value // 求出数组的总和
         }
-        // System.out.println(sum); //939
-        double average = sum / array.length; // 求出数组的平均数
-        // System.out.println(average); //52.0
-        double total = 0;
+        double average = sum / array.length // 求出数组的平均数
+        double total = 0
         for (Double aDouble : array) {
-            total += (aDouble - average) * (aDouble - average); // 求出方差，如果要计算方差的话这一步就可以了
+            total += (aDouble - average) * (aDouble - average) // 求出方差，如果要计算方差的话这一步就可以了
         }
-        return Math.sqrt(total / array.length);
+        return Math.sqrt(total / array.length)
+    }
+
+    /**
+     * 根据 inner_Key
+     * 获取储存的库名,表名,字段名
+     */
+    static Map<String, String> getDataByInner_key(String inner_key, Map<String, JSONObject> rules) {
+        if (rules != null) {
+            rules.values().forEach({ rule ->
+                if (inner_key == rule.get('inner_key')) {
+                    Map<String, String> data = new HashMap<>()
+                    List<JSONObject> warehousing = rule.get('warehousing') as List<JSONObject>
+                    warehousing.forEach({ w ->
+                        data.put(schema_id, w.get(schema_id) as String)
+                        data.put(table_id, w.get(table_id) as String)
+                        data.put(column_id, w.get(column_id) as String)
+                        return data
+                    })
+                }
+            })
+        }
+        return null
     }
 }
 
