@@ -208,6 +208,8 @@ class CalculationKPI implements Processor {
                     List<JSONArray> kpiLists = new ArrayList<>()
                     //用来接收 经度纬度 数据
                     List<JSONArray> longitudeLists = new ArrayList<>()
+                    //用来接收 换油记录 数据
+                    List<JSONObject> oilChangLists = new ArrayList<>()
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeStatus = 'S'
                     //路由关系
@@ -247,6 +249,10 @@ class CalculationKPI implements Processor {
                                                 case ShipPositionRoutesName:
                                                     Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
                                                     longitudeLists.add(returnMat.get('data') as JSONArray)
+                                                    break
+                                                case OilChangRoutesName:
+                                                    Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
+                                                    oilChangLists.add(returnMat.get('data') as JSONObject)
                                                     break
                                                 default:
                                                     //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
@@ -313,6 +319,16 @@ class CalculationKPI implements Processor {
                                                 }
                                             }
                                             attributesMaps.put(tableName, tableNameByShipPosition)
+                                            attributesMaps.put(option, '0')
+                                            break
+                                        case OilChangRoutesName:
+                                            if (oilChangLists.size() > 0) {
+                                                for (data in oilChangLists) {
+                                                    //根据下标 获取对应的 换油数据
+                                                    ruData = data.get(i) as JSONObject
+                                                }
+                                            }
+                                            attributesMaps.put(tableName, tableNameByOilChang)
                                             attributesMaps.put(option, '0')
                                             break
                                         default:
