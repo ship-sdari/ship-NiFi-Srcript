@@ -209,7 +209,7 @@ class CalculationKPI implements Processor {
                     //用来接收 经度纬度 数据
                     List<JSONArray> longitudeLists = new ArrayList<>()
                     //用来接收 换油记录 数据
-                    List<JSONObject> oilChangLists = new ArrayList<>()
+                    List<JSONArray> oilChangLists = new ArrayList<>()
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeStatus = 'S'
                     //路由关系
@@ -252,7 +252,7 @@ class CalculationKPI implements Processor {
                                                     break
                                                 case OilChangRoutesName:
                                                     Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
-                                                    oilChangLists.add(returnMat.get('data') as JSONObject)
+                                                    oilChangLists.add(returnMat.get('data') as JSONArray)
                                                     break
                                                 default:
                                                     //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
