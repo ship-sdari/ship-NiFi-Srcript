@@ -6,7 +6,7 @@ import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.Statement
 import java.text.SimpleDateFormat
-import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  *
@@ -26,6 +26,8 @@ class SysHealthDTO {
     final static String SID = 'sid'
     final static String COLTIME = 'coltime'
     final static String AbnormalKey = 'abnormalKey'
+    final static long timeSum = 60 * 60 * 60 * 24 * 1000
+    static Map<String, Long> NumInMinute = new ConcurrentHashMap<>()
 
     SysHealthDTO(final def logger, final int pid, final String pName, final int rid) {
         log = logger
@@ -55,11 +57,15 @@ class SysHealthDTO {
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            String coltime = String.valueOf(Instant.now())
-            //  String coltime = jsonAttributesFormer.get(COLTIME)
+            String coltime = jsonAttributesFormer.get(COLTIME)
+            if (!NumInMinute.containsKey(sid)) {
+                Map<String, JSONObject> rule = rules.get(sid)
+                InstallNumInMinute(rule, sid, coltime)
+            }
+            //String coltime = String.valueOf(Instant.now())
             //判断数据里是否 有 当前计算指标数据
-            if (!JsonData.containsKey(kpiName)) {
-                log.debug("[${sid}] [${kpiName}] [没有当前指标 计算所需的数据] result[${null}] ")
+            if (!NumInMinute.containsKey(SID)) {
+                log.debug("[${sid}] [${kpiName}] [没有当前sid 数据总条数] result[${null}] ")
                 json.put(kpiName, null)
             } else {
                 Map<String, BigDecimal> maps = JsonData.get(kpiName) as Map<String, BigDecimal>
@@ -213,5 +219,39 @@ class SysHealthDTO {
             return null;
         }
     }
+
+
+    /**
+     * 根据配置表统计 当前sid  数据总数
+     * @param rules
+     */
+    static void InstallNumInMinute(Map<String, JSONObject> rules, String sid, String time) {
+        try {
+            Map<Long, Set<String>> data = new HashMap<>()
+            if (rules != null) {
+                for (JSONObject rule : rules.values()) {
+                    for (Map<String, String> warehousing : rule.get('collection') as List<Map<String, String>>) {
+                        long freq = warehousing.get('col_freq') as long
+                        if (data.containsKey(freq)) {
+                            data.get(freq).add(warehousing.get('doss_key'))
+                        } else {
+                            Set<String> ru = new HashSet<>()
+                            ru.add(warehousing.get('doss_key'))
+                            data.put(freq, ru)
+                        }
+                    }
+                }
+            }
+
+            if (data.size() > 0) {
+                long sum = 0
+                data.keySet().forEach({ d -> sum += (timeSum / d) * data.get(d).size() })
+                NumInMinute.put(sid, sum)
+            }
+        } catch (Exception e) {
+            log.error("[${sid}] [${kpiName}] [${time}] 统计数据总数失败 e[${e}] ")
+        }
+    }
+
 }
 
