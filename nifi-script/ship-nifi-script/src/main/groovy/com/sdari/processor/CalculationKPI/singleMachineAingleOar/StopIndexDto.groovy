@@ -1,6 +1,5 @@
 package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
-
 import com.alibaba.fastjson.JSONObject
 import java.sql.Connection
 import java.sql.ResultSet
@@ -34,7 +33,7 @@ class StopIndexDto {
 
     //获取流配置相关
     final static String table_id = 'table_id'
-    final static String column_id = 'table_id'
+    final static String column_id = 'column_id'
     final static String schema_id = 'schema_id'
 
     StopIndexDto(final def logger, final int pid, final String pName, final int rid) {
@@ -57,7 +56,6 @@ class StopIndexDto {
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         final Map shipConf = ((params as HashMap).get('shipConf') as HashMap)
         Connection con = ((params as HashMap).get('con')) as Connection
-        log.debug(" rules:[${JSONObject.toJSON(rules)}] [${kpiName}]  ")
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             JSONObject json = new JSONObject()
@@ -108,7 +106,7 @@ class StopIndexDto {
             Double meVar_double = null
             try {
                 Map<String, String> stringMap = getDataByInner_key(me_ecs_speed, rules)
-                meVar_double = selectVarMe(statement, time, stringMap)
+                if (null != stringMap) meVar_double = selectVarMe(statement, time, stringMap)
             } catch (Exception e) {
                 log.error("[${sid}] [${kpiName}] [${time}] selectVarMe:查询方差报错 ${e} ")
             }
@@ -169,7 +167,6 @@ class StopIndexDto {
                 rules.get(column_id), rules.get(table_id),
                 String.valueOf(Instant.parse(getTime).minusSeconds(3600))
                         .replace("T", " ").replace("Z", ""))
-
         List<Double> meSpeedList = new ArrayList<>()
         if (null != sql_data) {
             ResultSet res_data = statement.executeQuery(sql_data)
@@ -178,7 +175,6 @@ class StopIndexDto {
                     meSpeedList.add(res_data.getDouble(1))
                 }
             }
-            res_data.close()
             if (!res_data.isClosed()) res_data.close()
             if (meSpeedList.size() > 0) {
                 Double[] arrays = new Double[meSpeedList.size()]
@@ -212,19 +208,24 @@ class StopIndexDto {
      * 获取储存的库名,表名,字段名
      */
     static Map<String, String> getDataByInner_key(String inner_key, Map<String, JSONObject> rules) {
+        List<Map<String,String>> warehousingList
+        Map<String, String> data = new HashMap<>()
         if (rules != null) {
-            rules.values().forEach({ rule ->
-                if (inner_key == rule.get('inner_key')) {
-                    Map<String, String> data = new HashMap<>()
-                    List<JSONObject> warehousing = rule.get('warehousing') as List<JSONObject>
-                    warehousing.forEach({ w ->
-                        data.put(schema_id, w.get(schema_id) as String)
-                        data.put(table_id, w.get(table_id) as String)
-                        data.put(column_id, w.get(column_id) as String)
-                        return data
-                    })
+            rules.keySet().forEach({ doss_key ->
+                JSONObject rule = rules.get(doss_key)
+                String innerKey = rule.get('inner_key') as String
+                if (inner_key == innerKey) {
+                    warehousingList = rule.get('warehousing') as List<Map<String,String>>
                 }
             })
+        }
+        if (null != warehousingList) {
+            for (Map<String,String> warehousing : warehousingList) {
+                data.put(schema_id, warehousing.get(schema_id) as String)
+                data.put(table_id, warehousing.get(table_id) as String)
+                data.put(column_id, warehousing.get(column_id) as String)
+                return data
+            }
         }
         return null
     }
