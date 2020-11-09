@@ -25,9 +25,8 @@ class SysHealthDTO {
     //计算相关参数
     final static String SID = 'sid'
     final static String COLTIME = 'coltime'
-    final static String AbnormalKey = 'abnormalKey'
     final static long timeSum = 60 * 60 * 60 * 24 * 1000
-    static Map<String, Long> NumInMinute = new ConcurrentHashMap<>()
+    static Map<String, BigDecimal> NumInMinute = new ConcurrentHashMap<>()
 
     SysHealthDTO(final def logger, final int pid, final String pName, final int rid) {
         log = logger
@@ -64,12 +63,12 @@ class SysHealthDTO {
             }
             //String coltime = String.valueOf(Instant.now())
             //判断数据里是否 有 当前计算指标数据
-            if (!NumInMinute.containsKey(SID)) {
+            if (!NumInMinute.containsKey(sid)) {
                 log.debug("[${sid}] [${kpiName}] [没有当前sid 数据总条数] result[${null}] ")
                 json.put(kpiName, null)
             } else {
-                Map<String, BigDecimal> maps = JsonData.get(kpiName) as Map<String, BigDecimal>
-                BigDecimal result = calculationKpi(con, (shipConf.get(sid) as Map<String, String>), maps, coltime, sid)
+                log.debug("[${sid}] [${kpiName}] [当前sid 数据总条数] sum [${NumInMinute.get(sid)}] ")
+                BigDecimal result = calculationKpi(con, coltime, sid)
                 json.put(kpiName, result)
             }
             //单条数据处理结束，放入返回
@@ -90,32 +89,33 @@ class SysHealthDTO {
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
-    static BigDecimal calculationKpi(Connection con, Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
-        BigDecimal result = null;
+    static BigDecimal calculationKpi(Connection con, final String time, final String sid) {
+        BigDecimal result = null
         try {
-            int CountvalueNumInMinute = configMap.get(AbnormalKey) as int
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            SimpleDateFormat dateFormatyMd = new SimpleDateFormat("yyyy-MM-dd 00:00:00");
-//          得到传入的Coltime转换为正常格式的时间
-            String getColtime = dateUp(sid, time);
+            BigDecimal numInMinute = NumInMinute.get(sid) as BigDecimal
+            if (null == numInMinute) return null
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+            SimpleDateFormat dateFormatyMd = new SimpleDateFormat("yyyy-MM-dd 00:00:00")
+//          得到传入的colTime转换为正常格式的时间
+            String colTime = dateUp(sid, time)
 //          得到当前时间
-            Date newDate = dateFormat.parse(getColtime);
-            String at = dateFormat.format(newDate);
+            Date newDate = dateFormat.parse(colTime)
+            String at = dateFormat.format(newDate)
 //          得到两天前的当前时间
-            Calendar cal = Calendar.getInstance();
-            cal.setTime(newDate);
-            cal.add(Calendar.DAY_OF_MONTH, -2);
-            Date toDate = cal.getTime();
+            Calendar cal = Calendar.getInstance()
+            cal.setTime(newDate)
+            cal.add(Calendar.DAY_OF_MONTH, -2)
+            Date toDate = cal.getTime()
             //      得到今天零时到当前时间的分钟数
-            int DateInt = DateByInt(sid, at);
+            int DateInt = DateByInt(sid, at)
 
-            Integer sumNum = selectAbnormalAndDel(con, sid, dateFormatyMd.format(newDate), dateFormat.format(newDate), dateFormat.format(toDate));
+            Integer sumNum = selectAbnormalAndDel(con, sid, dateFormatyMd.format(newDate), dateFormat.format(newDate), dateFormat.format(toDate))
             if (sumNum == null || sumNum == 0) {
-                result = BigDecimal.valueOf(100d);
+                result = BigDecimal.valueOf(100d)
             } else {
-                result = BigDecimal.valueOf(100).subtract(BigDecimal.valueOf(sumNum * 100).divide(BigDecimal.valueOf(CountvalueNumInMinute * DateInt), 2, BigDecimal.ROUND_HALF_UP));
+                result = BigDecimal.valueOf(100).subtract(BigDecimal.valueOf(sumNum * 100).divide(BigDecimal.valueOf(numInMinute * DateInt), 2, BigDecimal.ROUND_HALF_UP))
             }
-            log.debug("[${sid}] [${kpiName}] [${time}] 总数据条数[${CountvalueNumInMinute}]   报警条数[${sumNum}] result [${result}]")
+            log.debug("[${sid}] [${kpiName}] [${time}] 总数据条数[${numInMinute}]   报警条数[${sumNum}] result [${result}]")
             return result
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}] 计算错误异常:${e} ")
@@ -134,30 +134,30 @@ class SysHealthDTO {
         ResultSet rs1
         Statement stmt2
         try {
-            final String sql_draft1 = "SELECT COUNT(id) from `t_ship_abnormal` where sid =".concat(sid).concat(" and create_time > '").concat(startTime).concat("' and create_time < '".concat(endTime).concat("' ;"));
-            final String sql_draft2 = "delete from t_ship_abnormal WHERE sid =".concat(sid).concat(" and create_time < '".concat(delTime).concat("' ;"));
-            int s = 0;
-            stmt1 = conn.createStatement();
+            final String sql_draft1 = "SELECT COUNT(id) from `t_ship_abnormal` where sid =".concat(sid).concat(" and create_time > '").concat(startTime).concat("' and create_time < '".concat(endTime).concat("' ;"))
+            final String sql_draft2 = "delete from t_ship_abnormal WHERE sid =".concat(sid).concat(" and create_time < '".concat(delTime).concat("' ;"))
+            int s = 0
+            stmt1 = conn.createStatement()
             //得到当前时间到今天凌晨的所有异常数据个数
-            rs1 = stmt1.executeQuery(sql_draft1);
+            rs1 = stmt1.executeQuery(sql_draft1)
             while (rs1.next()) {
-                s = (rs1.getInt(1));
+                s = (rs1.getInt(1))
             }
-            if (!rs1.isClosed()) rs1.close();
-            if (!stmt1.isClosed()) stmt1.close();
+            if (!rs1.isClosed()) rs1.close()
+            if (!stmt1.isClosed()) stmt1.close()
 //          删除两天前的当前时间的异常数据
-            stmt2 = conn.createStatement();
+            stmt2 = conn.createStatement()
             //查询频率计算（根据船及key）
             try {
-                stmt2.execute(sql_draft2);
+                stmt2.execute(sql_draft2)
                 log.debug("[${sid}] [${kpiName}] [${startTime}] 两天前的异常数据删除成功！")
             } catch (Exception e) {
                 log.debug("[${sid}] [${kpiName}] [${startTime}] 两天前的异常数据删除失败！e[${e}]")
             }
-            if (!stmt2.isClosed()) stmt2.close();
-            return s;
+            if (!stmt2.isClosed()) stmt2.close()
+            return s
         } catch (Exception e) {
-            log.error("[${sid}] [${kpiName}] [${startTime}] 得到当前时间到今天凌晨的所有异常数据个数、两天前的异常数据删除出现异常 ，使用默认初始值:SumNum [0] 异常为：[${e}]");
+            log.error("[${sid}] [${kpiName}] [${startTime}] 得到当前时间到今天凌晨的所有异常数据个数、两天前的异常数据删除出现异常 ，使用默认初始值:SumNum [0] 异常为：[${e}]")
         } finally {
             if (rs1 != null && !rs1.isClosed()) rs1.close()
             if (stmt1 != null && !stmt1.isClosed()) stmt1.close()
@@ -173,18 +173,18 @@ class SysHealthDTO {
      */
     private static Integer DateByInt(String sid, String date) {
         try {
-            String a = GetDate(sid, date);
-            date = dateUp(sid, date);
+            String a = GetDate(sid, date)
+            date = dateUp(sid, date)
             if (date != null && a != null) {
-                String b = date.split(" ")[1];
-                String[] tre = b.split(":");
-                return 60 * Integer.parseInt(tre[0]) + Integer.parseInt(tre[1]);
+                String b = date.split(" ")[1]
+                String[] tre = b.split(":")
+                return 60 * Integer.parseInt(tre[0]) + Integer.parseInt(tre[1])
             } else {
-                return null;
+                return null
             }
         } catch (Exception ignored) {
             log.error("[${sid}] [${kpiName}] [${date}] 计算当前分钟失败 e[${ignored}] ")
-            return null;
+            return null
         }
     }
 
@@ -197,12 +197,12 @@ class SysHealthDTO {
     private static String dateUp(String sid, String time) {
         try {
             if (time.isEmpty()) {
-                return null;
+                return null
             }
-            return time.replace("T", " ").replace("Z", "");
+            return time.replace("T", " ").replace("Z", "")
         } catch (Exception ignored) {
             log.error("[${sid}] [${kpiName}] [${time}] 时间格式化失败 e[${ignored}] ")
-            return null;
+            return null
         }
     }
 
@@ -213,10 +213,10 @@ class SysHealthDTO {
      */
     static String GetDate(String sid, String time) {
         try {
-            return time.split("T")[0] + " ";
+            return time.split("T")[0] + " "
         } catch (Exception ignored) {
             log.error("[${sid}] [${kpiName}] [${time}] 时间格式化失败 e[${ignored}] ")
-            return null;
+            return null
         }
     }
 
@@ -230,8 +230,9 @@ class SysHealthDTO {
             Map<Long, Set<String>> data = new HashMap<>()
             if (rules != null) {
                 for (JSONObject rule : rules.values()) {
+
                     for (Map<String, String> warehousing : rule.get('collection') as List<Map<String, String>>) {
-                        long freq = warehousing.get('col_freq') as long
+                        Long freq = warehousing.get('col_freq') as Long
                         if (data.containsKey(freq)) {
                             data.get(freq).add(warehousing.get('doss_key'))
                         } else {
@@ -243,9 +244,15 @@ class SysHealthDTO {
                 }
             }
 
-            if (data.size() > 0) {
-                long sum = 0
-                data.keySet().forEach({ d -> sum += (timeSum / d) * data.get(d).size() })
+            if (data.keySet().size() > 0) {
+                BigDecimal sum = 0
+                data.keySet().forEach({ d ->
+                    if (null != d) {
+                        int size = data.get(d).size()
+                        sum += (timeSum / d) * size
+                    }
+                })
+                log.debug("[${sid}] [${kpiName}] sum [${sum}]")
                 NumInMinute.put(sid, sum)
             }
         } catch (Exception e) {
