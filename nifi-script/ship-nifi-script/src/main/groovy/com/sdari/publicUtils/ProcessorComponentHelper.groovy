@@ -45,6 +45,7 @@ class ProcessorComponentHelper {
     public final static String returnParameters = "parameters"
 
     //相关实体脚本名称
+    public final static String NifiProcessorConnectionDTO = "NifiProcessorConnectionDTO.groovy"
     public final static String NifiProcessorAttributesDTO = "NifiProcessorAttributesDTO.groovy"
     public final static String NifiProcessorManagerDTO = "NifiProcessorManagerDTO.groovy"
     public final static String NifiProcessorRoutesDTO = "NifiProcessorRoutesDTO.groovy"
@@ -220,10 +221,15 @@ class ProcessorComponentHelper {
         setRelationships(routesManager.invokeMethod('createRelationshipMap', names) as Map<String, Relationship>)
     }
 
-    void createParameters(List<GroovyObject> attributeRows) throws Exception {
+    void createParameters(List<GroovyObject> attributeRows, Map<Integer, GroovyObject> connectionDto) throws Exception {
         parameters = [:]
         def attributesManager = getClassInstanceByNameAndPath("", AttributesManagerUtils)
-        setParameters(attributesManager.invokeMethod('createAttributesMap', attributeRows) as Map)
+        setParameters(attributesManager.invokeMethod('createAttributesMap', [attributeRows, connectionDto]) as Map)
+    }
+
+    void relaseParameters() throws Exception {
+        def attributesManager = getClassInstanceByNameAndPath("", AttributesManagerUtils)
+        attributesManager.invokeMethod('releaseSql', getParameters())
     }
 
     void createSubClasses(List<GroovyObject> subClasses, Map<Integer, GroovyObject> routeMap) throws Exception {
@@ -264,159 +270,215 @@ class ProcessorComponentHelper {
     }
 
     void initComponent() throws Exception {
-        final Connection con = loadConnection()
-        //闭包查询公共类表
-        List<NifiProcessorPublicDTO> publicDTOList = null
-        def selectPublic = {
-            try {
-                def publicSelect = "SELECT * FROM `nifi_processor_public` WHERE `status` = 'A';"
-                Statement stm = con.createStatement()
-                ResultSet res = stm.executeQuery(publicSelect)
-                NifiProcessorPublicDTO publicDTO = new NifiProcessorPublicDTO()
-                publicDTOList = publicDTO.createDto(res)
-                releaseConnection(null, stm, res)//释放连接
-            } catch (Exception e) {
-                throw new Exception("闭包查询公共类表异常", e)
-            }
-        }
-        selectPublic.call()
-        createPublicClassesText(publicDTOList)
-        //闭包查询处理器表
-        GroovyObject processorDto = null
-        def selectProcessorManagers = {
-            try {
-                def processorsSelect = "SELECT * FROM `nifi_processor_manager` WHERE `processor_id` = ${processorId};"
-                Statement stm = con.createStatement()
-                ResultSet res = stm.executeQuery(processorsSelect)
-                def processorDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorManagerDTO) as GroovyObject
-                processorDto = processorDtoGroovy.invokeMethod("createDto", res) as GroovyObject
-                releaseConnection(null, stm, res)//释放连接
-            } catch (Exception e) {
-                throw new Exception("闭包查询处理器表异常", e)
-            }
-        }
-        selectProcessorManagers.call()
-        setProcessor(processorDto)//设置处理器管理配置
-        //闭包查询路由表
-        List<GroovyObject> routesDto = null
-        def selectRouteManagers = {
-            try {
-                def routesSelect = "SELECT * FROM `nifi_processor_route` WHERE `processor_id` = ${processorId};"
-                Statement stm = con.createStatement()
-                ResultSet res = stm.executeQuery(routesSelect)
-                def routesDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorRoutesDTO) as GroovyObject
-                routesDto = routesDtoGroovy.invokeMethod("createDto", res) as List<GroovyObject>
-                releaseConnection(null, stm, res)//释放连接
-            } catch (Exception e) {
-                throw new Exception("闭包查询路由表异常", e)
-            }
-        }
-        selectRouteManagers.call()
-        //闭包查询属性表
-        List<GroovyObject> attributesDto = null
-        def selectAttributeManagers = {
-            try {
-                def attributesSelect = "SELECT * FROM `nifi_processor_attributes` WHERE `processor_id` = ${processorId};"
-                Statement stm = con.createStatement()
-                ResultSet res = stm.executeQuery(attributesSelect)
-
-                def attributesDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorAttributesDTO)
-                attributesDto = attributesDtoGroovy.invokeMethod("createDto", res) as List<GroovyObject>
-                releaseConnection(null, stm, res)//释放连接
-            } catch (Exception e) {
-                throw new Exception("闭包查询属性表异常", e)
-            }
-        }
-        selectAttributeManagers.call()
-        //闭包查询子脚本表
-        def subClassesDto = null
-        def selectSubClassManagers = {
-            try {
-                def subClassesSelect = "SELECT * FROM `nifi_processor_sub_class` WHERE `processor_id` = ${processorId} ORDER BY `running_order`;"
-                Statement stm = con.createStatement()
-                ResultSet res = stm.executeQuery(subClassesSelect)
-                def subClassDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorSubClassDTO)
-                subClassesDto = subClassDtoGroovy.invokeMethod("createDto", res)
-                releaseConnection(null, stm, res)//释放连接
-            } catch (Exception e) {
-                throw new Exception("闭包查询子脚本表异常", e)
-            }
-        }
-        selectSubClassManagers.call()
-        //闭包查询流规则配置表
-        def tStreamRuleDto = null
-        def selectConfigs = {
-            try {
-                if ('A' != processor.getProperty('is_need_rules') || 'A' != processor.getProperty('status')) return
-                final int sid = processor.getProperty('sid') as int
-                def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule` WHERE `sid` = ${sid} AND `status` = 'A';"
-                def tStreamRuleSelectAlarm = "SELECT * FROM `tstream_rule_alarm` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectCalculation = "SELECT * FROM `tstream_rule_calculation` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectCollection = "SELECT * FROM `tstream_rule_collection` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectDist = "SELECT * FROM `tstream_rule_other_distributions` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectShoreBased = "SELECT * FROM `tstream_rule_shore_based_distributions` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectThinning = "SELECT * FROM `tstream_rule_thinning` WHERE `sid` = ${sid};"
-                def tStreamRuleSelectWarehousing = "SELECT * FROM `tstream_rule_warehousing` WHERE `sid` = ${sid};"
-                Statement stmBasic = con.createStatement()
-                Statement stmAlarm = con.createStatement()
-                Statement stmCalculation = con.createStatement()
-                Statement stmCollection = con.createStatement()
-                Statement stmDist = con.createStatement()
-                Statement stmShoreBased = con.createStatement()
-                Statement stmThinning = con.createStatement()
-                Statement stmWarehousing = con.createStatement()
-                ResultSet resBasic = stmBasic.executeQuery(tStreamRuleSelectBasic)
-                ResultSet resAlarm = stmAlarm.executeQuery(tStreamRuleSelectAlarm)
-                ResultSet resCalculation = stmCalculation.executeQuery(tStreamRuleSelectCalculation)
-                ResultSet resCollection = stmCollection.executeQuery(tStreamRuleSelectCollection)
-                ResultSet resDist = stmDist.executeQuery(tStreamRuleSelectDist)
-                ResultSet resShoreBased = stmShoreBased.executeQuery(tStreamRuleSelectShoreBased)
-                ResultSet resThinning = stmThinning.executeQuery(tStreamRuleSelectThinning)
-                ResultSet resWarehousing = stmWarehousing.executeQuery(tStreamRuleSelectWarehousing)
-
-                def ruleDtoGroovy = getClassInstanceByNameAndPath("", TStreamRuleDTO)
-                tStreamRuleDto = ruleDtoGroovy.invokeMethod('createDto', [resBasic, resAlarm, resCalculation, resCollection, resDist, resShoreBased, resThinning, resWarehousing])
-                //释放连接
-                releaseConnection(null, stmBasic, resBasic)
-                releaseConnection(null, stmAlarm, resAlarm)
-                releaseConnection(null, stmCalculation, resCalculation)
-                releaseConnection(null, stmCollection, resCollection)
-                releaseConnection(null, stmDist, resDist)
-                releaseConnection(null, stmShoreBased, resShoreBased)
-                releaseConnection(null, stmThinning, resThinning)
-                releaseConnection(null, stmWarehousing, resWarehousing)
-            } catch (Exception e) {
-                throw new Exception("闭包查询流规则配置表异常", e)
-            }
-        }
-        selectConfigs.call()
+        Connection con = null
         try {
-            //获取所有路由名称并设置路由暂存,并暂存路由配置
-            Map<String, GroovyObject> routeConf = [:]
-            Map<Integer, GroovyObject> routeMap = [:]
-            routesDto?.each {
-                routeConf.put(it.getProperty('route_name') as String, it)
-                routeMap.put(it.getProperty('route_id') as int, it)
+            con = loadConnection()
+            //闭包查询公共类表
+            List<NifiProcessorPublicDTO> publicDTOList = null
+            def selectPublic = {
+                Statement stm = null
+                ResultSet res = null
+                try {
+                    def publicSelect = "SELECT * FROM `nifi_processor_public` WHERE `status` = 'A';"
+                    stm = con.createStatement()
+                    res = stm.executeQuery(publicSelect)
+                    NifiProcessorPublicDTO publicDTO = new NifiProcessorPublicDTO()
+                    publicDTOList = publicDTO.createDto(res)
+                } catch (Exception e) {
+                    throw new Exception("闭包查询公共类表异常", e)
+                } finally {
+                    releaseConnection(null, stm, res)//释放连接
+                }
             }
-            createRelationships(routeConf.keySet() as List<String>)
-            setRouteConf(routeConf)//路由表配置
-            //设置属性暂存
-            createParameters(attributesDto)
-            //设置子脚本分组并暂存
-            createSubClasses(subClassesDto, routeMap)
-            //设置流规则暂存
-            createTStreamRules(tStreamRuleDto)
-        } catch (Exception e) {
-            throw new Exception("配置暂存异常", e)
+            selectPublic.call()
+            createPublicClassesText(publicDTOList)
+            //闭包查询处理器表
+            GroovyObject processorDto = null
+            def selectProcessorManagers = {
+                Statement stm = null
+                ResultSet res = null
+                try {
+                    def processorsSelect = "SELECT * FROM `nifi_processor_manager` WHERE `processor_id` = ${processorId};"
+                    stm = con.createStatement()
+                    res = stm.executeQuery(processorsSelect)
+                    def processorDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorManagerDTO) as GroovyObject
+                    processorDto = processorDtoGroovy.invokeMethod("createDto", res) as GroovyObject
+                } catch (Exception e) {
+                    throw new Exception("闭包查询处理器表异常", e)
+                } finally {
+                    releaseConnection(null, stm, res)//释放连接
+                }
+            }
+            selectProcessorManagers.call()
+            setProcessor(processorDto)//设置处理器管理配置
+            //闭包查询路由表
+            List<GroovyObject> routesDto = null
+            def selectRouteManagers = {
+                Statement stm = null
+                ResultSet res = null
+                try {
+                    def routesSelect = "SELECT * FROM `nifi_processor_route` WHERE `processor_id` = ${processorId};"
+                    stm = con.createStatement()
+                    res = stm.executeQuery(routesSelect)
+                    def routesDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorRoutesDTO) as GroovyObject
+                    routesDto = routesDtoGroovy.invokeMethod("createDto", res) as List<GroovyObject>
+                } catch (Exception e) {
+                    throw new Exception("闭包查询路由表异常", e)
+                } finally {
+                    releaseConnection(null, stm, res)//释放连接
+                }
+            }
+            selectRouteManagers.call()
+            //闭包查询属性表
+            List<GroovyObject> attributesDto = null
+            def selectAttributeManagers = {
+                Statement stm = null
+                ResultSet res = null
+                try {
+                    def attributesSelect = "SELECT * FROM `nifi_processor_attributes` WHERE `processor_id` = ${processorId};"
+                    stm = con.createStatement()
+                    res = stm.executeQuery(attributesSelect)
+                    def attributesDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorAttributesDTO)
+                    attributesDto = attributesDtoGroovy.invokeMethod("createDto", res) as List<GroovyObject>
+                } catch (Exception e) {
+                    throw new Exception("闭包查询属性表异常", e)
+                } finally {
+                    releaseConnection(null, stm, res)//释放连接
+                }
+            }
+            selectAttributeManagers.call()
+            //闭包查询数据库连接管理表
+            Map<Integer, GroovyObject> connectionDto = null
+            def selectConnectionManagers = {
+                Statement stm = null
+                ResultSet res = null
+                try {
+                    def attributesSelect = "SELECT * FROM `nifi_processor_connection` WHERE `status` = 'A';"
+                    stm = con.createStatement()
+                    res = stm.executeQuery(attributesSelect)
+                    def connectionDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorConnectionDTO)
+                    connectionDto = connectionDtoGroovy.invokeMethod("createDto", res) as Map<Integer, GroovyObject>
+                } catch (Exception e) {
+                    throw new Exception("闭包查询连接池表异常", e)
+                } finally {
+                    releaseConnection(null, stm, res)//释放连接
+                }
+            }
+            selectConnectionManagers.call()
+            //闭包查询子脚本表
+            def subClassesDto = null
+            def selectSubClassManagers = {
+                Statement stm = null
+                ResultSet res = null
+                try {
+                    def subClassesSelect = "SELECT * FROM `nifi_processor_sub_class` WHERE `processor_id` = ${processorId} ORDER BY `running_order`;"
+                    stm = con.createStatement()
+                    res = stm.executeQuery(subClassesSelect)
+                    def subClassDtoGroovy = getClassInstanceByNameAndPath("", NifiProcessorSubClassDTO)
+                    subClassesDto = subClassDtoGroovy.invokeMethod("createDto", res)
+                } catch (Exception e) {
+                    throw new Exception("闭包查询子脚本表异常", e)
+                } finally {
+                    releaseConnection(null, stm, res)//释放连接
+                }
+            }
+            selectSubClassManagers.call()
+            //闭包查询流规则配置表
+            def tStreamRuleDto = null
+            def selectConfigs = {
+                Statement stmBasic = null
+                Statement stmAlarm = null
+                Statement stmCalculation = null
+                Statement stmCollection = null
+                Statement stmDist = null
+                Statement stmShoreBased = null
+                Statement stmThinning = null
+                Statement stmWarehousing = null
+                ResultSet resBasic = null
+                ResultSet resAlarm = null
+                ResultSet resCalculation = null
+                ResultSet resCollection = null
+                ResultSet resDist = null
+                ResultSet resShoreBased = null
+                ResultSet resThinning = null
+                ResultSet resWarehousing = null
+                try {
+                    if ('A' != processor.getProperty('is_need_rules') || 'A' != processor.getProperty('status')) return
+                    final int sid = processor.getProperty('sid') as int
+                    def tStreamRuleSelectBasic = "SELECT * FROM `tstream_rule` WHERE `sid` = ${sid} AND `status` = 'A';"
+                    def tStreamRuleSelectAlarm = "SELECT * FROM `tstream_rule_alarm` WHERE `sid` = ${sid};"
+                    def tStreamRuleSelectCalculation = "SELECT * FROM `tstream_rule_calculation` WHERE `sid` = ${sid};"
+                    def tStreamRuleSelectCollection = "SELECT * FROM `tstream_rule_collection` WHERE `sid` = ${sid};"
+                    def tStreamRuleSelectDist = "SELECT * FROM `tstream_rule_other_distributions` WHERE `sid` = ${sid};"
+                    def tStreamRuleSelectShoreBased = "SELECT * FROM `tstream_rule_shore_based_distributions` WHERE `sid` = ${sid};"
+                    def tStreamRuleSelectThinning = "SELECT * FROM `tstream_rule_thinning` WHERE `sid` = ${sid};"
+                    def tStreamRuleSelectWarehousing = "SELECT * FROM `tstream_rule_warehousing` WHERE `sid` = ${sid};"
+                    stmBasic = con.createStatement()
+                    stmAlarm = con.createStatement()
+                    stmCalculation = con.createStatement()
+                    stmCollection = con.createStatement()
+                    stmDist = con.createStatement()
+                    stmShoreBased = con.createStatement()
+                    stmThinning = con.createStatement()
+                    stmWarehousing = con.createStatement()
+                    resBasic = stmBasic.executeQuery(tStreamRuleSelectBasic)
+                    resAlarm = stmAlarm.executeQuery(tStreamRuleSelectAlarm)
+                    resCalculation = stmCalculation.executeQuery(tStreamRuleSelectCalculation)
+                    resCollection = stmCollection.executeQuery(tStreamRuleSelectCollection)
+                    resDist = stmDist.executeQuery(tStreamRuleSelectDist)
+                    resShoreBased = stmShoreBased.executeQuery(tStreamRuleSelectShoreBased)
+                    resThinning = stmThinning.executeQuery(tStreamRuleSelectThinning)
+                    resWarehousing = stmWarehousing.executeQuery(tStreamRuleSelectWarehousing)
+
+                    def ruleDtoGroovy = getClassInstanceByNameAndPath("", TStreamRuleDTO)
+                    tStreamRuleDto = ruleDtoGroovy.invokeMethod('createDto', [resBasic, resAlarm, resCalculation, resCollection, resDist, resShoreBased, resThinning, resWarehousing])
+                } catch (Exception e) {
+                    throw new Exception("闭包查询流规则配置表异常", e)
+                } finally {
+                    //释放连接
+                    releaseConnection(null, stmBasic, resBasic)
+                    releaseConnection(null, stmAlarm, resAlarm)
+                    releaseConnection(null, stmCalculation, resCalculation)
+                    releaseConnection(null, stmCollection, resCollection)
+                    releaseConnection(null, stmDist, resDist)
+                    releaseConnection(null, stmShoreBased, resShoreBased)
+                    releaseConnection(null, stmThinning, resThinning)
+                    releaseConnection(null, stmWarehousing, resWarehousing)
+                }
+            }
+            selectConfigs.call()
+            try {
+                //获取所有路由名称并设置路由暂存,并暂存路由配置
+                Map<String, GroovyObject> routeConf = [:]
+                Map<Integer, GroovyObject> routeMap = [:]
+                routesDto?.each {
+                    routeConf.put(it.getProperty('route_name') as String, it)
+                    routeMap.put(it.getProperty('route_id') as int, it)
+                }
+                createRelationships(routeConf.keySet() as List<String>)
+                setRouteConf(routeConf)//路由表配置
+                //设置属性暂存
+                createParameters(attributesDto, connectionDto)
+                //设置子脚本分组并暂存
+                createSubClasses(subClassesDto, routeMap)
+                //设置流规则暂存
+                createTStreamRules(tStreamRuleDto)
+            } catch (Exception e) {
+                throw new Exception("配置暂存异常", e)
+            }
+        } catch (Exception exception) {
+            throw exception
+        } finally {
+            releaseConnection(con, null, null)
         }
-        releaseConnection(con, null, null)
-        this.isInitialized.set(true)
+        this.isInitialized.set(true)//初始化成功
     }
 
     /**
      * 暂存仓库的资源释放
      */
     void releaseComponent() throws Exception {
+        relaseParameters()//关闭长连接
         parameters?.clear()
         routeConf?.clear()
         subClasses?.clear()
@@ -424,11 +486,13 @@ class ProcessorComponentHelper {
         tStreamRules?.clear()
         aClasses?.clear()
         publicClassesText?.clear()
+        this.isInitialized.set(false)//恢复初始化状态
     }
     /**
      * 初始化子脚本并暂存至脚本实例仓库
      */
     void initScript(final ComponentLog log, final String processorName) throws Exception {
+        boolean isInit = false
         try {
             Map<String, GroovyObject> GroovyObjectMap = new HashMap<>()
             for (classDTOMap in subClasses.values()) {
@@ -452,9 +516,11 @@ class ProcessorComponentHelper {
                 }
             }
             setScriptMap(GroovyObjectMap)
+            isInit = true
         } catch (Exception e) {
-            this.isInitialized.set(false)
             throw new Exception("初始化子脚本并暂存至脚本实例仓库异常", e)
+        } finally {
+            this.isInitialized.set(isInit)
         }
     }
 
