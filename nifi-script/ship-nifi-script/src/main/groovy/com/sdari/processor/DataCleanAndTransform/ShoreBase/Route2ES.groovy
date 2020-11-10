@@ -8,16 +8,16 @@ import java.time.Instant
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 将数据拆分路由到MySQL路由
+ * 将数据拆分路由到ES路由
  */
-class List2SendShore {
+class Route2ES {
     private static log
     private static processorId
     private static String processorName
     private static routeId
     private static String currentClassName
 
-    List2SendShore(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    Route2ES(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -32,7 +32,6 @@ class List2SendShore {
         def dataListReturn = []
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
-        dataList.sort(Comparator.comparing({ obj -> ((JSONObject) obj).getLong("time") }))
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
         final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)

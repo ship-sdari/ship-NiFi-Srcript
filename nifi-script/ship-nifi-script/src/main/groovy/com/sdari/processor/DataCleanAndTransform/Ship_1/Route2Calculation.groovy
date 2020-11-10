@@ -7,7 +7,7 @@ import org.apache.nifi.logging.ComponentLog
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 子脚本模板
+ * 路由计算数据支持
  */
 class Route2Calculation {
     private static log
@@ -56,6 +56,11 @@ class Route2Calculation {
                             }else if (value instanceof BigDecimal) {
                                 BigDecimal transfer = rules?.get(sid)?.get(dossKey)?.get('transfer_factor') as BigDecimal
                                 value = value * transfer
+                                BigDecimal min = rules?.get(sid)?.get(dossKey)?.get('value_min') as BigDecimal
+                                BigDecimal max = rules?.get(sid)?.get(dossKey)?.get('value_max') as BigDecimal
+                                if ((null != min && value < min) || (null != max && value > max)){//量程清洗
+                                    value = null
+                                }
                             }
                             inner_key.put((cal as JSONObject).getString('calculation_key'), value)//写入值
                         }

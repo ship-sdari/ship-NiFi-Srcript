@@ -7,7 +7,7 @@ import org.apache.nifi.logging.ComponentLog
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 子脚本模板
+ * 路由窗口报警数据支持
  */
 class Route2AlarmWindow {
     private static log

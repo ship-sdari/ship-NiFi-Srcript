@@ -7,16 +7,16 @@ import org.apache.nifi.logging.ComponentLog
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 子脚本模板
+ * 路由岸基
  */
-class Route2Database {
+class Route2Shore {
     private static log
     private static processorId
     private static String processorName
     private static routeId
     private static String currentClassName
 
-    Route2Database(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    Route2Shore(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
@@ -57,6 +57,11 @@ class Route2Database {
                             }else if (value instanceof BigDecimal) {
                                 BigDecimal transfer = rules?.get(sid)?.get(dossKey)?.get('transfer_factor') as BigDecimal
                                 value = value * transfer
+                                BigDecimal min = rules?.get(sid)?.get(dossKey)?.get('value_min') as BigDecimal
+                                BigDecimal max = rules?.get(sid)?.get(dossKey)?.get('value_max') as BigDecimal
+                                if ((null != min && value < min) || (null != max && value > max)){//量程清洗
+                                    value = null
+                                }
                             }
                             doss_key.put(dossKey, value)//写入值
                         }

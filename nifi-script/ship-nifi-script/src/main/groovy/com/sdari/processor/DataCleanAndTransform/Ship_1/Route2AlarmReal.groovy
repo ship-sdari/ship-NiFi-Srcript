@@ -7,7 +7,7 @@ import org.apache.nifi.logging.ComponentLog
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 子脚本模板
+ * 路由实时报警数据支持
  */
 class Route2AlarmReal {
     private static log

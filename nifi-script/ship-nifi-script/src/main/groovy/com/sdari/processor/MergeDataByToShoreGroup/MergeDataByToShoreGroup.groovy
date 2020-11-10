@@ -422,18 +422,17 @@ class MergeDataByToShoreGroup implements Processor {
                 return null
             }
         }
-
         @Data
-        class SendMetaData{
-            private meta meta = new meta()
-            private JSONArray data = new JSONArray()
+        class SendMetaData {
             @Data
-            class meta{
+            class Meta {
                 private String sid
                 private String shipCollectProtocol
                 private String shipCollectFreq
                 private String compressType
             }
+            Meta meta = new Meta()
+            private JSONArray data = new JSONArray()
         }
     }
 }

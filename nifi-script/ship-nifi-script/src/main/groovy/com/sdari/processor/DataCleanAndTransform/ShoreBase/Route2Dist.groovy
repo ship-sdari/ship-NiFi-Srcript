@@ -10,14 +10,14 @@ import java.time.Instant
  * @date 2020/8/20 11:23
  * 将数据拆分路由到MySQL路由
  */
-class List2SendDist {
+class Route2Dist {
     private static log
     private static processorId
     private static String processorName
     private static routeId
     private static String currentClassName
 
-    List2SendDist(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    Route2Dist(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName

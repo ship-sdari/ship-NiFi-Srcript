@@ -2,22 +2,21 @@ package com.sdari.processor.DataCleanAndTransform.ShoreBase
 
 import com.alibaba.fastjson.JSONObject
 import org.apache.nifi.logging.ComponentLog
-
 import java.time.Instant
 
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 将数据拆分路由到ES路由
+ * 将数据拆分路由到MySQL路由
  */
-class List2ES {
+class Route2MySql {
     private static log
     private static processorId
     private static String processorName
     private static routeId
     private static String currentClassName
 
-    List2ES(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    Route2MySql(final ComponentLog logger, final int pid, final String pName, final int rid) {
         log = logger
         processorId = pid
         processorName = pName
