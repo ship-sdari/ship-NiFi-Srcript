@@ -48,7 +48,7 @@ class Format2Lines {
                 data.set(IOUtils.toString(jsonDataFormer,'ISO_8859_1'))
                 def replaceR = {
                     StringBuffer sb = new StringBuffer()
-                    Pattern p = Pattern.compile('>r<')
+                    Pattern p = Pattern.compile('s0ry')
                     Matcher matcher = p.matcher(data.get())
                     int matches = 0
                     while(matcher.find()){
@@ -62,7 +62,7 @@ class Format2Lines {
                 }
                 def replaceN = {
                     StringBuffer sb = new StringBuffer()
-                    Pattern p = Pattern.compile('>n<')
+                    Pattern p = Pattern.compile('s0ny')
                     Matcher matcher = p.matcher(data.get())
                     int matches = 0
                     while(matcher.find()){
@@ -76,7 +76,7 @@ class Format2Lines {
                 }
                 def replaceT = {
                     StringBuffer sb = new StringBuffer()
-                    Pattern p = Pattern.compile('>t<')
+                    Pattern p = Pattern.compile('s0ty')
                     Matcher matcher = p.matcher(data.get())
                     int matches = 0
                     while(matcher.find()){

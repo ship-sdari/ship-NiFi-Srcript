@@ -53,7 +53,7 @@ class Format2OneLine {
                     int matches = 0
                     while(matcher.find()){
                         matches++
-                        matcher.appendReplacement(sb, '>r<')
+                        matcher.appendReplacement(sb, 's0ry')
                     }
                     if (matches > 0) {
                         matcher.appendTail(sb)
@@ -67,7 +67,7 @@ class Format2OneLine {
                     int matches = 0
                     while(matcher.find()){
                         matches++
-                        matcher.appendReplacement(sb, '>n<')
+                        matcher.appendReplacement(sb, 's0ny')
                     }
                     if (matches > 0) {
                         matcher.appendTail(sb)
@@ -81,7 +81,7 @@ class Format2OneLine {
                     int matches = 0
                     while(matcher.find()){
                         matches++
-                        matcher.appendReplacement(sb, '>t<')
+                        matcher.appendReplacement(sb, 's0ty')
                     }
                     if (matches > 0) {
                         matcher.appendTail(sb)
