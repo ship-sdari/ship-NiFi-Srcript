@@ -39,7 +39,7 @@ class AttributesManagerUtils {
         attributes
     }
 
-    static void loadSql(Map attributes, Map<Integer, GroovyObject> connectionDto) throws Exception {
+    static loadSql(Map attributes, Map<Integer, GroovyObject> connectionDto) throws Exception {
         def mysqlPool = [:]
         for (String name in attributes.keySet()) {
             if (name.toLowerCase().startsWith("mysql.connection")) {
@@ -52,6 +52,7 @@ class AttributesManagerUtils {
                 mysqlPool.put(name, conn)
             }
         }
+        mysqlPool
     }
 
     static void releaseSql(Map pool) throws Exception {
