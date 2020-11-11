@@ -35,6 +35,7 @@ class SubClassModule {
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
         final Map<String, Map<String, GroovyObject>> rules = (helper.invokeMethod('getTStreamRules',null) as Map<String, Map<String, GroovyObject>>)
         final Map processorConf = (helper.invokeMethod('getParameters',null) as Map)
+        final Map mysqlPool = (helper.invokeMethod('getMysqlPool',null) as Map)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             try {
