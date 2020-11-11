@@ -7,7 +7,7 @@ import groovy.sql.Sql
  */
 class AttributesManagerUtils {
 
-    static createAttributesMap(List<GroovyObject> attributeRows, Map<Integer, GroovyObject> connectionDto) throws Exception {
+    static createAttributesMap(List<GroovyObject> attributeRows) throws Exception {
         def attributes = [:]
         attributeRows.each {
             switch ((it.getProperty('attribute_type') as String).toLowerCase()) {
@@ -36,12 +36,11 @@ class AttributesManagerUtils {
                     attributes.put(it.getProperty('attribute_name'), it.getProperty('attribute_value') as String)
             }
         }
-        //剥离配置中的MySQL连接，并建立长连接暂存配置中
-        loadSql(attributes, connectionDto)
         attributes
     }
 
     static void loadSql(Map attributes, Map<Integer, GroovyObject> connectionDto) throws Exception {
+        def mysqlPool = [:]
         for (String name in attributes.keySet()) {
             if (name.toLowerCase().startsWith("mysql.connection")) {
                 Integer id = attributes.get(name) as Integer
@@ -50,16 +49,14 @@ class AttributesManagerUtils {
                 String password = connectionDto.get(id).getProperty('password')
                 String driver = connectionDto.get(id).getProperty('driver')
                 Sql conn = getCon(url, username, password, driver)
-                attributes.replace(name, conn)
+                mysqlPool.put(name, conn)
             }
         }
     }
 
-    static void releaseSql(Map attributes) throws Exception {
-        for (String name in attributes.keySet()) {
-            if (name.toLowerCase().startsWith("mysql.connection")) {
-                releaseCon(attributes.get(name) as Sql)
-            }
+    static void releaseSql(Map pool) throws Exception {
+        for (con in pool.values()) {
+            releaseCon(con as Sql)
         }
     }
 

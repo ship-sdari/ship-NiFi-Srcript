@@ -24,6 +24,7 @@ class ProcessorComponentHelper {
     private Map<String, PropertyDescriptor> descriptors
     private Map<String, Relationship> relationships
     private Map parameters
+    private Map mysqlPool
     private Map<String, GroovyObject> routeConf
     private Map<String, Map<String, List<GroovyObject>>> subClasses
     private Map<String, GroovyObject> scriptMap
@@ -165,6 +166,14 @@ class ProcessorComponentHelper {
         this.parameters = parameters
     }
 
+    def getMysqlPool() {
+        return this.parameters
+    }
+
+    void setMysqlPool(mysqlPool) {
+        this.mysqlPool = mysqlPool
+    }
+
     def getSubClasses() {
         return this.subClasses
     }
@@ -216,20 +225,19 @@ class ProcessorComponentHelper {
 
     void createRelationships(List<String> names) throws Exception {
         if (isInitialized.get()) return //路由创建只执行一次，如果创建成功下次的内部调用将不再创建(除非nifi前端更改处理器或者nifi重启)
-        relationships = [:]
         def routesManager = getClassInstanceByNameAndPath("", RoutesManagerUtils)
         setRelationships(routesManager.invokeMethod('createRelationshipMap', names) as Map<String, Relationship>)
     }
 
-    void createParameters(List<GroovyObject> attributeRows, Map<Integer, GroovyObject> connectionDto) throws Exception {
-        parameters = [:]
+    void createParametersAndPool(List<GroovyObject> attributeRows, Map<Integer, GroovyObject> connectionDto) throws Exception {
         def attributesManager = getClassInstanceByNameAndPath("", AttributesManagerUtils)
-        setParameters(attributesManager.invokeMethod('createAttributesMap', [attributeRows, connectionDto]) as Map)
+        setParameters(attributesManager.invokeMethod('createAttributesMap', attributeRows) as Map)
+        setMysqlPool(attributesManager.invokeMethod('loadSql', [getParameters(), connectionDto]) as Map)
     }
 
-    void relaseParameters() throws Exception {
+    void releaseMysqlPool() throws Exception {
         def attributesManager = getClassInstanceByNameAndPath("", AttributesManagerUtils)
-        attributesManager.invokeMethod('releaseSql', getParameters())
+        attributesManager.invokeMethod('releaseSql', getMysqlPool())
     }
 
     void createSubClasses(List<GroovyObject> subClasses, Map<Integer, GroovyObject> routeMap) throws Exception {
@@ -458,7 +466,7 @@ class ProcessorComponentHelper {
                 createRelationships(routeConf.keySet() as List<String>)
                 setRouteConf(routeConf)//路由表配置
                 //设置属性暂存
-                createParameters(attributesDto, connectionDto)
+                createParametersAndPool(attributesDto, connectionDto)
                 //设置子脚本分组并暂存
                 createSubClasses(subClassesDto, routeMap)
                 //设置流规则暂存
@@ -478,8 +486,9 @@ class ProcessorComponentHelper {
      * 暂存仓库的资源释放
      */
     void releaseComponent() throws Exception {
-        relaseParameters()//关闭长连接
+        releaseMysqlPool()//关闭长连接
         parameters?.clear()
+        mysqlPool?.clear()
         routeConf?.clear()
         subClasses?.clear()
         scriptMap?.clear()
@@ -491,7 +500,7 @@ class ProcessorComponentHelper {
     /**
      * 初始化子脚本并暂存至脚本实例仓库
      */
-    void initScript(final ComponentLog log, final String processorName) throws Exception {
+    void initScript(final ComponentLog log, final String processorName, final GroovyObject pch) throws Exception {
         boolean isInit = false
         try {
             Map<String, GroovyObject> GroovyObjectMap = new HashMap<>()
@@ -510,7 +519,7 @@ class ProcessorComponentHelper {
                             } else {
                                 throw new Exception("无法定位 route_id = ${classDTO.getProperty('route_id')} 的子脚本！")
                             }
-                            GroovyObjectMap.put(classDTO.getProperty('sub_script_name') as String, aClass?.newInstance(log, processorId, processorName, classDTO.getProperty('route_id')) as GroovyObject)
+                            GroovyObjectMap.put(classDTO.getProperty('sub_script_name') as String, aClass?.newInstance(log, processorId, processorName, classDTO.getProperty('route_id'), pch) as GroovyObject)
                         }
                     }
                 }
