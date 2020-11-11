@@ -167,7 +167,7 @@ class ProcessorComponentHelper {
     }
 
     def getMysqlPool() {
-        return this.parameters
+        return this.mysqlPool
     }
 
     void setMysqlPool(mysqlPool) {
