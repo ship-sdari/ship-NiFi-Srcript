@@ -40,10 +40,6 @@ class ProcessorComponentHelper {
     public final static String returnData = "data"
     //脚本返回的属性
     public final static String returnAttributes = "attributes"
-    //脚本返回的配置
-    public final static String returnRules = "rules"
-    //脚本处理器配置
-    public final static String returnParameters = "parameters"
 
     //相关实体脚本名称
     public final static String NifiProcessorConnectionDTO = "NifiProcessorConnectionDTO.groovy"

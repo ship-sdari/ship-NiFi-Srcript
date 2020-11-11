@@ -1,6 +1,7 @@
 package com.sdari.processor.WarnRealTime
 
 import com.alibaba.fastjson.JSONObject
+import groovy.sql.Sql
 import lombok.Data
 import lombok.Getter
 import org.apache.nifi.logging.ComponentLog
@@ -71,10 +72,12 @@ class WarnRealTimeDetail {
                 }
                 Map<String, List<Object>> events = new HashMap<>()
                 //同步屏蔽信号以及同步实时报警
-                service.lockAlarmAndShield(events)
+                service.lockAlarmAndShield(events, processorConf.get('mysql.connection.alarm') as Sql, Instant.parse(colTime))
                 //提交报警异步/同步检查
                 service.addPoints(points, events)
                 //单条数据处理结束，放入返回仓库
+                dataListReturn.add(events)
+                attributesListReturn.add(jsonAttributesFormer)
             } catch (Exception e) {
                 log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 处理单条数据时异常", e
             }
@@ -118,10 +121,26 @@ class WarnRealTimeDetail {
             }
         }
 
-        def lockAlarmAndShield(Map<String, List<Object>> events) {
+        def lockAlarmAndShield(Map<String, List<Object>> events, Sql con, Instant colTime) throws Exception {
             //同步屏蔽信号
+            con.eachRow("SELECT CONCAT(`dossKey`,`alarm_type`,`alarm_desc`) FROM `t_alarm_shield` WHERE `status` = ? GROUP BY `dossKey`,`alarm_type`,`alarm_desc`;", [0]) { row ->
+                this.shieldKeys.add(row[0] as String)
+            }
             //同步实时报警（将程序中报警同步到表中）为了避免异步执行导致的数据不同步风险
-            //同步条件：整小时时同步、实时报警总条数不一致时同步
+            //同步条件：整十分钟同步、实时报警总条数不一致时同步
+            if (colTime.getEpochSecond() % 60 * 10) {
+                Integer count = con.firstRow("SELECT COUNT(1) FROM `t_alarm_real` WHERE `shield_status` = ?;", [1])[0] as Integer
+                if (null != realTotal && null != count && realTotal == count) {//程序状态与表存储不一致
+                    for (DataMetricRealDTO metric in this.metrics.values()) {
+                        DataMetricRealDTO.RealTimeAlarmEventDTO dto = metric.alarmLock()
+                        if (null == dto) continue
+                        if (!events.containsKey(DataMetricRealDTO.AlarmEventTypeEnum.TYPE_SEVEN.type)) {
+                            events.put(DataMetricRealDTO.AlarmEventTypeEnum.TYPE_SEVEN.type, new ArrayList<>())
+                        }
+                        events.get(DataMetricRealDTO.AlarmEventTypeEnum.TYPE_SEVEN.type).add(dto)
+                    }
+                }
+            }
         }
         /**
          * @param points 信号仓库
@@ -478,12 +497,12 @@ class WarnRealTimeDetail {
          */
         private RealTimeAlarmEventDTO checkCustom(final AlarmRuleDTO.Rule rule, final DataPointDTO point) throws Exception {
             if (null != rule.exprGroovy) {
-                if (rule.exprGroovy.evaluate(rule.expr)){//有自定义报警
+                if (rule.exprGroovy.evaluate(rule.expr)) {//有自定义报警
                     RealTimeAlarmEventDTO rtaed = new RealTimeAlarmEventDTO()//信号报警事件
                     updateRealTimeAlarmEventDTO(rtaed, rule, point, null, "自定义报警", " is custom alarm")
                     return rtaed
                 }
-            }else {
+            } else {
                 throw new Exception("自定义表达式不具有执行状态！")
             }
             return null// 如果不报警则返回null事件
@@ -832,7 +851,8 @@ class WarnRealTimeDetail {
             TYPE_THREE("Type the three"),
             TYPE_FOUR("Type the four"),
             TYPE_FIVE("Type the five"),
-            TYPE_SIX("Type the six");
+            TYPE_SIX("Type the six"),
+            TYPE_SEVEN("Type the seven");
             @Getter
             private String type
 

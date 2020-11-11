@@ -14,13 +14,15 @@ class SubClassModule {
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
 
-    SubClassModule(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    SubClassModule(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
@@ -31,8 +33,8 @@ class SubClassModule {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final Map<String, Map<String, GroovyObject>> rules = (helper.invokeMethod('getTStreamRules',null) as Map<String, Map<String, GroovyObject>>)
+        final Map processorConf = (helper.invokeMethod('getParameters',null) as Map)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             try {
@@ -46,9 +48,7 @@ class SubClassModule {
             }
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }
