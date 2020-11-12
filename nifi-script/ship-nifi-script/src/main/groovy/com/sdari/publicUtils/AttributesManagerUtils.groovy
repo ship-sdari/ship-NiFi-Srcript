@@ -1,5 +1,7 @@
 package com.sdari.publicUtils
 
+import groovy.sql.Sql
+
 /**
  * Utility methods and constants used by the scripting components.
  */
@@ -37,4 +39,35 @@ class AttributesManagerUtils {
         attributes
     }
 
+    static loadSql(Map attributes, Map<Integer, GroovyObject> connectionDto) throws Exception {
+        def mysqlPool = [:]
+        for (String name in attributes.keySet()) {
+            if (name.toLowerCase().startsWith("mysql.connection")) {
+                Integer id = attributes.get(name) as Integer
+                String url = connectionDto.get(id).getProperty('url')
+                String username = connectionDto.get(id).getProperty('username')
+                String password = connectionDto.get(id).getProperty('password')
+                String driver = connectionDto.get(id).getProperty('driver')
+                Sql conn = getCon(url, username, password, driver)
+                mysqlPool.put(name, conn)
+            }
+        }
+        mysqlPool
+    }
+
+    static void releaseSql(Map pool) throws Exception {
+        for (con in pool.values()) {
+            releaseCon(con as Sql)
+        }
+    }
+
+    static Sql getCon(final String url, final String userName, final String password, final String driver) throws Exception {
+        // Creating a connection to the database
+        return Sql.newInstance(url, userName, password, driver)
+
+    }
+
+    static void releaseCon(Sql sql) {
+        sql?.close()
+    }
 }

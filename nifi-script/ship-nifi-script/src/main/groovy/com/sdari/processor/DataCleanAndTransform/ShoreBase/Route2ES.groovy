@@ -1,14 +1,16 @@
-package com.sdari.example
+package com.sdari.processor.DataCleanAndTransform.ShoreBase
 
 import com.alibaba.fastjson.JSONObject
 import org.apache.nifi.logging.ComponentLog
 
+import java.time.Instant
+
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 子脚本模板
+ * 将数据拆分路由到ES路由
  */
-class SubClassModule {
+class Route2ES {
     private static log
     private static processorId
     private static String processorName
@@ -16,7 +18,7 @@ class SubClassModule {
     private static String currentClassName
     private static GroovyObject helper
 
-    SubClassModule(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
+    Route2ES(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
@@ -31,19 +33,19 @@ class SubClassModule {
         def returnMap = [:]
         def dataListReturn = []
         def attributesListReturn = []
-        final List<JSONObject> dataList = (params as HashMap)?.get('data') as ArrayList
-        final List<JSONObject> attributesList = ((params as HashMap)?.get('attributes') as ArrayList)
-        final Map<String, Map<String, GroovyObject>> rules = (helper?.invokeMethod('getTStreamRules',null) as Map<String, Map<String, GroovyObject>>)
-        final Map processorConf = (helper?.invokeMethod('getParameters',null) as Map)
-        final Map mysqlPool = (helper?.invokeMethod('getMysqlPool',null) as Map)
+        final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
+        final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
-            try {
-                //详细处理流程
+            try {//详细处理流程
                 final JSONObject jsonDataFormer = (dataList.get(i) as JSONObject)
                 final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
-
+                final String colTime = (Instant.ofEpochMilli(jsonDataFormer.getLong('time')) as String)
+                jsonAttributesFormer.put('coltime', colTime)
+                jsonDataFormer.remove('time')
                 //单条数据处理结束，放入返回仓库
+                dataListReturn.add(jsonDataFormer)
+                attributesListReturn.add(jsonAttributesFormer)
             } catch (Exception e) {
                 log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 处理单条数据时异常", e
             }

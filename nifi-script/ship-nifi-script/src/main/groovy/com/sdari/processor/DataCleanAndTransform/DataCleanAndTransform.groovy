@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
-@CapabilityDescription('岸基-解析数据包路由处理器')
+@CapabilityDescription('岸基/船基-解析数据包路由处理器')
 class DataCleanAndTransform implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
@@ -77,7 +77,7 @@ class DataCleanAndTransform implements Processor {
     public void onScheduled(final ProcessContext context) {
         try {
             pch.invokeMethod("initComponent", null)//相关公共配置实例更新查询
-            pch.invokeMethod("initScript", [log, currentClassName])
+            pch.invokeMethod("initScript", [log, currentClassName, pch])
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行异常", e
@@ -150,9 +150,7 @@ class DataCleanAndTransform implements Processor {
                 default:
                     throw new Exception("暂不支持处理当前所接收的数据类型：${datas.get().getClass().canonicalName}")
             }
-            final def former = [(pch.getProperty("returnRules") as String)     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
-                                (pch.getProperty("returnAttributes") as String): attributesList,
-                                (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
+            final def former = [(pch.getProperty("returnAttributes") as String): attributesList,
                                 (pch.getProperty("returnData") as String)      : dataList]
             //循环路由名称 根据路由状态处理 [路由名称->路由实体]
             String routeName = ''

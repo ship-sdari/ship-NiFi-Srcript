@@ -18,13 +18,15 @@ class Split2ShoreGroup {
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
 
-    Split2ShoreGroup(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    Split2ShoreGroup(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
@@ -35,8 +37,7 @@ class Split2ShoreGroup {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final Map<String, Map<String, GroovyObject>> rules = (helper?.invokeMethod('getTStreamRules',null) as Map<String, Map<String, GroovyObject>>)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             try {//详细处理流程
@@ -47,21 +48,21 @@ class Split2ShoreGroup {
                 //循环每一条数据中的每一个信号点
                 for (dossKey in jsonDataFormer.keySet()) {
                     try {
-                        final JSONArray shore_based_distributions = (rules?.get(jsonAttributesFormer.get('sid'))?.get(dossKey)?.getJSONArray('shore_based_distributions'))
+                        final List shore_based_distributions = (rules?.get(jsonAttributesFormer.get('sid'))?.get(dossKey)?.getProperty('shore_based_distributions') as List)
                         if (null == shore_based_distributions || shore_based_distributions.size() == 0) {
                             throw new Exception('流规则中没有该信号点配置！')
                         }
                         for (shoreBasedDto in shore_based_distributions) {
                             try {
-                                final String shoreStatus = (shoreBasedDto as JSONObject).getString('to_shore_status')
+                                final String shoreStatus = shoreBasedDto['to_shore_status']
                                 if ('A' != shoreStatus) continue
-                                final String toShoreGroup = ((shoreBasedDto as JSONObject).getString('to_shore_group'))
+                                final String toShoreGroup = (shoreBasedDto['to_shore_group'])
                                 final String shipCollectProtocol = jsonAttributesFormer.getString('ship.collect.protocol')
                                 final String shipCollectFreq = jsonAttributesFormer.getString('ship.collect.freq')
-                                final String shoreIp = (shoreBasedDto as JSONObject).getString('to_shore_ip')
-                                final String shorePort = (shoreBasedDto as JSONObject).getString('to_shore_port')
-                                final String shoreFreq = (shoreBasedDto as JSONObject).getString('to_shore_freq')
-                                final String compressType = (shoreBasedDto as JSONObject).getString('compress_type')
+                                final String shoreIp = shoreBasedDto['to_shore_ip']
+                                final String shorePort = shoreBasedDto['to_shore_port']
+                                final String shoreFreq = shoreBasedDto['to_shore_freq']
+                                final String compressType = shoreBasedDto['compress_type']
                                 if (null == toShoreGroup || null == shipCollectProtocol || null == shipCollectFreq
                                         || null == shoreIp || null == shorePort || null == shoreFreq || null == compressType){
                                     throw new Exception('流规则配置不符合规范，请检查！')
@@ -77,7 +78,7 @@ class Split2ShoreGroup {
                                     //属性加入表名（包含后缀）、库名
                                     JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
                                     attribute.put('shore.group', toShoreGroup)
-                                    attribute.put('shore.protocol', (shoreBasedDto as JSONObject).getString('to_shore_protocol'))
+                                    attribute.put('shore.protocol', shoreBasedDto['to_shore_protocol'])
                                     attribute.put('shore.ip', shoreIp)
                                     attribute.put('shore.port', shorePort)
                                     attribute.put('shore.freq', shoreFreq)
@@ -86,7 +87,7 @@ class Split2ShoreGroup {
                                 }
                                 (shoreGroups.get(key) as JSONObject).put(dossKey, jsonDataFormer.get(dossKey))
                             } catch (Exception e) {
-                                log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} shore_based_distributions = ${(shoreBasedDto as JSONObject).getString('id')} 处理异常", e
+                                log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} shore_based_distributions = ${shoreBasedDto['id']} 处理异常", e
                             }
                         }
                     } catch (Exception e) {
@@ -103,9 +104,7 @@ class Split2ShoreGroup {
             }
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }

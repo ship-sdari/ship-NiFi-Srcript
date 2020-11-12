@@ -1,6 +1,5 @@
 package com.sdari.processor.ConvertData2ESJson
 
-import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import org.apache.nifi.logging.ComponentLog
 
@@ -18,13 +17,15 @@ class TransformKey2Column {
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
 
-    TransformKey2Column(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    TransformKey2Column(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
@@ -33,10 +34,10 @@ class TransformKey2Column {
         def returnMap = [:]
         def dataListReturn = []
         def attributesListReturn = []
-        final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
-        final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final List<JSONObject> dataList = (params as HashMap)?.get('data') as ArrayList
+        final List<JSONObject> attributesList = ((params as HashMap)?.get('attributes') as ArrayList)
+        final Map<String, Map<String, GroovyObject>> rules = (helper?.invokeMethod('getTStreamRules',null) as Map<String, Map<String, GroovyObject>>)
+        final Map processorConf = (helper?.invokeMethod('getParameters',null) as Map)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             try {//详细处理流程
@@ -47,14 +48,14 @@ class TransformKey2Column {
                 //循环每一条数据中的每一个信号点
                 for (dossKey in jsonDataFormer.keySet()) {
                     try {
-                        final JSONArray warehousing = (rules?.get(jsonAttributesFormer.get('sid'))?.get(dossKey)?.getJSONArray('warehousing'))
+                        final List warehousing = (rules?.get(jsonAttributesFormer.get('sid'))?.get(dossKey)?.getProperty('warehousing') as List)
                         if (null == warehousing || warehousing.size() == 0) {
                             throw new Exception('流规则中没有该信号点配置！')
                         }
                         for (warehousingDto in warehousing) {
                             try {
-                                if ('A' != (warehousingDto as JSONObject).getString('write_status')) continue
-                                final String tableName = (processorConf.getOrDefault('table.name.prefix', '') as String) + ((warehousingDto as JSONObject).getString('table_id')) + (jsonAttributesFormer.getOrDefault('table.name.postfix', '') as String)
+                                if ('A' != warehousingDto['write_status']) continue
+                                final String tableName = (processorConf.getOrDefault('table.name.prefix', '') as String) + ((warehousingDto['table_id'])) + (jsonAttributesFormer.getOrDefault('table.name.postfix', '') as String)
                                 if (!tables.containsKey(tableName)) {
                                     //添加rowkey、upload_time、coltime
                                     JSONObject tableJson = new JSONObject()
@@ -73,9 +74,9 @@ class TransformKey2Column {
                                     attribute.put('rowkey', rowkey)
                                     jsonAttributes.put(tableName, attribute)
                                 }
-                                (tables.get(tableName) as JSONObject).put((warehousingDto as JSONObject).getString('column_id'), jsonDataFormer.get(dossKey))
+                                (tables.get(tableName) as JSONObject).put(warehousingDto['column_id'] as String, jsonDataFormer.get(dossKey))
                             } catch (Exception e) {
-                                log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} warehousing = ${(warehousingDto as JSONObject).getString('id')} 处理异常", e
+                                log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} warehousing = ${warehousingDto['id']} 处理异常", e
                             }
                         }
                     } catch (Exception e) {
@@ -93,9 +94,7 @@ class TransformKey2Column {
 
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }

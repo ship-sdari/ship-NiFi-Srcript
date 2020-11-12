@@ -1,13 +1,12 @@
 package com.sdari.processor.DataCleanAndTransform.Ship_1
 
-import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import org.apache.nifi.logging.ComponentLog
 
 /**
  * @author jinkaisong@sdari.mail.com
  * @date 2020/8/20 11:23
- * 子脚本模板
+ * 路由窗口报警数据支持
  */
 class Route2AlarmWindow {
     private static log
@@ -15,13 +14,15 @@ class Route2AlarmWindow {
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
 
-    Route2AlarmWindow(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    Route2AlarmWindow(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
@@ -32,8 +33,7 @@ class Route2AlarmWindow {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final Map<String, Map<String, GroovyObject>> rules = (helper?.invokeMethod('getTStreamRules',null) as Map<String, Map<String, GroovyObject>>)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             try {
@@ -46,19 +46,19 @@ class Route2AlarmWindow {
                 for (String dossKey in jsonDataFormer.keySet()) {
                     Set<String> alarmWays = new HashSet<>()
                     def readAlarmWays = {
-                        JSONArray alarms = (rules?.get(sid)?.get(dossKey)?.getJSONArray('alarm'))
+                        List alarms = (rules?.get(sid)?.get(dossKey)?.getProperty('alarm') as List)
                         if (null == alarms || alarms.size() == 0) return
-                        for (def alarm in alarms) {
-                            alarmWays.add((alarm as JSONObject).getString('alert_way'))
+                        for (alarm in alarms) {
+                            alarmWays.add(alarm['alert_way'] as String)
                         }
                     }
                     readAlarmWays.call()
-                    if (!alarmWays.contains('W')) continue//没有窗口报警方式
+                    if (!alarmWays.contains('W') || alarmWindows.containsKey(dossKey)) continue//没有窗口报警方式
                     try {
                         def value = jsonDataFormer.get(dossKey)
                         if (null == value) continue
                         if (value instanceof BigDecimal) {
-                            BigDecimal transfer = rules?.get(sid)?.get(dossKey)?.get('transfer_factor') as BigDecimal
+                            BigDecimal transfer = rules?.get(sid)?.get(dossKey)?.getProperty('transfer_factor') as BigDecimal
                             value = value * transfer
                             alarmWindows.put(dossKey, value)
                         }
@@ -74,9 +74,7 @@ class Route2AlarmWindow {
             }
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }

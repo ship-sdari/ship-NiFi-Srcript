@@ -1,4 +1,4 @@
-package com.sdari.processor.SparsePoint
+package com.sdari.processor.WarnRealTime
 
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
@@ -16,13 +16,14 @@ import org.apache.nifi.logging.ComponentLog
 import org.apache.nifi.processor.*
 import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
+
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 @EventDriven
-@CapabilityDescription('点表数据抽稀处理器')
-class SparsePoint implements Processor {
+@CapabilityDescription('船基-实时报警处理器')
+class WarnRealTime implements Processor {
     static def log
     //处理器id，同处理器管理表中的主键一致，由调度处理器中的配置同步而来
     private String id
@@ -157,7 +158,7 @@ class SparsePoint implements Processor {
                         continue
                     }
                     //用来接收脚本返回的数据
-                    Map returnMap = pch.invokeMethod("deepClone", former) as Map
+                    Map returnMap = pch.invokeMethod("deepClone",former) as Map
                     //路由方式 A-正常路由 I-源文本路由 S-不路由
                     def routeStatus = 'S'
                     //路由关系
@@ -305,4 +306,4 @@ class SparsePoint implements Processor {
 }
 
 //脚本部署时需要放开该注释
-//processor = new SparsePoint()
+//processor = new WarnRealTime()

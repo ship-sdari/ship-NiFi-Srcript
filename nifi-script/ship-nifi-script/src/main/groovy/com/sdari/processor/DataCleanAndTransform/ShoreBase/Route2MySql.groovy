@@ -2,7 +2,6 @@ package com.sdari.processor.DataCleanAndTransform.ShoreBase
 
 import com.alibaba.fastjson.JSONObject
 import org.apache.nifi.logging.ComponentLog
-
 import java.time.Instant
 
 /**
@@ -10,19 +9,21 @@ import java.time.Instant
  * @date 2020/8/20 11:23
  * 将数据拆分路由到MySQL路由
  */
-class List2SendDist {
+class Route2MySql {
     private static log
     private static processorId
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
 
-    List2SendDist(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    Route2MySql(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
@@ -31,10 +32,8 @@ class List2SendDist {
         def returnMap = [:]
         def dataListReturn = []
         def attributesListReturn = []
-        final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
-        final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final List<JSONObject> dataList = (params as HashMap)?.get('data') as ArrayList
+        final List<JSONObject> attributesList = ((params as HashMap)?.get('attributes') as ArrayList)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             try {//详细处理流程
@@ -51,9 +50,7 @@ class List2SendDist {
             }
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }
