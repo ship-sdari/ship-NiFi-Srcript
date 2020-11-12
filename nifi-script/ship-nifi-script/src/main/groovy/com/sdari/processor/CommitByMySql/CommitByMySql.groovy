@@ -1,6 +1,7 @@
 package com.sdari.processor.CommitByMySql
 
 import com.alibaba.fastjson.JSONArray
+import groovy.sql.Sql
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
 import org.apache.nifi.annotation.documentation.CapabilityDescription
@@ -16,8 +17,6 @@ import org.apache.nifi.processor.*
 import org.apache.nifi.processor.exception.ProcessException
 
 import java.nio.charset.StandardCharsets
-import java.sql.*
-import java.text.MessageFormat
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -34,16 +33,9 @@ class CommitByMySql implements Processor {
     //数据处理使用参数
     final static String databaseName = 'database.name'
     //处理器使用相关参数
-    private String ip
-    private String port
-    private String userName
-    private String password
-    private String driverByClass
-    //库名->url
-    private Map<String, String> databases = new HashMap<>()
+    private final String databasesName = "mysql.connection."
     //库名->数据库连接
-    private Map<String, Connection> connections = new HashMap<>()
-    private static final String url = "jdbc:mysql://{0}:{1}/{2}?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&failOverReadOnly=false&useLegacyDatetimeCode=false&useSSL=false&testOnBorrow=true"
+    private Map<String, Sql> connections = new HashMap<>()
 
     @Override
     Set<Relationship> getRelationships() {
@@ -87,8 +79,7 @@ class CommitByMySql implements Processor {
         try {
             pch.invokeMethod("initComponent", null)//相关公共配置实例更新查询
             pch.invokeMethod("initScript", [log, currentClassName, pch])
-            Map confMap = pch.getProperty('parameters') as Map
-            initConf(confMap)//初始化连接配置
+            connections= (pch.invokeMethod("getMysqlPool",null) as Map)
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行异常", e
@@ -100,11 +91,6 @@ class CommitByMySql implements Processor {
         try {
             pch.invokeMethod("releaseComponent", null)//相关公共配置实例清空
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器停止运行完毕"
-            for (String name : connections.keySet()) {
-                if (null != connections.get(name) && connections.get(name).isClosed()) {
-                    connections.get(name).isClosed().clone()
-                }
-            }
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器关闭异常", e
         }
@@ -164,8 +150,8 @@ class CommitByMySql implements Processor {
             def logs = log
             boolean status = transaction(data, databaseName, logs)
             try {
-                if (status) onFailure(session,flowFile)
-                if (!status && relationships.containsKey('success')) {
+                if (!status) onFailure(session, flowFile)
+                if (status && relationships.containsKey('success')) {
                     session.transfer(flowFile, relationships.get('success'))
                 }
             } catch (Exception e) {
@@ -240,27 +226,6 @@ class CommitByMySql implements Processor {
     }
 
     /**
-     * 初始化所有连接配置
-     */
-    void initConf(Map<String, String> confMap) throws Exception {
-        ip = confMap.get("ip")
-        port = confMap.get("port")
-        userName = confMap.get("user.name")
-        password = confMap.get("password")
-        driverByClass = confMap.get("driver.class")
-    }
-    /**
-     * 根据数据库名 创建连接
-     * @param database 数据库名
-     */
-    void ConnectionsInIt(String database) throws Exception {
-        String u = url
-        String url = MessageFormat.format(u, ip, port, database)
-        Class.forName(driverByClass).newInstance()
-        connections.put(database, DriverManager.getConnection(url, userName, password))
-    }
-
-    /**
      * 报警事件事务提交方法（同步锁）
      *
      * @param contents
@@ -268,45 +233,25 @@ class CommitByMySql implements Processor {
      * @throws Exception
      */
     private synchronized boolean transaction(List<String> contents, String database, def log) throws Exception {
-
-
-        boolean isError = false
         //如果没有库的连,或者连接断开 就新建一个连接
-        if (!connections.containsKey(database) || null == connections.get(database)
-                || connections.get(database).isClosed()) {
-            ConnectionsInIt(database)
-        }
-        Connection connection = connections.get(database)
-        if (connection.getAutoCommit()) connection.setAutoCommit(false);//关闭自动提交
-        Savepoint savepoint = connection.setSavepoint("current")
-        PreparedStatement stmt1
-        for (String content : contents) {
+        boolean isError = false
+        if (connections.containsKey(databasesName + database)) {
             try {
-//                try {
-//                    sql.withTransaction {
-//                        //正确语句
-//                        sql.executeInsert("INSERT INTO author(firstname,lastname) VALUES('wang','5')")
-//                        sql.executeInsert("INSERT INTO author() VALUES(4324,3423)")
-//                    }
-//                } catch (ignore) {
-//                    println(ignore.message)
-//                }
-                stmt1 = connection.prepareStatement(content)
-                stmt1.executeUpdate()
-                if (!stmt1.isClosed()) stmt1.close()
+                Sql sql = connections.get(databasesName + database)
+                sql.withTransaction {
+                    //循环执行sql
+                    contents.forEach({ s -> sql.execute(s) })
+                }
+                isError = true
             } catch (Exception e) {
                 log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 的处理过程有异常,报警事务操作执行异常", e
-                isError = true
             }
-        }
-        if (isError) {
-            connection.rollback(savepoint)//回滚
-            connection.releaseSavepoint(savepoint)
         } else {
-            connection.commit()//提交
+            log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 的处理过程有异常,连接池中没有当前连接:[${database}] ;"
         }
         return isError
     }
+
 }
 
 //脚本部署时需要放开该注释
