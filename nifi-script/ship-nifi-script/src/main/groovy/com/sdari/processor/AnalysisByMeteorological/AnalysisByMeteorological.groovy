@@ -80,7 +80,7 @@ class AnalysisByMeteorological implements Processor {
     public void onScheduled(final ProcessContext context) {
         try {
             pch.invokeMethod("initComponent", null)//相关公共配置实例更新查询
-            pch.invokeMethod("initScript", [log, currentClassName])
+            pch.invokeMethod("initScript", [log, currentClassName, pch])
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行异常", e

@@ -13,7 +13,7 @@ class AnalysisByMeteorologicalByES {
     private static String processorName
     private static routeId
     private static String currentClassName
-
+    private static GroovyObject helper
 
     //数据处理使用参数
     final static String TIME = 'time'
@@ -29,11 +29,12 @@ class AnalysisByMeteorologicalByES {
     final static String upload_time = "upload_time"
 
 
-    AnalysisByMeteorologicalByES(final def logger, final int pid, final String pName, final int rid) {
+    AnalysisByMeteorologicalByES(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
+        helper = pch
         currentClassName = this.class.canonicalName
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
@@ -45,7 +46,6 @@ class AnalysisByMeteorologicalByES {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         //获取入es的表
         String table = processorConf.get(tables)
@@ -62,7 +62,7 @@ class AnalysisByMeteorologicalByES {
             jsonAttributesFormer.put(esOperation, Operation)
 
             JSONObject json = JsonData
-            json.put(upload_time, upDate(String.valueOf(Instant.now())))
+            json.put(upload_time, (Instant.now().getMillis()))
             jsonAttributesFormer.put(rowKey, json.get(rowKey))
 
             //单条数据处理结束，放入返回
@@ -71,7 +71,6 @@ class AnalysisByMeteorologicalByES {
 
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
         returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
