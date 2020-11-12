@@ -3,6 +3,7 @@ package com.sdari.processor.CalculationKPI
 import com.alibaba.fastjson.JSONArray
 import com.alibaba.fastjson.JSONObject
 import com.alibaba.fastjson.serializer.SerializerFeature
+import groovy.sql.Sql
 import org.apache.commons.io.IOUtils
 import org.apache.nifi.annotation.behavior.EventDriven
 import org.apache.nifi.annotation.documentation.CapabilityDescription
@@ -19,10 +20,6 @@ import org.apache.nifi.processor.exception.ProcessException
 import org.apache.nifi.processor.io.OutputStreamCallback
 
 import java.nio.charset.StandardCharsets
-import java.sql.Connection
-import java.sql.DriverManager
-import java.sql.ResultSet
-import java.sql.Statement
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -54,13 +51,11 @@ class CalculationKPI implements Processor {
     final static String aux_use_oil = 'aux_use_oil'
     final static String boiler_oil_type = 'boiler_oil_type'
     //处理器数据库连接 相关参数
-    private Connection con
-    private String urls
-    private String driverByClass
-    private String userName
-    private String password
+    private Sql con
     private String sql
     private String databaseNameByData
+    static final String confKey = "ship.conf.sql"
+    static final String conName = "con.name"
     //船舶配置 sdi-><key->value>
     private Map<String, Map<String, String>> shipConf = null
 
@@ -105,9 +100,13 @@ class CalculationKPI implements Processor {
     public void onScheduled(final ProcessContext context) {
         try {
             pch.invokeMethod("initComponent", null)//相关公共配置实例更新查询
-            pch.invokeMethod("initScript", [log, currentClassName])
-            Map confMap = pch.getProperty('parameters') as Map
-            initConf(confMap)//初始化连接配置
+            pch.invokeMethod("initScript", [log, currentClassName, pch])
+            Map<String, String> confMap = pch.getProperty('parameters') as Map<String, String>
+            String conName = confMap.get(conName)
+            Map<String, Sql> connections = pch.invokeMethod("getMysqlPool", null) as Map<String, Sql>
+            con = connections.get(conName)
+            sql = confMap.get(confKey)
+            databaseNameByData = confMap.get(databaseName)
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行异常", e
@@ -123,9 +122,6 @@ class CalculationKPI implements Processor {
     public void onStopped(final ProcessContext context) {
         try {
             pch.invokeMethod("releaseComponent", null)//相关公共配置实例清空
-            if (null != con && con.isClosed()) {
-                con.isClosed().clone()
-            }
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器停止运行完毕"
         } catch (Exception e) {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器停止运行异常", e
@@ -188,8 +184,7 @@ class CalculationKPI implements Processor {
                 default:
                     throw new Exception("暂不支持处理当前所接收的数据类型：${datas.get().getClass().canonicalName}")
             }
-            final def former = [(pch.getProperty("returnRules") as String)     : pch.getProperty('tStreamRules') as Map<String, Map<String, GroovyObject>>,
-                                (pch.getProperty("returnAttributes") as String): attributesList,
+            final def former = [(pch.getProperty("returnAttributes") as String): attributesList,
                                 (pch.getProperty("returnParameters") as String): pch.getProperty('parameters') as Map,
                                 (pch.getProperty("returnData") as String)      : dataList,
                                 'shipConf'                                     : shipConf]
@@ -238,7 +233,6 @@ class CalculationKPI implements Processor {
                                             //根据路由名称 获取脚本实体GroovyObject instance
                                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
                                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                            returnMap.put("con", con)
                                             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName}"
 
                                             switch (routeName) {
@@ -432,58 +426,29 @@ class CalculationKPI implements Processor {
             log.error "[Processor_id = ${id} Processor_name = ${currentClassName}] 设置日志的调用方法异常", e
         }
     }
-    /**
-     * 初始化所有连接配置
-     */
-    void initConf(Map<String, String> confMap) throws Exception {
-        databaseNameByData = confMap.get(databaseName)
-        userName = confMap.get("user.name")
-        password = confMap.get("password")
-        sql = confMap.get("sql.conf")
-        urls = confMap.get("url")
-        driverByClass = confMap.get("driver.class")
-    }
-
-    /**
-     * 创建连接
-     */
-    void ConnectionsInIt() throws Exception {
-        if (null == con || con.isClosed()) {
-            Class.forName(driverByClass).newInstance()
-            con = DriverManager.getConnection(urls, userName, password)
-        }
-    }
 
     /**
      * 查询船配置
      */
     synchronized void transaction(def logs) {
         //如果没有库的连,或者连接断开 就新建一个连接
-        if (null == con || con.isClosed()) {
-            ConnectionsInIt()
-        }
         Map<String, Map<String, String>> configMap = new HashMap<>()
         try {
-            Statement stm = con.createStatement()
-            //查询指标配置
-            ResultSet res = stm.executeQuery(sql)
-            //获取所有配置
-            while (res.next()) {
-                int sid = res.getInt(1)
-                final String key = res.getString(2)
-                final String value = res.getString(3)
-                final String id = String.valueOf(sid)
-                if (configMap.containsKey(id)) {
-                    Map<String, String> map = configMap.get(id)
-                    map.put(key, value)
-                } else {
-                    Map<String, String> map = new HashMap<>()
-                    map.put(key, value)
-                    configMap.put(id, map)
-                }
+            con.eachRow(sql) {
+                res ->
+                    int sid = res.getInt(1)
+                    final String key = res.getString(2)
+                    final String value = res.getString(3)
+                    final String id = String.valueOf(sid)
+                    if (configMap.containsKey(id)) {
+                        Map<String, String> map = configMap.get(id)
+                        map.put(key, value)
+                    } else {
+                        Map<String, String> map = new HashMap<>()
+                        map.put(key, value)
+                        configMap.put(id, map)
+                    }
             }
-            if (!res.isClosed()) res.close()
-            if (!stm.isClosed()) stm.close()
         } catch (Exception e) {
             logs.error "[Processor_id = ${id} Processor_name = ${currentClassName}] error [${e}]"
         } finally {
