@@ -21,13 +21,15 @@ class DeCompressDetail {
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
 
-    DeCompressDetail(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    DeCompressDetail(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
@@ -36,10 +38,8 @@ class DeCompressDetail {
         def returnMap = [:]
         def dataListReturn = []
         def attributesListReturn = []
-        final List<InputStream> dataList = (params as HashMap).get('data') as ArrayList
-        final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final List<InputStream> dataList = (params as HashMap)?.get('data') as ArrayList
+        final List<JSONObject> attributesList = ((params as HashMap)?.get('attributes') as ArrayList)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             try {//详细处理流程
@@ -72,9 +72,7 @@ class DeCompressDetail {
             }
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }

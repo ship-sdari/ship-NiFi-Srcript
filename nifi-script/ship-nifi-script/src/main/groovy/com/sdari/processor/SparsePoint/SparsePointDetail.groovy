@@ -15,19 +15,21 @@ import java.util.concurrent.ConcurrentHashMap
  * 子脚本模板
  */
 class SparsePointDetail {
-    private static log
+    private static ComponentLog log
     private static processorId
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
     private static Map<String, DilutionDTO> dilutionDTOMap = new ConcurrentHashMap<>()
 
-    SparsePointDetail(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    SparsePointDetail(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
@@ -38,8 +40,8 @@ class SparsePointDetail {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final Map<String, Map<String, GroovyObject>> rules = (helper?.invokeMethod('getTStreamRules',null) as Map<String, Map<String, GroovyObject>>)
+        final Map processorConf = (helper?.invokeMethod('getParameters',null) as Map)
         //循环list中的每一条数据
         for (int i = 0; i < (dataList as ArrayList).size(); i++) {
             try {
@@ -51,15 +53,15 @@ class SparsePointDetail {
                 final String shipCollectFreq = jsonAttributesFormer.getString('ship.collect.freq')
                 for (String dossKey in jsonDataFormer.keySet()){
                     try {
-                        final JSONArray thinning = rules?.get(sid)?.get(dossKey)?.getJSONArray('thinning')
+                        final List thinning = rules?.get(sid)?.get(dossKey)?.getProperty('thinning') as List
                         if (null == thinning || thinning.size() == 0) {
                             throw new Exception('流规则中没有该信号点配置！')
                         }
                         for (thinningDto in thinning){
-                            if ((thinningDto as JSONObject).getString('dilution_status') != 'A') continue//抽稀状态关闭，跳过
-                            Integer sparseRate = (thinningDto as JSONObject).getInteger('sparse_rate')
+                            if (thinningDto['dilution_status'] != 'A') continue//抽稀状态关闭，跳过
+                            Integer sparseRate = thinningDto['sparse_rate'] as Integer
                             if (null == sparseRate) continue//抽稀频率为空，跳过
-                            Integer dilutionType = (thinningDto as JSONObject).getInteger('dilution_type')
+                            Integer dilutionType = thinningDto['dilution_type'] as Integer
                             final String key = shipCollectProtocol + '/' + shipCollectFreq + '/' + sparseRate
                             //新增抽稀仓库
                             if (!dilutionDTOMap.containsKey(key)){
@@ -104,9 +106,7 @@ class SparsePointDetail {
             }
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }

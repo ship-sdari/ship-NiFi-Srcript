@@ -15,13 +15,15 @@ class Route2Calculation {
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
 
-    Route2Calculation(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    Route2Calculation(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
@@ -32,8 +34,7 @@ class Route2Calculation {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final Map<String, Map<String, GroovyObject>> rules = (helper?.invokeMethod('getTStreamRules',null) as Map<String, Map<String, GroovyObject>>)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             try {
@@ -45,24 +46,25 @@ class Route2Calculation {
                 String sid = jsonAttributesFormer.get('sid') as String
                 for (String dossKey in jsonDataFormer.keySet()) {
                     try {
-                        JSONArray calculation = (rules?.get(sid)?.get(dossKey)?.getJSONArray('calculation'))
-                        for (def cal in calculation){
-                            if ('A' != (cal as JSONObject).getString('calculation_status') ||
-                            null == (cal as JSONObject).getString('formula_flag') ||
-                            null == (cal as JSONObject).getString('calculation_key')) continue
+                        List calculation = (rules?.get(sid)?.get(dossKey)?.getProperty('calculation') as List)
+                        for (cal in calculation){
+                            if ('A' != cal['calculation_status'] ||
+                            null == cal['formula_flag'] ||
+                            null == cal['calculation_key'] ||
+                            inner_key.containsKey(cal['calculation_key'])) continue
                             def value = jsonDataFormer.get(dossKey)
                             if (null == value) {
                                 //
                             }else if (value instanceof BigDecimal) {
-                                BigDecimal transfer = rules?.get(sid)?.get(dossKey)?.get('transfer_factor') as BigDecimal
+                                BigDecimal transfer = rules?.get(sid)?.get(dossKey)?.getProperty('transfer_factor') as BigDecimal
                                 value = value * transfer
-                                BigDecimal min = rules?.get(sid)?.get(dossKey)?.get('value_min') as BigDecimal
-                                BigDecimal max = rules?.get(sid)?.get(dossKey)?.get('value_max') as BigDecimal
+                                BigDecimal min = rules?.get(sid)?.get(dossKey)?.getProperty('value_min') as BigDecimal
+                                BigDecimal max = rules?.get(sid)?.get(dossKey)?.getProperty('value_max') as BigDecimal
                                 if ((null != min && value < min) || (null != max && value > max)){//量程清洗
                                     value = null
                                 }
                             }
-                            inner_key.put((cal as JSONObject).getString('calculation_key'), value)//写入值
+                            inner_key.put(cal['calculation_key'], value)//写入值
                         }
                     } catch (Exception e) {
                         log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName} dossKey = ${dossKey}] 处理计算数据录入错误", e
@@ -76,9 +78,7 @@ class Route2Calculation {
             }
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }

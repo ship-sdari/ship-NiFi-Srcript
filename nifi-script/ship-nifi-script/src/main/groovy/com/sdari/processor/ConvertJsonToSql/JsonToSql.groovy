@@ -18,6 +18,7 @@ class JsonToSql {
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
 
     //新增
     final static String ADD = '0'
@@ -36,16 +37,17 @@ class JsonToSql {
     final static String TABLE_NAME_OUT = 'table.name'
     private final static String databasesMain = 'main.name'//主库
     private final static String databasesFrom = 'from.name'//从库
-    private final static String formatSqlInsert = "INSERT INTO `{0}` ({1}) VALUES ({2});"
-    private final static String formatSqlUpdate = 'update `{0}` set {1} where sid ={2} and id={3};'
-    private final static String formatSqlDelete = 'delete from `{0}` where id={1};'
+    private final static String formatSqlInsert = "INSERT INTO `{0}` ({1}) VALUES ({2})"
+    private final static String formatSqlUpdate = 'update `{0}` set {1} where sid ={2} and id={3}'
+    private final static String formatSqlDelete = 'delete from `{0}` where id={1}'
 
-    JsonToSql(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    JsonToSql(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
@@ -56,8 +58,7 @@ class JsonToSql {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final Map processorConf = (helper?.invokeMethod('getParameters', null) as Map)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             final JSONObject JsonData = (dataList.get(i) as JSONObject)
@@ -102,9 +103,7 @@ class JsonToSql {
             dataListReturn.add(json)
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }
@@ -116,31 +115,31 @@ class JsonToSql {
      */
     static String dataByInsert(JSONObject data, String tableName) {
         String formatSql = formatSqlInsert
-        String[] columns = new String[data.keySet().size()];
-        String[] values = new String[data.keySet().size()];
-        int i = -1;
+        String[] columns = new String[data.keySet().size()]
+        String[] values = new String[data.keySet().size()]
+        int i = -1
         for (String column : data.keySet()) {
             i++
             Object value = data.get(column)
             if (column.toLowerCase().contains("time")) {//时间字段
                 Long valueByLong = value as Long
-                columns[i] = "`".concat(column).concat("`");
-                values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong)).concat(")");
-                continue;
+                columns[i] = "`".concat(column).concat("`")
+                values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong)).concat(")")
+                continue
             }
             if (null == value) {
-                columns[i] = "`".concat(column).concat("`");
-                values[i] = "null";
-                continue;
+                columns[i] = "`".concat(column).concat("`")
+                values[i] = "null"
+                continue
             }
             if (value instanceof String) {
-                value = "'".concat(String.valueOf(value)).concat("'");
+                value = "'".concat(String.valueOf(value)).concat("'")
             }
-            columns[i] = "`".concat(column).concat("`");
-            values[i] = String.valueOf(value);
+            columns[i] = "`".concat(column).concat("`")
+            values[i] = String.valueOf(value)
         }
-        String key = StringUtils.join(columns, ",");
-        String value = StringUtils.join(values, ",");
+        String key = StringUtils.join(columns, ",")
+        String value = StringUtils.join(values, ",")
         return MessageFormat.format(formatSql, tableName, key, value)
     }
     /**
@@ -152,37 +151,37 @@ class JsonToSql {
      */
     static String dataByUpdate(JSONObject data, String tableName, String sid) {
         String formatSql = formatSqlUpdate
-        List<String> setPart = new ArrayList<>();
-        String[] columns = new String[data.keySet().size() - 1];
-        String[] values = new String[data.keySet().size() - 1];
-        int i = -1;
+        List<String> setPart = new ArrayList<>()
+        String[] columns = new String[data.keySet().size() - 1]
+        String[] values = new String[data.keySet().size() - 1]
+        int i = -1
         for (String column : data.keySet()) {
-            i++;
-            Object value = data.get(column);
+            i++
+            Object value = data.get(column)
             if (column.toLowerCase().contains("time")) {//时间字段
                 Long valueByLong = value as Long
-                columns[i] = "`".concat(column).concat("`");
-                values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong)).concat(")");
-                setPart.add("`".concat(column).concat("`=").concat("FROM_UNIXTIME(").concat(String.valueOf(valueByLong)).concat(")"));
-                continue;
+                columns[i] = "`".concat(column).concat("`")
+                values[i] = "FROM_UNIXTIME(".concat(String.valueOf(valueByLong)).concat(")")
+                setPart.add("`".concat(column).concat("`=").concat("FROM_UNIXTIME(").concat(String.valueOf(valueByLong)).concat(")"))
+                continue
             }
             if (null == value) {
-                columns[i] = "`".concat(column).concat("`");
-                values[i] = "null";
-                setPart.add("`".concat(column).concat("`=").concat("null").concat(""));
-                continue;
+                columns[i] = "`".concat(column).concat("`")
+                values[i] = "null"
+                setPart.add("`".concat(column).concat("`=").concat("null").concat(""))
+                continue
             }
             if (value instanceof String) {
-                value = "'".concat(String.valueOf(value)).concat("'");
+                value = "'".concat(String.valueOf(value)).concat("'")
             }
-            columns[i] = "`".concat(column).concat("`");
-            values[i] = String.valueOf(value);
-            setPart.add("`".concat(column).concat("`=").concat(String.valueOf(value)));
+            columns[i] = "`".concat(column).concat("`")
+            values[i] = String.valueOf(value)
+            setPart.add("`".concat(column).concat("`=").concat(String.valueOf(value)))
         }
-        String key = StringUtils.join(columns, ",");
-        String value = StringUtils.join(values, ",");
+        String key = StringUtils.join(columns, ",")
+        String value = StringUtils.join(values, ",")
 
-        return MessageFormat.format(formatSql, tableName, key, value, StringUtils.join(setPart, ","),sid,data.get('id'));
+        return MessageFormat.format(formatSql, tableName, key, value, StringUtils.join(setPart, ","), sid, data.get('id'))
     }
     /**
      * 删除

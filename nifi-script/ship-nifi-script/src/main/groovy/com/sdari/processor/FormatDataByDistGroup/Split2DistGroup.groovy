@@ -17,13 +17,15 @@ class Split2DistGroup {
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
 
-    Split2DistGroup(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    Split2DistGroup(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
@@ -34,8 +36,7 @@ class Split2DistGroup {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final Map<String, Map<String, GroovyObject>> rules = (helper?.invokeMethod('getTStreamRules',null) as Map<String, Map<String, GroovyObject>>)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             try {//详细处理流程
@@ -46,19 +47,19 @@ class Split2DistGroup {
                 //循环每一条数据中的每一个信号点
                 for (dossKey in jsonDataFormer.keySet()) {
                     try {
-                        final JSONArray other_distributions = (rules?.get(jsonAttributesFormer.get('sid'))?.get(dossKey)?.getJSONArray('other_distributions'))
+                        final List other_distributions = (rules?.get(jsonAttributesFormer.get('sid'))?.get(dossKey)?.getProperty('other_distributions') as List)
                         if (null == other_distributions || other_distributions.size() == 0) {
                             throw new Exception('流规则中没有该信号点配置！')
                         }
                         for (distDto in other_distributions) {
                             try {
-                                final String distStatus = (distDto as JSONObject).getString('dist_status')
+                                final String distStatus = distDto['dist_status']
                                 if ('A' != distStatus) continue
-                                final String distGroup = ((distDto as JSONObject).getString('dist_group'))
+                                final String distGroup = (distDto['dist_group'])
                                 final String shipCollectProtocol = jsonAttributesFormer.getString('ship.collect.protocol')
                                 final String shipCollectFreq = jsonAttributesFormer.getString('ship.collect.freq')
-                                final String distIp = (distDto as JSONObject).getString('dist_ip')
-                                final String distPort = (distDto as JSONObject).getString('dist_port')
+                                final String distIp = distDto['dist_ip']
+                                final String distPort = distDto['dist_port']
                                 if (null == distGroup || null == shipCollectProtocol || null == shipCollectFreq
                                         || null == distIp || null == distPort){
                                     throw new Exception('流规则配置不符合规范，请检查！')
@@ -79,14 +80,14 @@ class Split2DistGroup {
                                     //属性加入表名（包含后缀）、库名
                                     JSONObject attribute = (jsonAttributesFormer.clone() as JSONObject)
                                     attribute.put('dist.group', distGroup)
-                                    attribute.put('dist.protocol', (distDto as JSONObject).getString('dist_protocol'))
+                                    attribute.put('dist.protocol', distDto['dist_protocol'])
                                     attribute.put('dist.ip', distIp)
                                     attribute.put('dist.port', distPort)
                                     jsonAttributes.put(key, attribute)
                                 }
                                 (distGroups.get(key) as JSONObject)?.getJSONArray('data')?.getJSONObject(0)?.put(dossKey, jsonDataFormer.get(dossKey))
                             } catch (Exception e) {
-                                log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} shore_based_distributions = ${(distDto as JSONObject).getString('id')} 处理异常", e
+                                log.error "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] dosskey = ${dossKey} shore_based_distributions = ${distDto['id']} 处理异常", e
                             }
                         }
                     } catch (Exception e) {
@@ -103,9 +104,7 @@ class Split2DistGroup {
             }
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }

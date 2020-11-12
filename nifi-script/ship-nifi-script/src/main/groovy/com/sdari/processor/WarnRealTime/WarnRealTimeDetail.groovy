@@ -21,14 +21,16 @@ class WarnRealTimeDetail {
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
     private static DataMetricService service
 
-    WarnRealTimeDetail(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    WarnRealTimeDetail(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         service = new DataMetricService()
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
@@ -40,8 +42,7 @@ class WarnRealTimeDetail {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final Map<String, Map<String, GroovyObject>> rules = (helper?.invokeMethod('getTStreamRules', null) as Map<String, Map<String, GroovyObject>>)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             try {
@@ -54,9 +55,8 @@ class WarnRealTimeDetail {
                 List<DataPointDTO> points = new ArrayList<>()
                 for (String dossKey in jsonDataFormer.keySet()) {
                     try {
-                        JSONObject dossRule = rules?.get(sid)?.get(dossKey)
-
-                        if (!service.metrics.containsKey(dossKey as Integer) && dossRule?.getJSONArray('alarm')?.size() > 0) {
+                        GroovyObject dossRule = rules?.get(sid)?.get(dossKey)
+                        if (!service.metrics.containsKey(dossKey as Integer) && (dossRule?.getProperty('alarm') as List)?.size() > 0) {
                             //如果报警抽象类不存在并且存在规则，则加载报警抽象类和规则
                             if (!service.InitMetric(dossRule)) continue
                         }
@@ -72,7 +72,7 @@ class WarnRealTimeDetail {
                 }
                 Map<String, List<Object>> events = new HashMap<>()
                 //同步屏蔽信号以及同步实时报警
-                service.lockAlarmAndShield(events, processorConf.get('mysql.connection.alarm') as Sql, Instant.parse(colTime))
+                service.lockAlarmAndShield(events, (helper?.invokeMethod('getMysqlPool', null) as Map)?.get('mysql.connection.doss_i') as Sql, Instant.parse(colTime))
                 //提交报警异步/同步检查
                 service.addPoints(points, events)
                 //单条数据处理结束，放入返回仓库
@@ -83,9 +83,7 @@ class WarnRealTimeDetail {
             }
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }
@@ -122,6 +120,7 @@ class WarnRealTimeDetail {
         }
 
         def lockAlarmAndShield(Map<String, List<Object>> events, Sql con, Instant colTime) throws Exception {
+            if (null == con) throw new Exception("没有获取到可用MySQL连接！")
             //同步屏蔽信号
             con.eachRow("SELECT CONCAT(`dossKey`,`alarm_type`,`alarm_desc`) FROM `t_alarm_shield` WHERE `status` = ? GROUP BY `dossKey`,`alarm_type`,`alarm_desc`;", [0]) { row ->
                 this.shieldKeys.add(row[0] as String)
@@ -178,7 +177,7 @@ class WarnRealTimeDetail {
             }
         }
 
-        boolean InitMetric(JSONObject dossRule) {
+        boolean InitMetric(GroovyObject dossRule) {
             boolean ret = false
             Integer dossKey
             try {
@@ -187,44 +186,43 @@ class WarnRealTimeDetail {
                 //报警规则生成
                 AlarmRuleDTO rule = new AlarmRuleDTO()
                 //来源基础表
-                rule.ship_id = dossRule.getString('ship_id')
-                rule.sys_id = dossRule.getInteger('sys_id')
-                rule.orig_key = dossRule.getString('orig_key')
-                rule.unit = dossRule.getString('unit')
-                rule.col_freq = Duration.ofMillis((dossRule.getJSONArray('collection').last() as JSONObject).getInteger('col_freq'))
-                rule.name_chn = dossRule.getString('name_chn')
-                rule.name_eng = dossRule.getString('name_eng')
+                rule.ship_id = dossRule.getProperty('ship_id')
+                rule.sys_id = dossRule.getProperty('sys_id') as Integer
+                rule.orig_key = dossRule.getProperty('orig_key')
+                rule.unit = dossRule.getProperty('unit')
+                rule.col_freq = Duration.ofMillis((dossRule.getProperty('collection') as List).last()['col_freq'] as Long)
+                rule.name_chn = dossRule.getProperty('name_chn')
+                rule.name_eng = dossRule.getProperty('name_eng')
 
-                dossKey = Integer.parseInt(dossRule.getString('doss_key'))
-                for (alarm in dossRule.getJSONArray('alarm')) {
-                    JSONObject alarmJson = alarm as JSONObject
+                dossKey = (dossRule.getProperty('doss_key') as Integer)
+                for (alarm in dossRule.getProperty('alarm') as List) {
                     AlarmRuleDTO.Rule ar = new AlarmRuleDTO.Rule()
                     //来源报警规则表
-                    ar.id = alarmJson.getInteger('id')
-                    ar.sid = alarmJson.getInteger('sid')
-                    ar.doss_key = alarmJson.getInteger('doss_key')
-                    ar.rule_name = alarmJson.getString('rule_name')
-                    ar.rule_type = alarmJson.getInteger('rule_type')
-                    ar.allow_suspense = alarmJson.getInteger('rule_type') == 1
-                    ar.expr = alarmJson.getString('expr')
-                    ar.gen_duration = Duration.ofMillis(alarmJson.getLong('gen_duration'))
-                    ar.gen_count = alarmJson.getInteger('gen_count')
-                    ar.ignore_duration = Duration.ofMillis(alarmJson.getLong('ignore_duration'))
-                    ar.recover_duration = Duration.ofMillis(alarmJson.getLong('recover_duration'))
-                    ar.recover_count = alarmJson.getInteger('recover_count')
-                    ar.alarm_name_chn = alarmJson.getString('alarm_name_chn')
-                    ar.alarm_name_eng = alarmJson.getString('alarm_name_eng')
-                    ar.alarm_source = alarmJson.getString('alarm_source')
-                    ar.alarm_level = alarmJson.getInteger('alarm_level')
-                    ar.alert_min = alarmJson.getBigDecimal('alert_min')
-                    ar.alert_max = alarmJson.getBigDecimal('alert_max')
-                    ar.alert_2nd_min = alarmJson.getBigDecimal('alert_2nd_min')
-                    ar.alert_2nd_max = alarmJson.getBigDecimal('alert_2nd_max')
-                    ar.relate_stop_sig = alarmJson.getString('relate_stop_sig')
-                    ar.alert_status = alarmJson.getString('alert_status') == 'A'
-                    ar.is_popup = alarmJson.getString('is_popup') == 'A'
-                    ar.ams_alarm_standard = alarmJson.getInteger('ams_alarm_standard')
-                    ar.alert_way = alarmJson.getString('alert_way')
+                    ar.id = alarm['id'] as Integer
+                    ar.sid = alarm['sid'] as Integer
+                    ar.doss_key = alarm['doss_key'] as Integer
+                    ar.rule_name = alarm['rule_name']
+                    ar.rule_type = alarm['rule_type'] as Integer
+                    ar.allow_suspense = alarm['rule_type'] == 1
+                    ar.expr = alarm['expr']
+                    ar.gen_duration = Duration.ofMillis(alarm['gen_duration'] as Long)
+                    ar.gen_count = alarm['gen_count'] as Integer
+                    ar.ignore_duration = Duration.ofMillis(alarm['ignore_duration'] as Long)
+                    ar.recover_duration = Duration.ofMillis(alarm['recover_duration'] as Long)
+                    ar.recover_count = alarm['recover_count'] as Integer
+                    ar.alarm_name_chn = alarm['alarm_name_chn']
+                    ar.alarm_name_eng = alarm['alarm_name_eng']
+                    ar.alarm_source = alarm['alarm_source']
+                    ar.alarm_level = alarm['alarm_level'] as Integer
+                    ar.alert_min = alarm['alert_min'] as BigDecimal
+                    ar.alert_max = alarm['alert_max'] as BigDecimal
+                    ar.alert_2nd_min = alarm['alert_2nd_min'] as BigDecimal
+                    ar.alert_2nd_max = alarm['alert_2nd_max'] as BigDecimal
+                    ar.relate_stop_sig = alarm['relate_stop_sig']
+                    ar.alert_status = alarm['alert_status'] == 'A'
+                    ar.is_popup = alarm['is_popup'] == 'A'
+                    ar.ams_alarm_standard = alarm['ams_alarm_standard'] as Integer
+                    ar.alert_way = alarm['alert_way']
                     //单独生成上层的min_max
                     if (null == rule.min_max && (null != ar.alert_min || null != ar.alert_2nd_min
                             || null != ar.alert_2nd_max || null != ar.alert_max)) {

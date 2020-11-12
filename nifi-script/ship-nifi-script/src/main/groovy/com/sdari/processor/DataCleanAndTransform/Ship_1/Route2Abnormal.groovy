@@ -14,13 +14,15 @@ class Route2Abnormal {
     private static String processorName
     private static routeId
     private static String currentClassName
+    private static GroovyObject helper
 
-    Route2Abnormal(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    Route2Abnormal(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
         currentClassName = this.class.canonicalName
+        helper = pch
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
 
@@ -29,10 +31,9 @@ class Route2Abnormal {
         def returnMap = [:]
         def dataListReturn = []
         def attributesListReturn = []
-        final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
-        final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
-        final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final List<JSONObject> dataList = (params as HashMap)?.get('data') as ArrayList
+        final List<JSONObject> attributesList = ((params as HashMap)?.get('attributes') as ArrayList)
+        final Map<String, Map<String, GroovyObject>> rules = (helper?.invokeMethod('getTStreamRules',null) as Map<String, Map<String, GroovyObject>>)
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             try {
@@ -49,16 +50,16 @@ class Route2Abnormal {
                         def value = jsonDataFormer.get(dossKey)
                         if (null == value) isAbnormal = true
                         if (value instanceof BigDecimal){
-                            BigDecimal transfer = rules?.get(sid)?.get(dossKey)?.get('transfer_factor') as BigDecimal
-                            BigDecimal min = rules?.get(sid)?.get(dossKey)?.get('value_min') as BigDecimal
-                            BigDecimal max = rules?.get(sid)?.get(dossKey)?.get('value_max') as BigDecimal
+                            BigDecimal transfer = rules?.get(sid)?.get(dossKey)?.getProperty('transfer_factor') as BigDecimal
+                            BigDecimal min = rules?.get(sid)?.get(dossKey)?.getProperty('value_min') as BigDecimal
+                            BigDecimal max = rules?.get(sid)?.get(dossKey)?.getProperty('value_max') as BigDecimal
                             value = value * transfer
                             isAbnormal = (value < min || value > max)
                         }
                         if (isAbnormal){
                             Abnormal abnormal = new Abnormal()
                             abnormal.sid = Integer.parseInt(sid)
-                            abnormal.outer_key = rules?.get(sid)?.get(dossKey)?.get('orig_key')
+                            abnormal.outer_key = rules?.get(sid)?.get(dossKey)?.getProperty('orig_key')
                             abnormal.occur_time = colTime.replace('T', ' ').replace('Z', '')
                             abnormal.create_time = colTime.replace('T', ' ').replace('Z', '')
                             abnormalList.add(abnormal)
@@ -77,9 +78,7 @@ class Route2Abnormal {
             }
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
-        returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
         return returnMap
     }
