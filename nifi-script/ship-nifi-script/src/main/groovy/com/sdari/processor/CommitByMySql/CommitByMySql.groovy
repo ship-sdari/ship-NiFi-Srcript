@@ -86,7 +86,7 @@ class CommitByMySql implements Processor {
     public void onScheduled(final ProcessContext context) {
         try {
             pch.invokeMethod("initComponent", null)//相关公共配置实例更新查询
-            pch.invokeMethod("initScript", [log, currentClassName])
+            pch.invokeMethod("initScript", [log, currentClassName, pch])
             Map confMap = pch.getProperty('parameters') as Map
             initConf(confMap)//初始化连接配置
             log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] 处理器起始运行完毕"

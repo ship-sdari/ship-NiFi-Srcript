@@ -20,7 +20,7 @@ class analysisByHBase {
     private static String processorName
     private static routeId
     private static String currentClassName
-
+    private static GroovyObject helper
     //数据处理使用参数
     final static String SID = 'sid'
     final static String STATUS = 'status'
@@ -42,11 +42,12 @@ class analysisByHBase {
     final static String rowKey = "rowkey"
     final static String familyName = "family.name"
 
-    analysisByHBase(final ComponentLog logger, final int pid, final String pName, final int rid) {
+    analysisByHBase(final ComponentLog logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
+        helper = pch
         currentClassName = this.class.canonicalName
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
@@ -58,7 +59,6 @@ class analysisByHBase {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         String familyNameValue = processorConf.get(familyName)
         //循环list中的每一条数据
@@ -112,7 +112,6 @@ class analysisByHBase {
             }
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('attributes', attributesListReturn)
         returnMap.put('parameters', processorConf)
         returnMap.put('data', dataListReturn)
