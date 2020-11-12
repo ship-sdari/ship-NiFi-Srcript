@@ -268,6 +268,8 @@ class CommitByMySql implements Processor {
      * @throws Exception
      */
     private synchronized boolean transaction(List<String> contents, String database, def log) throws Exception {
+
+
         boolean isError = false
         //如果没有库的连,或者连接断开 就新建一个连接
         if (!connections.containsKey(database) || null == connections.get(database)
@@ -280,6 +282,15 @@ class CommitByMySql implements Processor {
         PreparedStatement stmt1
         for (String content : contents) {
             try {
+//                try {
+//                    sql.withTransaction {
+//                        //正确语句
+//                        sql.executeInsert("INSERT INTO author(firstname,lastname) VALUES('wang','5')")
+//                        sql.executeInsert("INSERT INTO author() VALUES(4324,3423)")
+//                    }
+//                } catch (ignore) {
+//                    println(ignore.message)
+//                }
                 stmt1 = connection.prepareStatement(content)
                 stmt1.executeUpdate()
                 if (!stmt1.isClosed()) stmt1.close()
