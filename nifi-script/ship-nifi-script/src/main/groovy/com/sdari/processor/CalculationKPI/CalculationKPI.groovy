@@ -305,10 +305,10 @@ class CalculationKPI implements Processor {
                                                     JSONObject mas = data.get(i) as JSONObject
                                                     ruData.putAll(mas)
                                                 }
-                                                if (!ruData.containsKey(latitude) || ruData.get(latitude) == null) {
+                                                if (ruData==null||!ruData.containsKey(latitude) || ruData.get(latitude) == null) {
                                                     ruData = null
                                                 }
-                                                if (!ruData.containsKey(longitude) || ruData.get(longitude) == null) {
+                                                if (ruData==null||!ruData.containsKey(longitude) || ruData.get(longitude) == null) {
                                                     ruData = null
                                                 }
                                             }
