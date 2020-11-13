@@ -77,7 +77,8 @@ class OilChangeDto {
      * 获取连接
      */
     static void sqlINit() {
-        con = (helper.invokeMethod("getMysqlPool", null) as Map<String, Sql>).get(conName)
+        String conSqlName = (helper?.getProperty('parameters') as Map).get(conName) as String
+        con = (helper?.invokeMethod('getMysqlPool', null) as Map)?.get(conSqlName) as Sql
     }
 
     /**
@@ -108,10 +109,11 @@ class OilChangeDto {
             String hostUseOil = oilType(meUseHfoStr, meUseMdoStr)
             String auxUseOil = oilType(geUseHfoStr, geUseMdoStr)
             String boilerUseOil = oilType(boilerHFO, boilerMOD)
-
+            log.debug("[${sid}] [换油检测] [${time}] 主机/辅机/锅炉使用油型指示[${hostUseOil}/${auxUseOil}/${boilerUseOil}]")
             OliChangeRecord_single monitorSingle = oilMonitor_single(hostUseOil, auxUseOil, boilerUseOil)
             if (null != monitorSingle) {
-                if (monitorSingle.host_after_oil_id != null && monitorSingle.aux_after_oil_id != null && monitorSingle.boiler_after_oil_id != null) {
+                if (monitorSingle.host_after_oil_id != null && monitorSingle.aux_after_oil_id != null
+                        && monitorSingle.boiler_after_oil_id != null) {
                     monitorSingle.sid = sid
                     monitorSingle.create_time = time
                     monitorSingle.change_time = time
@@ -120,7 +122,10 @@ class OilChangeDto {
                     log.warn("换油监测输出结果不符合规范，请检查：" + JSONObject.toJSONString(monitorSingle, SerializerFeature.WriteMapNullValue))
                 }
             }
-            log.debug("[${sid}] [换油检测] [${time}] result[${JsonData}] ")
+            log.debug("[${sid}] [换油检测] [${time}] " +
+                    "主机/辅机/锅炉使用轻油指示[${meUseHfoStr}/${geUseHfoStr}/${boilerHFO}] " +
+                    "主机/辅机/锅炉使用重油指示[${meUseMdoStr}/${geUseMdoStr}/${boilerMOD}]  " +
+                    "result[${JsonData}] ")
             if (JsonData != null) return JSONObject.parseObject(JsonData)
             return null
         } catch (Exception e) {
@@ -138,11 +143,11 @@ class OilChangeDto {
         BigDecimal result = null
         //计算
         if (null != dataHFO && dataHFO == BigDecimal.ONE) {
-            result = BigDecimal.valueOf(0)
+            result = BigDecimal.ZERO
         } else if (null != dataMOD && dataMOD == BigDecimal.ONE) {
-            result = BigDecimal.valueOf(1)
+            result = BigDecimal.ONE
         } else if (null != dataMOD && dataMOD == BigDecimal.ZERO) {
-            result = BigDecimal.valueOf(0)
+            result = BigDecimal.ZERO
         }
         return result
     }
@@ -190,6 +195,7 @@ class OilChangeDto {
                     oilChangeRecord.host_after_oil_id = (h)
                     flag = true
                 }
+                log.debug("[主机] ${h} 【${oilChangeRecord.host_after_oil_id}】 flag[${flag}] ")
             } else {
                 String currentHostOid = null
                 con.eachRow(MessageFormat.format(sqlSelectCurrentFormat, changeRecord.host_after_oil_id)) {
@@ -206,6 +212,7 @@ class OilChangeDto {
                 } else {
                     oilChangeRecord.host_after_oil_id = (changeRecord.host_after_oil_id)
                 }
+                log.debug("[主机] ${currentHostOid} 【${oilChangeRecord.host_after_oil_id}】 flag[${flag}] ")
             }
 
             //辅机
@@ -215,6 +222,7 @@ class OilChangeDto {
                     oilChangeRecord.aux_after_oil_id = (OilId)
                     flag = true
                 }
+                log.debug("[辅机] ${OilId} 【${oilChangeRecord.aux_after_oil_id}】 flag[${flag}] ")
             } else {
                 String currentAuxOid = null
                 con.eachRow(MessageFormat.format(sqlSelectCurrentFormat, changeRecord.aux_after_oil_id)) {
@@ -224,13 +232,15 @@ class OilChangeDto {
                     throw new Exception("t_oil_meter没有查询到当前辅机油类型，语句为:" +
                             MessageFormat.format(sqlSelectCurrentFormat, changeRecord.aux_after_oil_id))
                 oilChangeRecord.aux_before_oil_id = (changeRecord.aux_after_oil_id)
-                if (currentAuxOid == "HFO" && "1" == auxUseOil || (currentAuxOid == "MDO" && "0" == auxUseOil)) {
+                if ((currentAuxOid == "HFO" && "1" == auxUseOil) || (currentAuxOid == "MDO" && "0" == auxUseOil)) {
                     flag = true
                     Long auxAfterOilId = init_oil_up(auxUseOil, sqlSelectNullFormat, sqlSelectFormat, 'aux_after_oil_id')
                     oilChangeRecord.aux_after_oil_id = (auxAfterOilId)
                 } else {
                     oilChangeRecord.aux_after_oil_id = (changeRecord.aux_after_oil_id)
                 }
+                log.debug("[主机] ${currentAuxOid} 【${oilChangeRecord.aux_after_oil_id}】 flag[${flag}] ")
+
             }
 
             //锅炉
@@ -240,6 +250,7 @@ class OilChangeDto {
                     oilChangeRecord.boiler_after_oil_id = (OilId)
                     flag = true
                 }
+                log.debug("[锅炉] ${OilId} 【${oilChangeRecord.boiler_after_oil_id}】 flag[${flag}] ")
             } else {
                 String currentBoilerOid = null
                 con.eachRow(MessageFormat.format(sqlSelectCurrentFormat, changeRecord.boiler_after_oil_id)) {
@@ -249,14 +260,17 @@ class OilChangeDto {
                     throw new Exception("t_oil_meter没有查询到当前锅炉油类型，语句为:" +
                             MessageFormat.format(sqlSelectCurrentFormat, changeRecord.boiler_after_oil_id))
                 oilChangeRecord.boiler_before_oil_id = (changeRecord.boiler_after_oil_id)
-                if (currentBoilerOid == "HFO" && "1" == boilerUseOil || (currentBoilerOid == "MDO" && "0" == boilerUseOil)) {
+                if ((currentBoilerOid == "HFO" && "1" == boilerUseOil) || (currentBoilerOid == "MDO" && "0" == boilerUseOil)) {
                     flag = true
                     Long boilerAfterOilId = init_oil_up(boilerUseOil, sqlSelectNullFormat, sqlSelectFormat, 'boiler_after_oil_id')
                     oilChangeRecord.boiler_after_oil_id = (boilerAfterOilId)
                 } else {
                     oilChangeRecord.boiler_after_oil_id = (changeRecord.boiler_after_oil_id)
                 }
+                log.debug("[锅炉] ${currentBoilerOid} 【${oilChangeRecord.boiler_after_oil_id}】 flag[${flag}] ")
             }
+
+            log.debug("[data] ${JSONObject.toJSONString(oilChangeRecord)} flag[${flag}]")
             if (!flag) {
                 oilChangeRecord = null
             }
@@ -273,22 +287,26 @@ class OilChangeDto {
                 oilChangeRecord.host_after_oil_id = (h)
                 flag = true
             }
-
+            log.debug("[主机] ${h} 【${oilChangeRecord.host_after_oil_id}】 flag[${flag}] ")
             //辅机
             final Long a = init_oil(hostUseOil, sqlSelectNullFormat, oidHFOId, oidMDOId)
             if (null != a) {//加抽油记录表中有相关数据
                 oilChangeRecord.aux_after_oil_id = (a)
                 flag = true
             }
+            log.debug("[辅机] ${a}【${oilChangeRecord.aux_after_oil_id}】 flag[${flag}]")
             //锅炉
             final Long b = init_oil(hostUseOil, sqlSelectNullFormat, oidHFOId, oidMDOId)
             if (null != b) {//加抽油记录表中有相关数据
                 oilChangeRecord.boiler_after_oil_id = (b)
                 flag = true
             }
+            log.debug("[锅炉] ${b}【${oilChangeRecord.boiler_after_oil_id}】 flag[${flag}]")
+            log.debug("[data] ${JSONObject.toJSONString(oilChangeRecord)} flag[${flag}]")
             if (!flag) {
                 oilChangeRecord = null
             }
+
         }
         return oilChangeRecord
         // 否則是用換油記錄
