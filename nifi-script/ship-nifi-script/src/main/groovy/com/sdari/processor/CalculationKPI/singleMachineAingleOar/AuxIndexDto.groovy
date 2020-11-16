@@ -18,7 +18,7 @@ class AuxIndexDto {
     private static String processorName
     private static routeId
     private static String currentClassName
-
+    private static GroovyObject helper
     //指标名称
     private static kpiName = 'aux_oil'
     //计算相关参数
@@ -27,11 +27,12 @@ class AuxIndexDto {
 
     final static BigDecimal slipperyValue = BigDecimal.valueOf(0.514 * 60)
 
-    AuxIndexDto(final def logger, final int pid, final String pName, final int rid) {
+    AuxIndexDto(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
+        helper = pch
         currentClassName = this.class.canonicalName
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
@@ -43,7 +44,6 @@ class AuxIndexDto {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         final Map shipConf = ((params as HashMap).get('shipConf') as HashMap)
         //循环list中的每一条数据
@@ -69,7 +69,6 @@ class AuxIndexDto {
             attributesListReturn.add(jsonAttributesFormer)
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('shipConf', shipConf)
         returnMap.put('data', dataListReturn)
         returnMap.put('parameters', processorConf)
