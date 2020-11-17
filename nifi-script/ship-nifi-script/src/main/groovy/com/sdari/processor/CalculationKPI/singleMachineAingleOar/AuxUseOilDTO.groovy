@@ -8,9 +8,7 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 辅机用油
- * @author Liumouren
- * @date 2020-09-21 15:51:00
+ * @kpiName: 辅机用油* @author Liumouren* @date 2020-09-21 15:51:00
  */
 class AuxUseOilDTO {
     private static log
@@ -52,8 +50,8 @@ class AuxUseOilDTO {
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            String coltime = String.valueOf(Instant.now())
-            //  String coltime = jsonAttributesFormer.get(COLTIME)
+            //String coltime = String.valueOf(Instant.now())
+            String coltime = jsonAttributesFormer.get(COLTIME)
             //判断数据里是否 有 当前计算指标数据
             if (!JsonData.containsKey(kpiName)) {
                 log.debug("[${sid}] [${kpiName}] [没有当前指标 计算所需的数据] result[${null}] ")
@@ -89,16 +87,16 @@ class AuxUseOilDTO {
             BigDecimal geUseHfoStr = data.get("ge_use_hfo");
             //柴油发电机使用柴油/轻柴油指示
             BigDecimal geUseMdoStr = data.get("ge_use_mdo");
-            if(null==geUseHfoStr&&null==geUseMdoStr){
+            if (null == geUseHfoStr && null == geUseMdoStr) {
                 log.debug("[${sid}] [${kpiName}] [${time}] 柴油发电机使用重油指示[${geUseHfoStr}] 柴油发电机使用柴油/轻柴油指示[${geUseMdoStr}] result[${null}] ")
                 return null;
             }
             //计算
-            if (null!=geUseHfoStr&& geUseHfoStr == BigDecimal.ONE) {
+            if (null != geUseHfoStr && geUseHfoStr == BigDecimal.ONE) {
                 result = BigDecimal.valueOf(0);
-            } else if (null!=geUseMdoStr&& geUseMdoStr == BigDecimal.ONE){
+            } else if (null != geUseMdoStr && geUseMdoStr == BigDecimal.ONE) {
                 result = BigDecimal.valueOf(1);
-            }else if (null!=geUseMdoStr&& geUseMdoStr == BigDecimal.ZERO){
+            } else if (null != geUseMdoStr && geUseMdoStr == BigDecimal.ZERO) {
                 result = BigDecimal.valueOf(0);
             }
             log.debug("[${sid}] [${kpiName}] [${time}] 柴油发电机使用重油指示[${geUseHfoStr}] 柴油发电机使用柴油/轻柴油指示[${geUseMdoStr}] result[${result}] ")

@@ -8,9 +8,7 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 辅机油耗率
- * @author Liumouren
- * @date 2020-09-21 14:57:00
+ * @kpiName: 辅机油耗率* @author Liumouren* @date 2020-09-21 14:57:00
  */
 class AuxOilRateDTO {
     private static log
@@ -53,8 +51,8 @@ class AuxOilRateDTO {
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            String coltime = String.valueOf(Instant.now())
-            //  String coltime = jsonAttributesFormer.get(COLTIME)
+            // String coltime = String.valueOf(Instant.now())
+            String coltime = jsonAttributesFormer.get(COLTIME)
             //判断数据里是否 有 当前计算指标数据
             if (!JsonData.containsKey(kpiName)) {
                 log.debug("[${sid}] [${kpiName}] [没有当前指标 计算所需的数据] result[${null}] ")
@@ -90,7 +88,7 @@ class AuxOilRateDTO {
             Integer OIL_CALCULATION_TYPE = Integer.valueOf(configMap.get('OIL_CALCULATION_TYPE'))
             if (OIL_CALCULATION_TYPE == null) {
                 log.error("辅机油耗计算方式查询有误 NULL，使用默认初始值:OIL_CALCULATION_TYPE [1] 异常为：")
-                OIL_CALCULATION_TYPE= 1;
+                OIL_CALCULATION_TYPE = 1;
             }
             // 辅机流入流量
             BigDecimal inRate
@@ -124,10 +122,10 @@ class AuxOilRateDTO {
             String split;
             String a = configMap.get("AUX_OIL_RATE_VALUE");
             if (a != null && !a.isEmpty()) {
-                split=a;
+                split = a;
             } else {
                 log.error("辅机油耗率计算频率查询 null，使用默认初始值:setSplit[1345,1250]");
-                split="1345,1250";
+                split = "1345,1250";
             }
             String[] splits = split.split(",");
             BigDecimal auxOilRateParamValue = BigDecimal.valueOf(Double.parseDouble(splits[0]))

@@ -23,7 +23,7 @@ class TwdDTO {
     private static kpiName = 'twd'
     //计算相关参数
     final static String SID = 'sid'
-
+    final static String COLTIME = 'coltime'
     TwdDTO(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
@@ -50,8 +50,8 @@ class TwdDTO {
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            String coltime = String.valueOf(Instant.now())
-            //  String coltime = jsonAttributesFormer.get(COLTIME)
+            //  String coltime = String.valueOf(Instant.now())
+             String coltime = jsonAttributesFormer.get(COLTIME)
             //判断数据里是否 有 当前计算指标数据
             if (!JsonData.containsKey(kpiName)) {
                 log.debug("[${sid}] [${kpiName}] [没有当前指标 计算所需的数据] result[${null}] ")

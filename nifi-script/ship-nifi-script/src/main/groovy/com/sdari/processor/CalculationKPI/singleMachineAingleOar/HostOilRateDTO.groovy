@@ -8,9 +8,7 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 主机油耗率
- * @author Liumouren
- * @date 2020-09-21 17:30:00
+ * @kpiName: 主机油耗率* @author Liumouren* @date 2020-09-21 17:30:00
  */
 class HostOilRateDTO {
     private static log
@@ -23,6 +21,7 @@ class HostOilRateDTO {
     private static kpiName = 'host_oil_rate'
     //计算相关参数
     final static String SID = 'sid'
+    final static String COLTIME = 'coltime'
 
     HostOilRateDTO(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
@@ -50,8 +49,8 @@ class HostOilRateDTO {
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            String coltime = String.valueOf(Instant.now())
-            //  String coltime = jsonAttributesFormer.get(COLTIME)
+            // String coltime = String.valueOf(Instant.now())
+            String coltime = jsonAttributesFormer.get(COLTIME)
             //判断数据里是否 有 当前计算指标数据
             if (!JsonData.containsKey(kpiName)) {
                 log.debug("[${sid}] [${kpiName}] [没有当前指标 计算所需的数据] result[${null}] ")
@@ -90,19 +89,19 @@ class HostOilRateDTO {
             if (ge1Power != null && !ge1Power.equals(BigDecimal.valueOf(0))) {
                 String a = configMap.get("SMCR_P");
                 if (a != null && !a.isEmpty()) {
-                    realMeEcsPower = ge1Power*BigDecimal.valueOf(a as long);
+                    realMeEcsPower = ge1Power * BigDecimal.valueOf(a as long);
                 } else {
-                    realMeEcsPower = ge1Power* BigDecimal.valueOf(24200);
+                    realMeEcsPower = ge1Power * BigDecimal.valueOf(24200);
                 }
                 realMeEcsPower = realMeEcsPower.divide(BigDecimal.valueOf(100f), 4).setScale(2, 4)
             }
             Integer OIL_CALCULATION_TYPE
             String a = configMap.get("OIL_CALCULATION_TYPE");
             if (a != null && !a.isEmpty()) {
-                OIL_CALCULATION_TYPE= Integer.parseInt(a);
+                OIL_CALCULATION_TYPE = Integer.parseInt(a);
             } else {
                 log.error("主机油耗率计算频率查询有误 NULL，使用默认初始值:OIL_CALCULATION_TYPE [1] 异常为：");
-                OIL_CALCULATION_TYPE= 1;
+                OIL_CALCULATION_TYPE = 1;
             }
             if (OIL_CALCULATION_TYPE == 0) {
                 // 获取主机流入流量

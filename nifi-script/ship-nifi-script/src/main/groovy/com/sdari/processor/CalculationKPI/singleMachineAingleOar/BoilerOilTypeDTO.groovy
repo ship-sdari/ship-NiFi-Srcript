@@ -8,9 +8,7 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 锅炉用油类型
- * @author Liumouren
- * @date 2020-09-21 17:01:00
+ * @kpiName: 锅炉用油类型* @author Liumouren* @date 2020-09-21 17:01:00
  */
 class BoilerOilTypeDTO {
     private static log
@@ -23,7 +21,7 @@ class BoilerOilTypeDTO {
     private static kpiName = 'boiler_oil_type'
     //计算相关参数
     final static String SID = 'sid'
-
+    final static String COLTIME = 'coltime'
     BoilerOilTypeDTO(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
@@ -50,8 +48,8 @@ class BoilerOilTypeDTO {
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            String coltime = String.valueOf(Instant.now())
-            //  String coltime = jsonAttributesFormer.get(COLTIME)
+            // String coltime = String.valueOf(Instant.now())
+            String coltime = jsonAttributesFormer.get(COLTIME)
             //判断数据里是否 有 当前计算指标数据
             if (!JsonData.containsKey(kpiName)) {
                 log.debug("[${sid}] [${kpiName}] [没有当前指标 计算所需的数据] result[${null}] ")
@@ -87,16 +85,16 @@ class BoilerOilTypeDTO {
             BigDecimal boilerHFO = data.get("boil_use_hfo");
             //锅炉用柴油
             BigDecimal boilerMOD = data.get("boil_use_mdo");
-            if(null==boilerHFO&&null==boilerMOD){
+            if (null == boilerHFO && null == boilerMOD) {
                 log.debug("[${sid}] [${kpiName}] [${time}] 锅炉用燃油[${boilerHFO}] 锅炉用柴油[${boilerMOD}] result[${null}] ")
                 return null;
             }
             //计算
-            if (null!=boilerHFO&& boilerHFO == BigDecimal.ONE) {
+            if (null != boilerHFO && boilerHFO == BigDecimal.ONE) {
                 result = BigDecimal.valueOf(0)
-            }else if (null!=boilerMOD&& boilerMOD == BigDecimal.ONE){
+            } else if (null != boilerMOD && boilerMOD == BigDecimal.ONE) {
                 result = BigDecimal.valueOf(1)
-            }else if (null!=boilerMOD&& boilerMOD == BigDecimal.ZERO){
+            } else if (null != boilerMOD && boilerMOD == BigDecimal.ZERO) {
                 result = BigDecimal.valueOf(0)
             }
             log.debug("[${sid}] [${kpiName}] [${time}] 锅炉用燃油[${boilerHFO}] 锅炉用柴油[${boilerMOD}] result[${result}] ")

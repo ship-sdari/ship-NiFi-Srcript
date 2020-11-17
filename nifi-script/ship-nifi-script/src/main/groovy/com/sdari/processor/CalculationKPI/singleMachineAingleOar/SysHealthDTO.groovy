@@ -52,7 +52,6 @@ class SysHealthDTO {
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             JSONObject json = new JSONObject()
-            final JSONObject JsonData = (dataList.get(i) as JSONObject)
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)

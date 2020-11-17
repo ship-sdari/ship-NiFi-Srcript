@@ -78,7 +78,6 @@ class StopIndexDto {
             attributesListReturn.add(jsonAttributesFormer)
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('shipConf', shipConf)
         returnMap.put('data', dataListReturn)
         returnMap.put('parameters', processorConf)
