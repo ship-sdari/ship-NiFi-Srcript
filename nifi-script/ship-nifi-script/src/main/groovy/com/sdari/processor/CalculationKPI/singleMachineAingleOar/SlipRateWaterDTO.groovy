@@ -18,7 +18,7 @@ class SlipRateWaterDTO {
     private static String processorName
     private static routeId
     private static String currentClassName
-
+    private static GroovyObject helper
     //指标名称
     private static kpiName = 'slip_rate_water'
     //计算相关参数
@@ -26,11 +26,12 @@ class SlipRateWaterDTO {
     // 螺距,查询值
     final static BigDecimal PITCH = BigDecimal.valueOf(11.2d);
 
-    SlipRateWaterDTO(final def logger, final int pid, final String pName, final int rid) {
+    SlipRateWaterDTO(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
+        helper = pch
         currentClassName = this.class.canonicalName
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
