@@ -6,6 +6,7 @@ import groovy.sql.Sql
 import lombok.Data
 
 import java.text.MessageFormat
+import java.text.SimpleDateFormat
 
 /**
  *
@@ -87,7 +88,7 @@ class OilChangeDto {
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
-    static JSONObject calculationKpi(Map<String, String> configMap, JSONObject data, final String time, final String sid) {
+    static JSONObject calculationKpi(Map<String, String> configMap, JSONObject data, String time, final String sid) {
         String JsonData = null
         try {
             Map<String, BigDecimal> hostDate = data.get(host_use_oil) as Map<String, BigDecimal>
@@ -116,8 +117,8 @@ class OilChangeDto {
                         && monitorSingle.aux_after_oil_id != null
                         && monitorSingle.boiler_after_oil_id != null) {
                     monitorSingle.sid = sid
-                    monitorSingle.create_time = time
-                    monitorSingle.change_time = time
+                    monitorSingle.create_time = dateUpByLong(sid, time)
+                    monitorSingle.change_time = dateUpByLong(sid, time)
                     JsonData = JSONObject.toJSONString(monitorSingle, SerializerFeature.WriteMapNullValue)
                 } else {
                     log.warn("换油监测输出结果不符合规范，请检查：" + JSONObject.toJSONString(monitorSingle, SerializerFeature.WriteMapNullValue))
@@ -396,52 +397,72 @@ class OilChangeDto {
         }
         return OilId
     }
+    /**
+     * 时间格式化
+     *
+     * @param time Instant time
+     * @return String
+     */
+    private static Long dateUpByLong(String sid, String time) {
+        try {
+            if (time.isEmpty()) {
+                return null
+            }
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+            sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
+            time = time.replace("T", " ").replace("Z", "")
+            return sdf.parse(time).getTime()
+        } catch (Exception ignored) {
+            log.error("[${sid}]  [换油检测] [${time}] 时间格式化失败 e[${ignored}] ")
+            return null
+        }
+    }
 
     @Data
     static class OliChangeRecord_single {
         /**
          * 船id
          */
-         String sid
+        String sid
 
         /**
          * 主机换油前油品
          */
-         Long host_before_oil_id
+        Long host_before_oil_id
 
         /**
          * 主机换油后油品
          */
-         Long host_after_oil_id
+        Long host_after_oil_id
 
         /**
          * 辅机换油前油品
          */
-         Long aux_before_oil_id
+        Long aux_before_oil_id
 
         /**
          * 辅机换油后油品
          */
-         Long aux_after_oil_id
+        Long aux_after_oil_id
 
         /**
          * 锅炉换油前油品
          */
-         Long boiler_before_oil_id
+        Long boiler_before_oil_id
 
         /**
          * 锅炉换油后油品
          */
-         Long boiler_after_oil_id
+        Long boiler_after_oil_id
 
         /**
          * 换油时间
          */
-         String change_time
+        Long change_time
 
-         String create_time
+        Long create_time
 
-         String update_time
+        Long update_time
 
     }
 }
