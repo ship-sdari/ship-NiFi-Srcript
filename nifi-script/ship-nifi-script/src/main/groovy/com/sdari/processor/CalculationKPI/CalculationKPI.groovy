@@ -281,7 +281,7 @@ class CalculationKPI implements Processor {
                                             if (kpiLists.size() > 0) {
                                                 for (data in kpiLists) {
                                                     //根据下标 获取对应的 计算指标数据
-                                                    JSONObject mas = kpiLists.get(i) as JSONObject
+                                                    JSONObject mas = data.get(i) as JSONObject
                                                     ruData.putAll(mas)
                                                 }
                                                 JSONObject originalData = returnDataList.get(i) as JSONObject
@@ -488,4 +488,4 @@ class CalculationKPI implements Processor {
 }
 
 //脚本部署时需要放开该注释
-//processor = new CalculationKPI()
+processor = new CalculationKPI()
