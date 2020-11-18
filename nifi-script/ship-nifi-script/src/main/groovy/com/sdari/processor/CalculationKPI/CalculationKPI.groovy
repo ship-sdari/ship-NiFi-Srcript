@@ -488,4 +488,4 @@ class CalculationKPI implements Processor {
 }
 
 //脚本部署时需要放开该注释
-processor = new CalculationKPI()
+//processor = new CalculationKPI()
