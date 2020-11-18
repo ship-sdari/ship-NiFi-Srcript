@@ -23,7 +23,7 @@ class SlipSogIndexDto {
     final static String SID = 'sid'
     final static String COLTIME = 'coltime'
 
-    final static BigDecimal slipperyValue = BigDecimal.valueOf(0.514 * 60)
+    final static BigDecimal slipperyValue = 0.514 * 60
 
     SlipSogIndexDto(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
@@ -47,11 +47,10 @@ class SlipSogIndexDto {
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             JSONObject json = new JSONObject()
-            final JSONObject JsonData = (dataList.get(i) as JSONObject)
+             JSONObject JsonData = (dataList.get(i) as JSONObject)
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            // String coltime = String.valueOf(Instant.now())
             String coltime = jsonAttributesFormer.get(COLTIME)
             //判断数据里是否 有 当前计算指标数据
             if (!JsonData.containsKey(kpiName)) {
@@ -91,7 +90,7 @@ class SlipSogIndexDto {
             // 获取转速
             BigDecimal speed = data.get('me_ecs_speed')
             //螺距
-            BigDecimal pitch = BigDecimal.valueOf(configMap.get('PITCH') as Double)
+            BigDecimal pitch = configMap.get('PITCH') as BigDecimal
             if (vg == null || speed == null || speed == BigDecimal.ZERO || pitch == null) {
                 log.debug("[${sid}] [${kpiName}] [${time}] 对地航速[${vg}] 转速[${speed}] 螺距[${pitch}] result[${null}] ")
                 return null

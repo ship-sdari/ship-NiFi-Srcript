@@ -1,6 +1,7 @@
 package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 import com.alibaba.fastjson.JSONObject
+import groovy.sql.Sql
 
 import java.sql.Connection
 import java.sql.ResultSet
@@ -19,6 +20,9 @@ class UnitTransportationCo2DTO {
     private static routeId
     private static String currentClassName
     private static GroovyObject helper
+    private static Sql con
+    static final String conName = "con.name"
+
     //指标名称
     private static kpiName = 'unit_transportation_co2'
     //计算相关参数
@@ -74,7 +78,6 @@ class UnitTransportationCo2DTO {
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         final Map shipConf = ((params as HashMap).get('shipConf') as HashMap)
-        Connection con = ((params as HashMap).get('con')) as Connection
 
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
@@ -91,7 +94,7 @@ class UnitTransportationCo2DTO {
                 json.put(kpiName, null)
             } else {
                 Map<String, BigDecimal> maps = JsonData.get(kpiName) as Map<String, BigDecimal>
-                BigDecimal result = calculationKpi(con, (shipConf.get(sid) as Map<String, String>), maps, coltime, sid)
+                BigDecimal result = calculationKpi((shipConf.get(sid) as Map<String, String>), maps, coltime, sid)
                 json.put(kpiName, result)
             }
             //单条数据处理结束，放入返回
@@ -113,10 +116,12 @@ class UnitTransportationCo2DTO {
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
-    static BigDecimal calculationKpi(Connection con, Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
+    static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, final String time, final String sid) {
         try {
+
             BigDecimal result = null
             Integer oilType
+            if (null == con) sqlINit()
             BigDecimal hfo = data.get(ME_USE_HFO);
             BigDecimal mdo = data.get(ME_USE_MDO);
             String key;
@@ -128,7 +133,7 @@ class UnitTransportationCo2DTO {
                 key = CF_HFO;
             }
             BigDecimal cf = new BigDecimal(configMap.get(key));
-            BigDecimal CargoMass = selectCargoMass(configMap, sid, con, time)
+            BigDecimal CargoMass = selectCargoMass(configMap, sid, time)
             String oilCalculationType = configMap.get(OIL_CALCULATION_TYPE)
             if (oilCalculationType != null && !oilCalculationType.isEmpty()) {
                 oilType = Integer.parseInt(oilCalculationType);
@@ -206,7 +211,13 @@ class UnitTransportationCo2DTO {
             return null
         }
     }
-
+    /**
+     * 获取连接
+     */
+    static void sqlINit() {
+        String conSqlName = (helper?.getProperty('parameters') as Map).get(conName) as String
+        con = (helper?.invokeMethod('getMysqlPool', null) as Map)?.get(conSqlName) as Sql
+    }
     /**
      *  selectCargoMass
      *  获取载货量
@@ -214,23 +225,15 @@ class UnitTransportationCo2DTO {
      * @param sid
      * @param con
      */
-    static BigDecimal selectCargoMass(Map<String, String> configMap, String sid, Connection con, String time) {
+    static BigDecimal selectCargoMass(Map<String, String> configMap, String sid, String time) {
         BigDecimal CargoMass = null;
-        ResultSet resultSet
-        Statement stmt
         try {
             final String sql_draft1 = ("SELECT `cargo_volume` FROM  `t_sail_voyage` where  sid =").concat(sid).concat(" order by create_time DESC;");
-            stmt = con.createStatement();
-            //查询频率计算（根据船及key）
-            resultSet = stmt.executeQuery(sql_draft1);
-            while (resultSet.next()) {
-                BigDecimal cargoMass = resultSet.getBigDecimal(1);
-                if (cargoMass != null) {
-                    CargoMass = cargoMass
-                }
+            con.eachRow(sql_draft1) {
+                res ->
+                    BigDecimal cargoMass = res.getBigDecimal(1)
+                    if (cargoMass != null) CargoMass = cargoMass
             }
-            if (!resultSet.isClosed()) resultSet.close();
-            if (!stmt.isClosed()) stmt.close();
             if (CargoMass == null) {
                 CargoMass = new BigDecimal(configMap.get(SHIP_CARGO_VOLUME));
             }
@@ -238,9 +241,6 @@ class UnitTransportationCo2DTO {
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${time}]  CargoMass [${CargoMass}] [查询载货量异常]:${e}  ")
             return CargoMass
-        } finally {
-            if (resultSet != null && !resultSet.isClosed()) resultSet.close()
-            if (stmt != null && !stmt.isClosed()) stmt.close()
         }
     }
 }
