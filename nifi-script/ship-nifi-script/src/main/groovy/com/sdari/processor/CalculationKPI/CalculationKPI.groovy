@@ -279,15 +279,17 @@ class CalculationKPI implements Processor {
                                         case kpiRoutesName:
                                             //循环 返回指标的计算结果
                                             if (kpiLists.size() > 0) {
-                                                //根据下标 获取对应的 计算指标数据
-                                                JSONObject mas = kpiLists.get(i) as JSONObject
+                                                for (data in kpiLists) {
+                                                    //根据下标 获取对应的 计算指标数据
+                                                    JSONObject mas = kpiLists.get(i) as JSONObject
+                                                    ruData.putAll(mas)
+                                                }
                                                 JSONObject originalData = returnDataList.get(i) as JSONObject
                                                 JSONObject hostData = originalData.get(host_use_oil) as JSONObject
                                                 JSONObject auxData = originalData.get(aux_use_oil) as JSONObject
                                                 JSONObject boilerData = originalData.get(boiler_oil_type) as JSONObject
                                                 def logs = log
-                                                mas = kpiDataCheck(logs, mas, hostData, auxData, boilerData)
-                                                ruData.putAll(mas)
+                                                ruData = kpiDataCheck(logs, ruData, hostData, auxData, boilerData)
                                                 returnMap.get((pch.getProperty("returnData") as String))
                                             }
                                             attributesMaps.put(tableName, tableNameByKpi)
