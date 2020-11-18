@@ -1,8 +1,7 @@
 package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 import com.alibaba.fastjson.JSONObject
-import java.sql.Connection
-import java.sql.ResultSet
+import groovy.sql.Sql
 import java.sql.Statement
 import java.text.MessageFormat
 import java.time.Instant
@@ -18,7 +17,9 @@ class StopIndexDto {
     private static String processorName
     private static routeId
     private static String currentClassName
-
+    private static GroovyObject helper
+    private static Sql con
+    static final String conName = "con.name"
     //指标名称
     private static kpiName = 'stop'
     //计算相关参数
@@ -36,11 +37,12 @@ class StopIndexDto {
     final static String column_id = 'column_id'
     final static String schema_id = 'schema_id'
 
-    StopIndexDto(final def logger, final int pid, final String pName, final int rid) {
+    StopIndexDto(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
+        helper = pch
         currentClassName = this.class.canonicalName
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
@@ -52,10 +54,11 @@ class StopIndexDto {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
+        final Map<String, Map<String, GroovyObject>> rules = (helper?.invokeMethod('getTStreamRules',null) as Map<String, Map<String, GroovyObject>>)
         final Map shipConf = ((params as HashMap).get('shipConf') as HashMap)
-        Connection con = ((params as HashMap).get('con')) as Connection
+
+        if (null == con) sqlINit()
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             JSONObject json = new JSONObject()
@@ -70,7 +73,8 @@ class StopIndexDto {
                 json.put(kpiName, null)
             } else {
                 Map<String, BigDecimal> maps = JsonData.get(kpiName) as Map<String, BigDecimal>
-                BigDecimal result = calculationKpi(con, (shipConf.get(sid) as Map<String, String>), maps, rules.get(sid), coltime, sid)
+                Map<String, GroovyObject> rule= rules.get(sid) as Map<String, GroovyObject>
+                BigDecimal result = calculationKpi((shipConf.get(sid) as Map<String, String>), maps,rule, coltime, sid)
                 json.put(kpiName, result)
             }
             //单条数据处理结束，放入返回
@@ -78,14 +82,19 @@ class StopIndexDto {
             attributesListReturn.add(jsonAttributesFormer)
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('shipConf', shipConf)
         returnMap.put('data', dataListReturn)
         returnMap.put('parameters', processorConf)
         returnMap.put('attributes', attributesListReturn)
         return returnMap
     }
-
+    /**
+     * 获取连接
+     */
+    static void sqlINit() {
+        String conSqlName = (helper?.getProperty('parameters') as Map).get(conName) as String
+        con = (helper?.invokeMethod('getMysqlPool', null) as Map)?.get(conSqlName) as Sql
+    }
     /**
      * 航行状态的计算公式
      * 计算 工况判别， 停泊/ 机动/ 定速航行
@@ -98,15 +107,14 @@ class StopIndexDto {
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
-    static BigDecimal calculationKpi(Connection con, Map<String, String> configMap, Map<String, BigDecimal> data, Map<String, JSONObject> rules, final String time, final String sid) {
+    static BigDecimal calculationKpi(Map<String, String> configMap, Map<String, BigDecimal> data, Map<String, GroovyObject> rules, final String time, final String sid) {
         Statement statement
         try {
             BigDecimal result
-            statement = con.createStatement()
             Double meVar_double = null
             try {
                 Map<String, String> stringMap = getDataByInner_key(me_ecs_speed, rules)
-                if (null != stringMap) meVar_double = selectVarMe(statement, time, stringMap)
+                if (null != stringMap) meVar_double = selectVarMe(time, stringMap)
             } catch (Exception e) {
                 log.error("[${sid}] [${kpiName}] [${time}] selectVarMe:查询方差报错 ${e} ")
             }
@@ -120,7 +128,6 @@ class StopIndexDto {
             if (yrpm != null && !yrpm.isEmpty()) {
                 YRPM = new BigDecimal(yrpm)
             }
-            if (!statement.isClosed()) statement.close()
             // 获取转速
             BigDecimal n = data.get(me_ecs_speed)
             if (n == null || XRPM == null || YRPM == null) {
@@ -131,10 +138,10 @@ class StopIndexDto {
             if (null != n && n < XRPM) {
                 // 停泊
                 result = BigDecimal.valueOf(0)
-            } else if (null != meVar_double && BigDecimal.valueOf(meVar_double) > YRPM) {
+            } else if (null != meVar_double && meVar_double > YRPM) {
                 // 机动航行
                 result = BigDecimal.valueOf(1)
-            } else if (null != meVar_double && BigDecimal.valueOf(meVar_double) < YRPM) {
+            } else if (null != meVar_double && meVar_double < YRPM) {
                 // 匀速航行
                 result = BigDecimal.valueOf(2)
             } else {//如果没有标准差就按照当前实时值计算
@@ -161,7 +168,7 @@ class StopIndexDto {
      * @param getTime
      * @param rules
      */
-    static Double selectVarMe(Statement statement, String getTime, Map<String, String> rules) throws Exception {
+    static Double selectVarMe(String getTime, Map<String, String> rules) throws Exception {
         Double standardDeviation = null
         String sql_data = MessageFormat.format("SELECT {0} FROM {1} WHERE coltime >=  ''{2}'' LIMIT 3600;",
                 rules.get(column_id), rules.get(table_id),
@@ -169,13 +176,12 @@ class StopIndexDto {
                         .replace("T", " ").replace("Z", ""))
         List<Double> meSpeedList = new ArrayList<>()
         if (null != sql_data) {
-            ResultSet res_data = statement.executeQuery(sql_data)
-            while (res_data.next()) {
-                if (null != res_data.getBigDecimal(1)) {
-                    meSpeedList.add(res_data.getDouble(1))
-                }
+            con.eachRow(sql_data) {
+                res ->
+                    if (null != res.getBigDecimal(1)) {
+                        meSpeedList.add(res.getDouble(1))
+                    }
             }
-            if (!res_data.isClosed()) res_data.close()
             if (meSpeedList.size() > 0) {
                 Double[] arrays = new Double[meSpeedList.size()]
                 standardDeviation = standardDeviationByMethod(meSpeedList.toArray(arrays))
@@ -207,23 +213,23 @@ class StopIndexDto {
      * 根据 inner_Key
      * 获取储存的库名,表名,字段名
      */
-    static Map<String, String> getDataByInner_key(String inner_key, Map<String, JSONObject> rules) {
-        List<Map<String,String>> warehousingList
+    static Map<String, String> getDataByInner_key(String inner_key, Map<String, GroovyObject> rules) {
+        List<GroovyObject> warehousingList
         Map<String, String> data = new HashMap<>()
         if (rules != null) {
             rules.keySet().forEach({ doss_key ->
-                JSONObject rule = rules.get(doss_key)
-                String innerKey = rule.get('inner_key') as String
+                GroovyObject rule = rules.get(doss_key)
+                String innerKey = rule.getProperty('inner_key') as String
                 if (inner_key == innerKey) {
-                    warehousingList = rule.get('warehousing') as List<Map<String,String>>
+                    warehousingList = rule.getProperty('warehousing') as List<GroovyObject>
                 }
             })
         }
         if (null != warehousingList) {
-            for (Map<String,String> warehousing : warehousingList) {
-                data.put(schema_id, warehousing.get(schema_id) as String)
-                data.put(table_id, warehousing.get(table_id) as String)
-                data.put(column_id, warehousing.get(column_id) as String)
+            for (GroovyObject warehousing : warehousingList) {
+                data.put(schema_id, warehousing.getProperty(schema_id) as String)
+                data.put(table_id, warehousing.getProperty(table_id) as String)
+                data.put(column_id, warehousing.getProperty(column_id) as String)
                 return data
             }
         }

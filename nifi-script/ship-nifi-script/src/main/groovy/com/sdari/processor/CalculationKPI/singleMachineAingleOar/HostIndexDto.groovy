@@ -8,9 +8,7 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 主机油耗
- * @author Liumouren
- * @date 2020-09-21 17:17:00
+ * @kpiName: 主机油耗* @author Liumouren* @date 2020-09-21 17:17:00
  */
 class HostIndexDto {
     private static log
@@ -18,17 +16,19 @@ class HostIndexDto {
     private static String processorName
     private static routeId
     private static String currentClassName
-
+    private static GroovyObject helper
     //指标名称
     private static kpiName = 'host_oil'
     //计算相关参数
     final static String SID = 'sid'
+    final static String COLTIME = 'coltime'
 
-    HostIndexDto(final def logger, final int pid, final String pName, final int rid) {
+    HostIndexDto(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
+        helper = pch
         currentClassName = this.class.canonicalName
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
@@ -40,7 +40,6 @@ class HostIndexDto {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         final Map shipConf = ((params as HashMap).get('shipConf') as HashMap)
         //循环list中的每一条数据
@@ -50,8 +49,8 @@ class HostIndexDto {
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            String coltime = String.valueOf(Instant.now())
-            //  String coltime = jsonAttributesFormer.get(COLTIME)
+            //  String coltime = String.valueOf(Instant.now())
+            String coltime = jsonAttributesFormer.get(COLTIME)
             //判断数据里是否 有 当前计算指标数据
             if (!JsonData.containsKey(kpiName)) {
                 log.debug("[${sid}] [${kpiName}] [没有当前指标 计算所需的数据] result[${null}] ")
@@ -66,7 +65,6 @@ class HostIndexDto {
             attributesListReturn.add(jsonAttributesFormer)
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('shipConf', shipConf)
         returnMap.put('data', dataListReturn)
         returnMap.put('parameters', processorConf)
@@ -86,7 +84,7 @@ class HostIndexDto {
             Integer OIL_CALCULATION_TYPE
             String a = configMap.get("OIL_CALCULATION_TYPE");
             if (a != null && !a.isEmpty()) {
-                OIL_CALCULATION_TYPE= Integer.parseInt(a);
+                OIL_CALCULATION_TYPE = Integer.parseInt(a);
             } else {
                 log.error("主机油耗计算方式查询有误 NULL，使用默认初始值:OIL_CALCULATION_TYPE [1] 异常为：");
                 OIL_CALCULATION_TYPE = 1;

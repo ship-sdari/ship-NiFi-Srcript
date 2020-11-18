@@ -8,9 +8,7 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 主机用油
- * @author Liumouren
- * @date 2020-09-21 17:51:00
+ * @kpiName: 主机用油* @author Liumouren* @date 2020-09-21 17:51:00
  */
 class HostUseOilDTO {
     private static log
@@ -18,17 +16,19 @@ class HostUseOilDTO {
     private static String processorName
     private static routeId
     private static String currentClassName
-
+    private static GroovyObject helper
     //指标名称
     private static kpiName = 'host_use_oil'
     //计算相关参数
     final static String SID = 'sid'
+    final static String COLTIME = 'coltime'
 
-    HostUseOilDTO(final def logger, final int pid, final String pName, final int rid) {
+    HostUseOilDTO(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
+        helper = pch
         currentClassName = this.class.canonicalName
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
@@ -50,8 +50,8 @@ class HostUseOilDTO {
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            String coltime = String.valueOf(Instant.now())
-            //  String coltime = jsonAttributesFormer.get(COLTIME)
+            //  String coltime = String.valueOf(Instant.now())
+            String coltime = jsonAttributesFormer.get(COLTIME)
             //判断数据里是否 有 当前计算指标数据
             if (!JsonData.containsKey(kpiName)) {
                 log.debug("[${sid}] [${kpiName}] [没有当前指标 计算所需的数据] result[${null}] ")
@@ -88,16 +88,16 @@ class HostUseOilDTO {
             BigDecimal meUseHfoStr = data.get("me_use_hfo");
             //主机使用柴油/轻柴油指示
             BigDecimal meUseMdoStr = data.get("me_use_mdo");
-            if(null==meUseHfoStr&&null==meUseMdoStr){
+            if (null == meUseHfoStr && null == meUseMdoStr) {
                 log.debug("[${sid}] [${kpiName}] [${time}] 主机使用重油指示[${meUseHfoStr}] 主机使用柴油/轻柴油指示[${meUseMdoStr}] result[${null}] ")
                 return null;
             }
             //计算
-            if (null!=meUseHfoStr&& meUseHfoStr == BigDecimal.ONE) {
+            if (null != meUseHfoStr && meUseHfoStr == BigDecimal.ONE) {
                 result = BigDecimal.valueOf(0);
-            }else if (null!=meUseMdoStr&& meUseMdoStr == BigDecimal.ONE){
+            } else if (null != meUseMdoStr && meUseMdoStr == BigDecimal.ONE) {
                 result = BigDecimal.valueOf(1);
-            }else if(null!=meUseMdoStr&& meUseMdoStr == BigDecimal.ZERO){
+            } else if (null != meUseMdoStr && meUseMdoStr == BigDecimal.ZERO) {
                 result = BigDecimal.valueOf(0);
             }
             log.debug("[${sid}] [${kpiName}] [${time}] 主机使用重油指示[${meUseHfoStr}] 主机使用柴油/轻柴油指示[${meUseMdoStr}] result[${result}] ")

@@ -8,9 +8,7 @@ import java.time.Instant
 /**
  *
  * @type: （单机单桨）
- * @kpiName: 辅机油耗率
- * @author Liumouren
- * @date 2020-09-21 14:57:00
+ * @kpiName: 辅机油耗率* @author Liumouren* @date 2020-09-21 14:57:00
  */
 class AuxOilRateDTO {
     private static log
@@ -18,7 +16,7 @@ class AuxOilRateDTO {
     private static String processorName
     private static routeId
     private static String currentClassName
-
+    private static GroovyObject helper
     //指标名称
     private static kpiName = 'aux_oil_rate'
     //计算相关参数
@@ -27,11 +25,12 @@ class AuxOilRateDTO {
 
     final static BigDecimal slipperyValue = BigDecimal.valueOf(0.514 * 60)
 
-    AuxOilRateDTO(final def logger, final int pid, final String pName, final int rid) {
+    AuxOilRateDTO(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
+        helper = pch
         currentClassName = this.class.canonicalName
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
@@ -43,7 +42,6 @@ class AuxOilRateDTO {
         def attributesListReturn = []
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         final Map shipConf = ((params as HashMap).get('shipConf') as HashMap)
         //循环list中的每一条数据
@@ -53,8 +51,8 @@ class AuxOilRateDTO {
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
-            String coltime = String.valueOf(Instant.now())
-            //  String coltime = jsonAttributesFormer.get(COLTIME)
+            // String coltime = String.valueOf(Instant.now())
+            String coltime = jsonAttributesFormer.get(COLTIME)
             //判断数据里是否 有 当前计算指标数据
             if (!JsonData.containsKey(kpiName)) {
                 log.debug("[${sid}] [${kpiName}] [没有当前指标 计算所需的数据] result[${null}] ")
@@ -69,7 +67,6 @@ class AuxOilRateDTO {
             attributesListReturn.add(jsonAttributesFormer)
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('shipConf', shipConf)
         returnMap.put('data', dataListReturn)
         returnMap.put('parameters', processorConf)
@@ -91,7 +88,7 @@ class AuxOilRateDTO {
             Integer OIL_CALCULATION_TYPE = Integer.valueOf(configMap.get('OIL_CALCULATION_TYPE'))
             if (OIL_CALCULATION_TYPE == null) {
                 log.error("辅机油耗计算方式查询有误 NULL，使用默认初始值:OIL_CALCULATION_TYPE [1] 异常为：")
-                OIL_CALCULATION_TYPE= 1;
+                OIL_CALCULATION_TYPE = 1;
             }
             // 辅机流入流量
             BigDecimal inRate
@@ -125,10 +122,10 @@ class AuxOilRateDTO {
             String split;
             String a = configMap.get("AUX_OIL_RATE_VALUE");
             if (a != null && !a.isEmpty()) {
-                split=a;
+                split = a;
             } else {
                 log.error("辅机油耗率计算频率查询 null，使用默认初始值:setSplit[1345,1250]");
-                split="1345,1250";
+                split = "1345,1250";
             }
             String[] splits = split.split(",");
             BigDecimal auxOilRateParamValue = BigDecimal.valueOf(Double.parseDouble(splits[0]))

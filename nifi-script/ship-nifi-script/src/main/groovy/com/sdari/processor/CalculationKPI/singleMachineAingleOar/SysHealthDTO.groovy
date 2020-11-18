@@ -1,10 +1,7 @@
 package com.sdari.processor.CalculationKPI.singleMachineAingleOar
 
 import com.alibaba.fastjson.JSONObject
-
-import java.sql.Connection
-import java.sql.ResultSet
-import java.sql.Statement
+import groovy.sql.Sql
 import java.text.SimpleDateFormat
 import java.util.concurrent.ConcurrentHashMap
 
@@ -19,7 +16,9 @@ class SysHealthDTO {
     private static String processorName
     private static routeId
     private static String currentClassName
-
+    private static GroovyObject helper
+    private static Sql con
+    static final String conName = "con.name"
     //指标名称
     private static kpiName = 'sys_health'
     //计算相关参数
@@ -28,11 +27,12 @@ class SysHealthDTO {
     final static long timeSum = 60 * 60 * 60 * 24 * 1000
     static Map<String, BigDecimal> NumInMinute = new ConcurrentHashMap<>()
 
-    SysHealthDTO(final def logger, final int pid, final String pName, final int rid) {
+    SysHealthDTO(final def logger, final int pid, final String pName, final int rid, GroovyObject pch) {
         log = logger
         processorId = pid
         processorName = pName
         routeId = rid
+        helper = pch
         currentClassName = this.class.canonicalName
         log.info "[Processor_id = ${processorId} Processor_name = ${processorName} Route_id = ${routeId} Sub_class = ${currentClassName}] 初始化成功！"
     }
@@ -42,23 +42,22 @@ class SysHealthDTO {
         def returnMap = [:]
         def dataListReturn = []
         def attributesListReturn = []
+        final Map<String, Map<String, GroovyObject>> rules = (helper?.invokeMethod('getTStreamRules', null) as Map<String, Map<String, GroovyObject>>)
         final List<JSONObject> dataList = (params as HashMap).get('data') as ArrayList
         final List<JSONObject> attributesList = ((params as HashMap).get('attributes') as ArrayList)
-        final Map<String, Map<String, JSONObject>> rules = ((params as HashMap).get('rules') as Map<String, Map<String, JSONObject>>)
         final Map processorConf = ((params as HashMap).get('parameters') as HashMap)
         final Map shipConf = ((params as HashMap).get('shipConf') as HashMap)
-        Connection con = ((params as HashMap).get('con')) as Connection
 
+        if (null == con) sqlINit()
         //循环list中的每一条数据
         for (int i = 0; i < dataList.size(); i++) {
             JSONObject json = new JSONObject()
-            final JSONObject JsonData = (dataList.get(i) as JSONObject)
             final JSONObject jsonAttributesFormer = (attributesList.get(i) as JSONObject)
 
             String sid = jsonAttributesFormer.get(SID)
             String coltime = jsonAttributesFormer.get(COLTIME)
             if (!NumInMinute.containsKey(sid)) {
-                Map<String, JSONObject> rule = rules.get(sid)
+                Map<String, GroovyObject> rule = rules.get(sid) as Map<String, GroovyObject>
                 InstallNumInMinute(rule, sid, coltime)
             }
             //String coltime = String.valueOf(Instant.now())
@@ -68,7 +67,7 @@ class SysHealthDTO {
                 json.put(kpiName, null)
             } else {
                 log.debug("[${sid}] [${kpiName}] [当前sid 数据总条数] sum [${NumInMinute.get(sid)}] ")
-                BigDecimal result = calculationKpi(con, coltime, sid)
+                BigDecimal result = calculationKpi(coltime, sid)
                 json.put(kpiName, result)
             }
             //单条数据处理结束，放入返回
@@ -76,7 +75,6 @@ class SysHealthDTO {
             attributesListReturn.add(jsonAttributesFormer)
         }
         //全部数据处理完毕，放入返回数据后返回
-        returnMap.put('rules', rules)
         returnMap.put('shipConf', shipConf)
         returnMap.put('data', dataListReturn)
         returnMap.put('parameters', processorConf)
@@ -89,8 +87,8 @@ class SysHealthDTO {
      * @param configMap 相关系统配置
      * @param data 参与计算的信号值<innerKey,value></>
      */
-    static BigDecimal calculationKpi(Connection con, final String time, final String sid) {
-        BigDecimal result = null
+    static BigDecimal calculationKpi(final String time, final String sid) {
+        BigDecimal result
         try {
             BigDecimal numInMinute = NumInMinute.get(sid) as BigDecimal
             if (null == numInMinute) return null
@@ -109,7 +107,7 @@ class SysHealthDTO {
             //      得到今天零时到当前时间的分钟数
             int DateInt = DateByInt(sid, at)
 
-            Integer sumNum = selectAbnormalAndDel(con, sid, dateFormatyMd.format(newDate), dateFormat.format(newDate), dateFormat.format(toDate))
+            Integer sumNum = selectAbnormalAndDel(sid, dateFormatyMd.format(newDate), dateFormat.format(newDate), dateFormat.format(toDate))
             if (sumNum == null || sumNum == 0) {
                 result = BigDecimal.valueOf(100d)
             } else {
@@ -122,46 +120,40 @@ class SysHealthDTO {
             return null
         }
     }
-
+    /**
+     * 获取连接
+     */
+    static void sqlINit() {
+        String conSqlName = (helper?.getProperty('parameters') as Map).get(conName) as String
+        con = (helper?.invokeMethod('getMysqlPool', null) as Map)?.get(conSqlName) as Sql
+    }
     /**
      * 配置查询
      * startTime : 00:00:00
      * endTime : new date()
      * delTIme : new Date(-2day())
      */
-    static Integer selectAbnormalAndDel(Connection conn, String sid, String startTime, String endTime, String delTime) {
-        Statement stmt1
-        ResultSet rs1
-        Statement stmt2
+    static Integer selectAbnormalAndDel(String sid, String startTime, String endTime, String delTime) {
         try {
             final String sql_draft1 = "SELECT COUNT(id) from `t_ship_abnormal` where sid =".concat(sid).concat(" and create_time > '").concat(startTime).concat("' and create_time < '".concat(endTime).concat("' ;"))
             final String sql_draft2 = "delete from t_ship_abnormal WHERE sid =".concat(sid).concat(" and create_time < '".concat(delTime).concat("' ;"))
             int s = 0
-            stmt1 = conn.createStatement()
-            //得到当前时间到今天凌晨的所有异常数据个数
-            rs1 = stmt1.executeQuery(sql_draft1)
-            while (rs1.next()) {
-                s = (rs1.getInt(1))
+            con.eachRow(sql_draft1) {
+                res ->
+                    s = res.getInt(1)
             }
-            if (!rs1.isClosed()) rs1.close()
-            if (!stmt1.isClosed()) stmt1.close()
 //          删除两天前的当前时间的异常数据
-            stmt2 = conn.createStatement()
-            //查询频率计算（根据船及key）
             try {
-                stmt2.execute(sql_draft2)
+                con.execute(sql_draft2)
                 log.debug("[${sid}] [${kpiName}] [${startTime}] 两天前的异常数据删除成功！")
             } catch (Exception e) {
                 log.debug("[${sid}] [${kpiName}] [${startTime}] 两天前的异常数据删除失败！e[${e}]")
             }
-            if (!stmt2.isClosed()) stmt2.close()
             return s
         } catch (Exception e) {
             log.error("[${sid}] [${kpiName}] [${startTime}] 得到当前时间到今天凌晨的所有异常数据个数、两天前的异常数据删除出现异常 ，使用默认初始值:SumNum [0] 异常为：[${e}]")
         } finally {
-            if (rs1 != null && !rs1.isClosed()) rs1.close()
-            if (stmt1 != null && !stmt1.isClosed()) stmt1.close()
-            if (stmt2 != null && !stmt2.isClosed()) stmt2.close()
+
         }
     }
 
@@ -225,19 +217,19 @@ class SysHealthDTO {
      * 根据配置表统计 当前sid  数据总数
      * @param rules
      */
-    static void InstallNumInMinute(Map<String, JSONObject> rules, String sid, String time) {
+    static void InstallNumInMinute(Map<String, GroovyObject> rules, String sid, String time) {
         try {
             Map<Long, Set<String>> data = new HashMap<>()
             if (rules != null) {
-                for (JSONObject rule : rules.values()) {
+                for (GroovyObject rule : rules.values()) {
 
-                    for (Map<String, String> warehousing : rule.get('collection') as List<Map<String, String>>) {
-                        Long freq = warehousing.get('col_freq') as Long
+                    for (GroovyObject warehousing : rule.getProperty('collection') as List<GroovyObject>) {
+                        Long freq = warehousing.getProperty('col_freq') as Long
                         if (data.containsKey(freq)) {
-                            data.get(freq).add(warehousing.get('doss_key'))
+                            data.get(freq).add(warehousing.getProperty('doss_key') as String)
                         } else {
                             Set<String> ru = new HashSet<>()
-                            ru.add(warehousing.get('doss_key'))
+                            ru.add(warehousing.getProperty('doss_key') as String)
                             data.put(freq, ru)
                         }
                     }
