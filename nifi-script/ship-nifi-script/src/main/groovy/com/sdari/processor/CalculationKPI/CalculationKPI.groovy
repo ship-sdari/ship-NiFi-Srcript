@@ -233,8 +233,6 @@ class CalculationKPI implements Processor {
                                             //根据路由名称 获取脚本实体GroovyObject instance
                                             final GroovyObject instance = pch.invokeMethod("getScriptMapByName", (subClassDTO.getProperty('sub_script_name') as String)) as GroovyObject
                                             //执行详细脚本方法 [calculation ->脚本方法名] [objects -> 详细参数]
-                                            log.info "[Processor_id = ${id} Processor_name = ${currentClassName}] Route = ${routeName}"
-
                                             switch (routeName) {
                                                 case kpiRoutesName:
                                                     Map returnMat = (instance.invokeMethod(pch.getProperty("funName") as String, returnMap) as Map)
